@@ -1,0 +1,8 @@
+streamlit
+yfinance
+pandas
+requests
+google-cloud-bigquery
+python-dotenv
+pandas-gbq
+numpy
