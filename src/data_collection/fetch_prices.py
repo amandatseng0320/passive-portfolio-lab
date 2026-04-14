@@ -13,6 +13,31 @@ load_dotenv()
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.processing.screening import get_all_candidates
 
+def apply_manual_adjustments(df, ticker):
+    """
+    Apply manual price adjustments for known issues not captured by yfinance.
+    
+    Known adjustments:
+    - 0050.TW: On 2014-01-02, a 4:1 stock split occurred.
+      This adjustment is based on observed price discontinuity 
+      in the raw data (37.41 on 2013-12-31 vs 9.33 on 2014-01-02).
+      The split ratio 4:1 is derived from 37.41 / 9.33 ≈ 4.0.
+      yfinance does not record this split because it is a Taiwan 
+      market zero-share split (零股分割), not a standard 
+      international stock split.
+    """
+    if ticker == '0050.TW' and not df.empty:
+        mask = df['date'] < '2014-01-02'
+        
+        for col in ['open', 'high', 'low', 'close']:
+            if col in df.columns:
+                df.loc[mask, col] = (df.loc[mask, col] / 4.0).astype(float).round(6)
+                
+        if 'volume' in df.columns:
+            df.loc[mask, 'volume'] = (df.loc[mask, 'volume'] * 4).astype('int64')
+            
+    return df
+
 def fetch_prices(tickers_df):
     """
     Fetch the longest available historical daily price data for all candidate assets.
@@ -31,7 +56,7 @@ def fetch_prices(tickers_df):
         print(f"Fetching data for {ticker}...")
         try:
             # Fetch data from Yahoo Finance
-            df = yf.download(ticker, start=start_date, end=end_date, progress=False)
+            df = yf.download(ticker, start=start_date, end=end_date, progress=False, auto_adjust=True)
             
             if df.empty:
                 print(f"No pricing data found for {ticker}. Skipping.")
@@ -77,6 +102,8 @@ def fetch_prices(tickers_df):
             if 'volume' in df.columns:
                 df['volume'] = df['volume'].fillna(0).astype('int64')
                 
+            df = apply_manual_adjustments(df, ticker)
+            
             all_data.append(df)
             
         except Exception as e:
