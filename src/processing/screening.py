@@ -44,7 +44,7 @@ def get_tw_etf_ranking():
                 "aum_or_market_cap": aum,
                 "currency": "TWD"
             })
-            if len(results) == 5:
+            if len(results) == 10:
                 break
         return pd.DataFrame(results)
     except Exception as e:
@@ -75,8 +75,7 @@ def get_us_etf_ranking():
             name = a_tags[1].get_text(strip=True)
             if not ticker:
                 continue
-            aum_cell = cells[1]
-            aum = aum_cell.get_text(strip=True)
+            aum = cells[1].get_text(strip=True)
             results.append({
                 "rank": rank,
                 "ticker": ticker,
@@ -87,7 +86,7 @@ def get_us_etf_ranking():
                 "currency": "USD"
             })
             rank += 1
-            if len(results) == 5:
+            if len(results) == 10:
                 break
         return pd.DataFrame(results)
     except Exception as e:
@@ -95,12 +94,32 @@ def get_us_etf_ranking():
         return pd.DataFrame(columns=["rank","ticker","name","category","source","aum_or_market_cap","currency"])
 
 
+def get_defensive_etf_list():
+    """
+    Returns a fixed list of defensive ETFs (bonds, gold, commodities).
+    These are manually curated as they require domain knowledge to identify.
+    """
+    defensive_assets = [
+        {"rank": 1, "ticker": "TLT",  "name": "iShares 20+ Year Treasury Bond ETF", "category": "DEFENSIVE", "source": "Manual", "aum_or_market_cap": "N/A", "currency": "USD"},
+        {"rank": 2, "ticker": "IEF",  "name": "iShares 7-10 Year Treasury Bond ETF","category": "DEFENSIVE", "source": "Manual", "aum_or_market_cap": "N/A", "currency": "USD"},
+        {"rank": 3, "ticker": "BND",  "name": "Vanguard Total Bond Market ETF",      "category": "DEFENSIVE", "source": "Manual", "aum_or_market_cap": "N/A", "currency": "USD"},
+        {"rank": 4, "ticker": "GLD",  "name": "SPDR Gold Shares",                    "category": "DEFENSIVE", "source": "Manual", "aum_or_market_cap": "N/A", "currency": "USD"},
+        {"rank": 5, "ticker": "DBC",  "name": "Invesco DB Commodity Index ETF",      "category": "DEFENSIVE", "source": "Manual", "aum_or_market_cap": "N/A", "currency": "USD"},
+    ]
+    return pd.DataFrame(defensive_assets)
+
+
 def get_crypto_ranking():
+    """
+    Fetch top crypto by market cap from CoinGecko, excluding stablecoins.
+    HYPE (Hyperliquid) is added manually as rank 10 since it may not appear
+    in the standard top-10 API results but is ranked ~#13 by market cap.
+    """
     try:
-        url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1"
+        url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1"
         response = requests.get(url, headers=HEADERS, verify=False)
         data = response.json()
-        exclude_symbols = {'usdt','usdc','busd','dai','tusd','fdusd','usds'}
+        exclude_symbols = {'usdt','usdc','busd','dai','tusd','fdusd','usds','usde','wbtc','wsteth','figr_heloc'}
         results = []
         rank = 1
         for coin in data:
@@ -117,8 +136,20 @@ def get_crypto_ranking():
                 "currency": "USD"
             })
             rank += 1
-            if len(results) == 5:
+            if len(results) == 9:
                 break
+
+        # Manually add HYPE as rank 10
+        results.append({
+            "rank": 10,
+            "ticker": "HYPE-USD",
+            "name": "Hyperliquid",
+            "category": "CRYPTO",
+            "source": "CoinGecko",
+            "aum_or_market_cap": "~10B",
+            "currency": "USD"
+        })
+
         return pd.DataFrame(results)
     except Exception as e:
         print(f"Error fetching Crypto ranking: {e}")
@@ -128,10 +159,14 @@ def get_crypto_ranking():
 def get_all_candidates():
     tw_df = get_tw_etf_ranking()
     us_df = get_us_etf_ranking()
+    defensive_df = get_defensive_etf_list()
     crypto_df = get_crypto_ranking()
-    return pd.concat([tw_df, us_df, crypto_df], ignore_index=True)
+    combined = pd.concat([tw_df, us_df, defensive_df, crypto_df], ignore_index=True)
+    return combined.drop_duplicates(subset='ticker', keep='first').reset_index(drop=True)
 
 
 if __name__ == "__main__":
     candidates = get_all_candidates()
     print(candidates.to_string())
+    print(f"\nTotal candidates: {len(candidates)}")
+    print(f"By category:\n{candidates['category'].value_counts()}")
