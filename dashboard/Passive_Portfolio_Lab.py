@@ -4,6 +4,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import pandas_gbq
 import plotly.graph_objects as go
 import plotly.express as px
@@ -64,15 +65,25 @@ def load_metrics():
     return pandas_gbq.read_gbq(query, project_id=project_id)
 
 def fetch_price_and_volume(tickers: list) -> dict:
-    """Fetch current price and volume for each ticker using yfinance."""
-    import yfinance as yf
+    """
+    Fetch current price and volume directly from Yahoo Finance REST API.
+    More stable than yfinance library which breaks when Yahoo changes their backend.
+    """
+    import requests
     result = {}
+    headers = {'User-Agent': 'Mozilla/5.0'}
     for ticker in tickers:
         try:
-            info = yf.Ticker(ticker).fast_info
+            url = f'https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=5d'
+            r = requests.get(url, headers=headers, timeout=10)
+            data = r.json()
+            close = data['chart']['result'][0]['indicators']['quote'][0]['close']
+            volume = data['chart']['result'][0]['indicators']['quote'][0]['volume']
+            close = [x for x in close if x is not None]
+            volume = [x for x in volume if x is not None]
             result[ticker] = {
-                'price': round(float(info.last_price), 2),
-                'volume': int(info.three_month_average_volume) if hasattr(info, 'three_month_average_volume') and info.three_month_average_volume else None
+                'price': round(close[-1], 2),
+                'volume': int(volume[-1]) if volume else None
             }
         except Exception:
             result[ticker] = {'price': None, 'volume': None}
@@ -132,9 +143,8 @@ pool_df = candidates_with_currency.merge(
 )
 
 # ── Fetch current prices ───────────────────────────────────────────────────────
-if 'market_data' not in st.session_state:
-    with st.spinner("Fetching current prices and volume..."):
-        st.session_state.market_data = fetch_price_and_volume(pool_df['ticker'].tolist())
+with st.spinner("Fetching current prices and volume..."):
+    st.session_state.market_data = fetch_price_and_volume(pool_df['ticker'].tolist())
 
 pool_df['price'] = pool_df['ticker'].map(lambda t: st.session_state.market_data.get(t, {}).get('price'))
 pool_df['volume'] = pool_df['ticker'].map(lambda t: st.session_state.market_data.get(t, {}).get('volume'))
@@ -201,44 +211,75 @@ filtered = filtered.sort_values(['_cat_order', 'cagr'], ascending=[True, False])
 
 # ── Helper: build display dataframe ───────────────────────────────────────────
 def build_display_df(df):
-    d = df[['ticker', 'name', 'category', 'price_display', 'volume_display',
+    d = df[['ticker', 'name', 'category', 'price_display', 'volume',
             'cagr', 'volatility', 'max_drawdown', 'worst_year', 'worst_year_label']].copy()
-    d['cagr'] = d['cagr'].apply(lambda x: f"{x:.2%}" if pd.notnull(x) else "N/A")
-    d['volatility'] = d['volatility'].apply(lambda x: f"{x:.2%}" if pd.notnull(x) else "N/A")
-    d['max_drawdown'] = d['max_drawdown'].apply(lambda x: f"{x:.2%}" if pd.notnull(x) else "N/A")
-    d['worst_year'] = d['worst_year'].apply(lambda x: f"{x:.2%}" if pd.notnull(x) else "N/A")
+    # Multiply by 100 so column_config format="%.2f%%" displays correctly
+    for col in ['cagr', 'volatility', 'max_drawdown', 'worst_year']:
+        d[col] = d[col].apply(lambda x: round(x * 100, 4) if pd.notnull(x) else None)
     d['worst_year_label'] = d['worst_year_label'].apply(lambda x: str(int(x)) if pd.notnull(x) else "N/A")
     d.columns = ['Ticker', 'Name', 'Category', 'Price', 'Volume',
                  'Ann. Return', 'Volatility', 'Max Drawdown', 'Worst Year Ret.', 'Worst Year']
     return d
 
 # ── Asset Pool ─────────────────────────────────────────────────────────────────
-st.markdown(f"#### Asset Pool — {len(filtered)} assets")
+@st.fragment
+def render_asset_pool():
+    with st.expander("📋 How assets are selected", expanded=False):
+        st.markdown("""
+        The **27 assets** in this pool were selected using a two-step process:
 
-filtered_reset = filtered.reset_index(drop=True)
-display_df = build_display_df(filtered_reset)
+        **Step 1 — Universe by trading volume ranking:**
+        Assets were sourced from four categories ranked by AUM or market cap:
+        - **TW ETF** (5): Top 5 Taiwan ETFs by AUM from MoneyDJ
+        - **US ETF** (10): Top 10 US ETFs by AUM from TradingView (includes GLD as a commodity ETF)
+        - **Defensive** (4): Bond and commodity ETFs representing stable, low-correlation asset classes — TLT, IEF, BND, DBC
+        - **Crypto** (9): Top 9 non-stablecoin cryptocurrencies by market cap from CoinGecko (stablecoins and wrapped tokens excluded)
 
-editor_df = display_df.copy()
-editor_df.insert(0, 'Add', False)
+        **Step 2 — Data quality filter:**
+        Assets were retained only if sufficient historical price data was available to calculate CAGR, volatility, max drawdown, and Sharpe ratio. Assets with incomplete data were excluded.
 
-edited = st.data_editor(
-    editor_df,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "Add": st.column_config.CheckboxColumn("＋", width="small"),
-    },
-    disabled=[c for c in editor_df.columns if c != 'Add'],
-    key="asset_pool_editor"
-)
+        All metrics are calculated from the full available price history for each asset using daily closing prices from Yahoo Finance, stored in Google BigQuery.
+        """)
 
-selected_tickers = filtered_reset.loc[edited['Add'] == True, 'ticker'].tolist()
-if selected_tickers:
-    if st.button(f"Add {len(selected_tickers)} asset(s) to Watchlist", type="primary", key="add_to_watchlist"):
-        for t in selected_tickers:
-            if t not in st.session_state.watchlist:
-                st.session_state.watchlist.append(t)
-        st.rerun()
+    st.markdown("#### Asset Pool")
+
+    CATEGORY_ORDER = {'TW_ETF': 0, 'US_ETF': 1, 'DEFENSIVE': 2, 'CRYPTO': 3}
+    sorted_filtered = filtered.copy()
+    sorted_filtered['_cat_order'] = sorted_filtered['category'].map(CATEGORY_ORDER).fillna(99)
+    sorted_filtered = sorted_filtered.sort_values(['_cat_order', 'cagr'], ascending=[True, False]).drop(columns=['_cat_order'])
+
+    filtered_reset = sorted_filtered.reset_index(drop=True)
+    display_df = build_display_df(filtered_reset)
+
+    editor_df = display_df.copy()
+    editor_df.insert(0, 'Add', False)
+
+    edited = st.data_editor(
+        editor_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Add": st.column_config.CheckboxColumn("＋", width="small"),
+            "Volume": st.column_config.NumberColumn("Volume", format="%d"),
+            "Ann. Return": st.column_config.NumberColumn("Ann. Return", format="%.2f%%", help="Annualized return"),
+            "Volatility": st.column_config.NumberColumn("Volatility", format="%.2f%%"),
+            "Max Drawdown": st.column_config.NumberColumn("Max Drawdown", format="%.2f%%"),
+            "Worst Year Ret.": st.column_config.NumberColumn("Worst Year Ret.", format="%.2f%%"),
+        },
+        disabled=[c for c in editor_df.columns if c != 'Add'],
+        key="asset_pool_editor"
+    )
+
+    selected_tickers = filtered_reset.loc[edited['Add'] == True, 'ticker'].tolist()
+    if selected_tickers:
+        if st.button(f"Add {len(selected_tickers)} asset(s) to Watchlist", type="primary", key="add_to_watchlist"):
+            for t in selected_tickers:
+                if t not in st.session_state.watchlist:
+                    st.session_state.watchlist.append(t)
+            st.session_state.watchlist = list(dict.fromkeys(st.session_state.watchlist))
+            st.rerun(scope="app")
+
+render_asset_pool()
 
 # ── Watchlist ──────────────────────────────────────────────────────────────────
 st.markdown("#### Watchlist")
@@ -261,69 +302,127 @@ st.divider()
 
 st.markdown("<div id='risk-allocation' style='padding-top: 70px; margin-top: -70px;'></div>", unsafe_allow_html=True)
 st.title("Risk Allocation")
-st.caption("Based on your watchlist, assets are automatically weighted according to their risk profile and your selected risk preference.")
+st.caption("Based on your watchlist, the system automatically allocates weights to match your target risk level.")
 
 if not st.session_state.watchlist:
-    st.info("Add assets to your watchlist first.")
+    st.info("Add assets to your watchlist in Asset Screening first.")
 else:
     selected_metrics = metrics_df[metrics_df['ticker'].isin(st.session_state.watchlist)].copy()
 
-    # Risk preference selector
-    risk_pref = st.radio(
-        "Your Risk Preference",
-        ["Low", "Medium", "High", "Extreme High"],
-        horizontal=True,
-        key="risk_pref"
-    )
+    if selected_metrics.empty:
+        st.warning("No metric data found for your selected assets.")
+    else:
+        # ── Calculate achievable risk range ────────────────────────────────────
+        vols = selected_metrics.set_index('ticker')['volatility']
+        min_vol = float(vols.min())
+        max_vol = float(vols.max())
 
-    # Auto-weight logic: inverse volatility weighted, filtered by risk preference
-    risk_order = {"Low": 1, "Medium": 2, "High": 3, "Extreme High": 4}
-    risk_pref_num = risk_order[risk_pref]
+        def vol_to_risk_label(v):
+            if v < 0.16: return "Low"
+            elif v < 0.27: return "Medium"
+            elif v < 0.50: return "High"
+            else: return "Extreme High"
 
-    def compute_weights(df, risk_pref_num):
-        df = df.copy()
-        df['risk_num'] = df['risk_level'].map(risk_order).fillna(2)
-        # Weight = 1 / volatility (lower vol = higher weight for conservative, inverse for aggressive)
-        df['inv_vol'] = 1 / df['volatility'].replace(0, 0.01)
-        if risk_pref_num <= 2:
-            # Conservative: favor low volatility assets
-            df['raw_weight'] = df['inv_vol'] * (5 - df['risk_num'])
-        else:
-            # Aggressive: favor high volatility assets
-            df['raw_weight'] = df['inv_vol'] * df['risk_num']
-        total = df['raw_weight'].sum()
-        df['weight'] = (df['raw_weight'] / total).round(4)
-        # Normalize to exactly 1.0
-        df['weight'] = df['weight'] / df['weight'].sum()
-        return df[['ticker', 'name', 'risk_level', 'volatility', 'cagr', 'weight']]
+        RISK_ORDER = {"Low": 1, "Medium": 2, "High": 3, "Extreme High": 4}
+        RISK_VOL_TARGET = {"Low": 0.12, "Medium": 0.20, "High": 0.35, "Extreme High": 0.65}
 
-    allocation_df = compute_weights(selected_metrics, risk_pref_num)
+        min_risk = vol_to_risk_label(min_vol)
+        max_risk = vol_to_risk_label(max_vol)
+        min_risk_num = RISK_ORDER[min_risk]
+        max_risk_num = RISK_ORDER[max_risk]
 
-    # Store allocation in session state for downstream use
-    st.session_state['allocation'] = dict(zip(allocation_df['ticker'], allocation_df['weight']))
-    st.session_state['allocation_cagr'] = float(
-        (allocation_df['cagr'] * allocation_df['weight']).sum()
-    )
+        achievable = [k for k, v in RISK_ORDER.items() if min_risk_num <= v <= max_risk_num]
 
-    # Display
-    alloc_col1, alloc_col2 = st.columns([1, 2])
-    with alloc_col1:
-        display_alloc = allocation_df.copy()
-        display_alloc['weight'] = display_alloc['weight'].apply(lambda x: f"{x:.1%}")
-        display_alloc['cagr'] = display_alloc['cagr'].apply(lambda x: f"{x:.2%}")
-        display_alloc['volatility'] = display_alloc['volatility'].apply(lambda x: f"{x:.2%}")
-        st.dataframe(display_alloc[['ticker', 'name', 'risk_level', 'weight', 'cagr', 'volatility']],
-                     use_container_width=True, hide_index=True)
-        st.caption(f"Portfolio weighted CAGR: **{st.session_state['allocation_cagr']:.2%}**")
-    with alloc_col2:
-        pie_fig = px.pie(
-            allocation_df,
-            names='ticker',
-            values='weight',
-            color_discrete_sequence=px.colors.qualitative.Set2
+        st.info(f"Based on your selected assets, achievable risk range: **{min_risk}** to **{max_risk}**")
+
+        # ── Risk preference selector (only show achievable levels) ─────────────
+        risk_pref = st.radio(
+            "Target Risk Level",
+            options=achievable,
+            horizontal=True,
+            key="risk_pref"
         )
-        pie_fig.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=320)
-        st.plotly_chart(pie_fig, use_container_width=True)
+
+        target_vol = RISK_VOL_TARGET[risk_pref]
+
+        # ── Auto-allocation algorithm ──────────────────────────────────────────
+        def compute_allocation(df, target_vol):
+            df = df.copy()
+            tickers = df['ticker'].tolist()
+            vols = df['volatility'].values.astype(float)
+
+            # Step 1: inverse volatility weights as starting point
+            inv_vol = 1.0 / np.where(vols == 0, 0.001, vols)
+            weights = inv_vol / inv_vol.sum()
+
+            # Step 2: iteratively nudge weights toward target volatility
+            for _ in range(200):
+                port_vol = float(np.dot(weights, vols))
+                if abs(port_vol - target_vol) < 0.001:
+                    break
+                if port_vol > target_vol:
+                    # reduce weight of highest-vol assets
+                    adj = weights * (1 - 0.05 * (vols / vols.max()))
+                else:
+                    # increase weight of highest-vol assets
+                    adj = weights * (1 + 0.05 * (vols / vols.max()))
+                weights = np.clip(adj, 0.01, None)
+                weights = weights / weights.sum()
+
+            df['weight'] = weights
+            df['weight'] = df['weight'] / df['weight'].sum()
+            return df
+
+        alloc_df = compute_allocation(selected_metrics, target_vol)
+
+        # Final portfolio metrics
+        port_vol = float(np.dot(alloc_df['weight'].values, alloc_df['volatility'].values))
+        port_cagr = float(np.dot(alloc_df['weight'].values, alloc_df['cagr'].values))
+        port_dd = float(np.dot(alloc_df['weight'].values, alloc_df['max_drawdown'].values))
+        port_sharpe = float(np.dot(alloc_df['weight'].values, alloc_df['sharpe_ratio'].values))
+
+        # Store in session state for downstream use
+        st.session_state['allocation'] = dict(zip(alloc_df['ticker'], alloc_df['weight']))
+        st.session_state['allocation_cagr'] = port_cagr
+
+        # ── Display ────────────────────────────────────────────────────────────
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Portfolio Volatility", f"{port_vol:.1%}", delta=f"Target: {target_vol:.0%}")
+        m2.metric("Weighted CAGR", f"{port_cagr:.2%}")
+        m3.metric("Weighted Max Drawdown", f"{port_dd:.2%}")
+        m4.metric("Weighted Sharpe", f"{port_sharpe:.2f}")
+
+        alloc_df['weight_pct'] = (alloc_df['weight'] * 100).round(1)
+        alloc_df['label'] = alloc_df.apply(
+            lambda r: f"{r['ticker']}<br>{r['weight_pct']}%<br>CAGR: {r['cagr']:.1%}", axis=1
+        )
+
+        treemap_fig = go.Figure(go.Treemap(
+            labels=alloc_df['label'],
+            parents=[""] * len(alloc_df),
+            values=alloc_df['weight_pct'],
+            textinfo="label",
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                "Weight: %{value:.1f}%<br>"
+                "CAGR: %{customdata[1]}<br>"
+                "Volatility: %{customdata[2]}<br>"
+                "<extra></extra>"
+            ),
+            customdata=alloc_df[['ticker', 'cagr', 'volatility']].apply(
+                lambda r: [r['ticker'], f"{r['cagr']:.2%}", f"{r['volatility']:.2%}"], axis=1
+            ).tolist(),
+            marker=dict(
+                colors=alloc_df['weight_pct'],
+                colorscale='Teal',
+                showscale=False
+            )
+        ))
+        treemap_fig.update_layout(
+            height=420,
+            margin=dict(t=20, b=20, l=20, r=20)
+        )
+        st.plotly_chart(treemap_fig, use_container_width=True)
 
 st.divider()
 

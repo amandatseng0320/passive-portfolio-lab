@@ -119,7 +119,7 @@ def get_crypto_ranking():
         url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1"
         response = requests.get(url, headers=HEADERS, verify=False)
         data = response.json()
-        exclude_symbols = {'usdt','usdc','busd','dai','tusd','fdusd','usds','usde','wbtc','wsteth','figr_heloc'}
+        exclude_symbols = {'usdt','usdc','busd','dai','tusd','fdusd','usds','usde','wbtc','wsteth','figr_heloc','hype'}
         results = []
         rank = 1
         for coin in data:
