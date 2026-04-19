@@ -25,7 +25,7 @@ def get_latest_cpi_yoy() -> float:
             "&limit=13"
             "&file_type=json"
         )
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=10, verify=False)
         data = response.json()
         observations = data.get("observations", [])
 

@@ -3,8 +3,6 @@ import sys
 import numpy as np
 import pandas as pd
 import pandas_gbq
-from sklearn.cluster import KMeans
-from collections import Counter
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -24,34 +22,6 @@ def load_prices_from_bq():
     df = pandas_gbq.read_gbq(query, project_id=project_id)
     df['date'] = pd.to_datetime(df['date'])
     return df
-
-def get_top3_drawdowns(drawdown_series):
-    events = []
-    current_min = 0.0
-    in_event = False
-    
-    for dd in drawdown_series:
-        if not in_event:
-            if dd < 0:
-                in_event = True
-                current_min = dd
-        else:
-            if dd < current_min:
-                current_min = dd
-            if dd >= -0.05:
-                # Recovered above -5%, close event
-                events.append(current_min)
-                in_event = False
-                current_min = 0.0
-                
-    if in_event:
-        events.append(current_min)
-        
-    events.sort()
-    top3 = events[:3]
-    if not top3:
-        return drawdown_series.min() if len(drawdown_series) > 0 else 0.0
-    return float(np.mean(top3))
 
 def calculate_metrics(df):
     print("Loading candidate names for mapping...")
@@ -132,9 +102,6 @@ def calculate_metrics(df):
             else:
                 sharpe_ratio = 0.0
                 
-            # Top 3 avg drawdown
-            top3_avg_drawdown = get_top3_drawdowns(drawdown)
-            
             results.append({
                 "ticker": ticker,
                 "name": name,
@@ -149,7 +116,6 @@ def calculate_metrics(df):
                 "recovery_status": recovery_status,
                 "worst_year": worst_year,
                 "worst_year_label": worst_year_label,
-                "top3_avg_drawdown": top3_avg_drawdown
             })
             
         except Exception as e:
@@ -157,85 +123,6 @@ def calculate_metrics(df):
             continue
             
     return pd.DataFrame(results)
-
-def classify_risk(metrics_df):
-    if metrics_df.empty:
-        return metrics_df
-        
-    df = metrics_df.copy()
-    drawdowns = df['top3_avg_drawdown'].values
-    
-    # Method 1 - Percentile
-    mags = np.abs(drawdowns)
-    p25 = np.percentile(mags, 25)
-    p75 = np.percentile(mags, 75)
-    p90 = np.percentile(mags, 90)
-    
-    def method1_risk(dd):
-        m = abs(dd)
-        if m <= p25: return "Low"
-        elif m <= p75: return "Medium"
-        elif m <= p90: return "High"
-        else: return "Extreme High"
-        
-    df['risk_method1'] = df['top3_avg_drawdown'].apply(method1_risk)
-    
-    # Method 2 - K-Means
-    kmeans = KMeans(n_clusters=4, random_state=42)
-    preds = kmeans.fit_predict(drawdowns.reshape(-1, 1))
-    centers = kmeans.cluster_centers_.flatten()
-    
-    sorted_idx = np.argsort(centers)
-    label_map = {
-        sorted_idx[0]: "Extreme High",
-        sorted_idx[1]: "High",
-        sorted_idx[2]: "Medium",
-        sorted_idx[3]: "Low"
-    }
-    df['risk_method2'] = [label_map[p] for p in preds]
-    
-    # Method 3 - Standard Deviation
-    mu = np.mean(drawdowns)
-    sigma = np.std(drawdowns)
-    
-    def method3_risk(dd):
-        if dd > mu + sigma:
-            return "Low"
-        elif mu <= dd <= mu + sigma:
-            return "Medium"
-        elif mu - sigma <= dd < mu:
-            return "High"
-        else:
-            return "Extreme High"
-            
-    df['risk_method3'] = df['top3_avg_drawdown'].apply(method3_risk)
-    
-    # Ensemble Voting
-    def get_ensemble_vote(row):
-        severity = {"Low": 1, "Medium": 2, "High": 3, "Extreme High": 4}
-        rev_severity = {1: "Low", 2: "Medium", 3: "High", 4: "Extreme High"}
-        
-        votes = [row['risk_method1'], row['risk_method2'], row['risk_method3']]
-        counts = Counter(votes).most_common()
-        
-        if len(counts) == 3: # Tie across all 3
-            avg_sev = round(sum(severity[v] for v in votes) / 3.0)
-            return rev_severity[avg_sev]
-        else:
-            return counts[0][0]
-            
-    df['risk_level'] = df.apply(get_ensemble_vote, axis=1)
-    df['risk_consensus'] = df.apply(lambda r: r['risk_method1'] == r['risk_method2'] == r['risk_method3'], axis=1)
-    
-    expected_cols = [
-        "ticker", "name", "category", "data_start", "data_end",
-        "cagr", "volatility", "max_drawdown", "sharpe_ratio",
-        "recovery_period_days", "recovery_status",
-        "worst_year", "worst_year_label", "top3_avg_drawdown",
-        "risk_method1", "risk_method2", "risk_method3",
-        "risk_level", "risk_consensus"
-    ]
-    return df[expected_cols]
 
 def upload_to_bigquery(df):
     project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
@@ -271,18 +158,15 @@ def run_pipeline():
         
     print(f"Loaded {len(prices_df)} price records. Proceeding to calculations...")
     metrics_df = calculate_metrics(prices_df)
-    
+
     if metrics_df.empty:
         print("No metrics successfully calculated. Aborting.")
         return
-        
-    print("Classifying risk profiles via ensemble model...")
-    final_df = classify_risk(metrics_df)
-    
-    upload_to_bigquery(final_df)
-    
+
+    upload_to_bigquery(metrics_df)
+
     print("\n--- Pipeline Summary Table ---")
-    print(final_df[['ticker', 'risk_level', 'risk_consensus', 'cagr', 'max_drawdown']].to_string(index=False))
+    print(metrics_df[['ticker', 'cagr', 'volatility', 'max_drawdown', 'sharpe_ratio']].to_string(index=False))
 
 if __name__ == "__main__":
     run_pipeline()

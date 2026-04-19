@@ -8,19 +8,30 @@ load_dotenv()
 
 def load_fx_rate(start_date: str, end_date: str) -> pd.Series:
     """
-    Fetch daily TWD/USD exchange rate (how many TWD per 1 USD).
-    Returns a pd.Series indexed by date.
-    Falls back to the most recent available rate if a date is missing.
+    Fetch daily TWD/USD exchange rate using Yahoo Finance REST API.
+    Returns a pd.Series indexed by date (timezone-naive).
     """
-    import yfinance as yf
-    df = yf.download("TWD=X", start=start_date, end=end_date, progress=False, auto_adjust=True)
-    if df.empty:
-        raise ValueError("Could not fetch TWD=X exchange rate from yfinance.")
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    series = df['Close'].squeeze()
-    series.index = pd.to_datetime(series.index)
-    return series
+    import requests
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    url = 'https://query1.finance.yahoo.com/v8/finance/chart/TWD=X?interval=1d&range=max'
+    try:
+        r = requests.get(url, headers=headers, timeout=10, verify=False)
+        data = r.json()
+        result = data['chart']['result'][0]
+        timestamps = result['timestamp']
+        closes = result['indicators']['quote'][0]['close']
+        index = pd.to_datetime(timestamps, unit='s').normalize().tz_localize(None)
+        series = pd.Series(closes, index=index)
+        series = series.dropna()
+        series = series[~series.index.duplicated(keep='first')]
+        start = pd.to_datetime(start_date)
+        end = pd.to_datetime(end_date)
+        series = series[(series.index >= start) & (series.index <= end)]
+        if series.empty:
+            raise ValueError("No TWD=X data in date range")
+        return series
+    except Exception as e:
+        raise ValueError(f"Could not fetch TWD=X exchange rate: {e}")
 
 def load_prices_for_tickers(tickers: list) -> pd.DataFrame:
     """
@@ -49,21 +60,12 @@ def run_lumpsum(
     tickers_weights: dict,
     start_date: str,
     end_date: str,
-    initial_investment: float,
-    currency: str = "USD"
+    initial_investment: float
 ) -> pd.DataFrame:
     """
     Lump Sum backtest: invest everything on the first available trading day.
-
-    Parameters:
-        prices_df          : output from load_prices_for_tickers()
-        tickers_weights    : e.g. {"SPY": 0.6, "BTC-USD": 0.4}
-        start_date         : "YYYY-MM-DD"
-        end_date           : "YYYY-MM-DD"
-        initial_investment : total amount invested at the start
-
-    Returns:
-        DataFrame with columns: date, portfolio_value, total_invested, total_return_pct, strategy
+    All calculations are performed in TWD.
+    USD-denominated assets are converted to TWD using daily FX rates.
     """
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)
@@ -78,6 +80,14 @@ def run_lumpsum(
 
     valid_tickers = [t for t in tickers_weights if t in pivot.columns]
     pivot = pivot[valid_tickers]
+
+    # Convert USD assets to TWD using daily FX rates
+    usd_tickers = [t for t in valid_tickers if not t.endswith('.TW')]
+    if usd_tickers:
+        fx = load_fx_rate(start_date, end_date)
+        fx = fx.reindex(pivot.index).ffill().bfill()
+        for ticker in usd_tickers:
+            pivot[ticker] = pivot[ticker] * fx.values
 
     total_weight = sum(tickers_weights[t] for t in valid_tickers)
     weights = {t: tickers_weights[t] / total_weight for t in valid_tickers}
@@ -93,22 +103,12 @@ def run_lumpsum(
     for ticker in valid_tickers:
         daily_values += shares[ticker] * pivot[ticker]
 
-    if currency == "TWD":
-        fx = load_fx_rate(start_date, end_date)
-        fx = fx.reindex(pivot.index).ffill().bfill()
-        converted_values = daily_values.values * fx.values
-        converted_invested = initial_investment * fx.values[-1]
-    else:
-        converted_values = daily_values.values
-        converted_invested = initial_investment
-
     result = pd.DataFrame({
         'date': pivot.index,
-        'portfolio_value': converted_values,
-        'total_invested': converted_invested,
-        'total_return_pct': (converted_values / converted_invested - 1) * 100,
-        'strategy': 'LumpSum',
-        'currency': currency
+        'portfolio_value': daily_values.values,
+        'total_invested': initial_investment,
+        'total_return_pct': (daily_values.values / initial_investment - 1) * 100,
+        'strategy': 'LumpSum'
     })
 
     return result
@@ -118,21 +118,12 @@ def run_dca(
     tickers_weights: dict,
     start_date: str,
     end_date: str,
-    monthly_amount: float,
-    currency: str = "USD"
+    monthly_amount: float
 ) -> pd.DataFrame:
     """
     DCA backtest: invest a fixed amount on the first trading day of each month.
-
-    Parameters:
-        prices_df      : output from load_prices_for_tickers()
-        tickers_weights: e.g. {"SPY": 0.6, "BTC-USD": 0.4}
-        start_date     : "YYYY-MM-DD"
-        end_date       : "YYYY-MM-DD"
-        monthly_amount : amount invested each month
-
-    Returns:
-        DataFrame with columns: date, portfolio_value, total_invested, total_return_pct, strategy
+    All calculations are performed in TWD.
+    USD-denominated assets are converted to TWD using daily FX rates.
     """
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)
@@ -148,25 +139,28 @@ def run_dca(
     valid_tickers = [t for t in tickers_weights if t in pivot.columns]
     pivot = pivot[valid_tickers]
 
+    # Convert USD assets to TWD using daily FX rates
+    usd_tickers = [t for t in valid_tickers if not t.endswith('.TW')]
+    if usd_tickers:
+        fx = load_fx_rate(start_date, end_date)
+        fx = fx.reindex(pivot.index).ffill().bfill()
+        for ticker in usd_tickers:
+            pivot[ticker] = pivot[ticker] * fx.values
+
     total_weight = sum(tickers_weights[t] for t in valid_tickers)
     weights = {t: tickers_weights[t] / total_weight for t in valid_tickers}
 
-    # Identify the first trading day of each month
     monthly_invest_dates = (
-        pivot.resample('MS').first().index  # MS = Month Start frequency
+        pivot.resample('MS').first().index
     )
-    # Keep only dates that actually exist in our price data
     monthly_invest_dates = [d for d in monthly_invest_dates if d in pivot.index]
 
-    # Initialize share holdings
     shares = {ticker: 0.0 for ticker in valid_tickers}
     total_invested = 0.0
-
     portfolio_values = []
     total_invested_list = []
 
     for date in pivot.index:
-        # Buy on the first trading day of each month
         if date in monthly_invest_dates:
             for ticker in valid_tickers:
                 allocated = monthly_amount * weights[ticker]
@@ -174,7 +168,6 @@ def run_dca(
                 shares[ticker] += allocated / price
             total_invested += monthly_amount
 
-        # Calculate portfolio value for this day
         daily_value = sum(shares[ticker] * pivot.loc[date, ticker] for ticker in valid_tickers)
         portfolio_values.append(daily_value)
         total_invested_list.append(total_invested)
@@ -182,7 +175,6 @@ def run_dca(
     total_invested_arr = np.array(total_invested_list, dtype=float)
     portfolio_values_arr = np.array(portfolio_values, dtype=float)
 
-    # Avoid division by zero before first investment
     with np.errstate(invalid='ignore', divide='ignore'):
         return_pct = np.where(
             total_invested_arr > 0,
@@ -190,79 +182,40 @@ def run_dca(
             0.0
         )
 
-    if currency == "TWD":
-        fx = load_fx_rate(start_date, end_date)
-        fx = fx.reindex(pivot.index).ffill().bfill()
-        converted_values = portfolio_values_arr * fx.values
-        converted_invested = total_invested_arr * fx.values[-1]
-    else:
-        converted_values = portfolio_values_arr
-        converted_invested = total_invested_arr
-
-    with np.errstate(invalid='ignore', divide='ignore'):
-        return_pct = np.where(
-            converted_invested > 0,
-            (converted_values / converted_invested - 1) * 100,
-            0.0
-        )
-
     result = pd.DataFrame({
         'date': pivot.index,
-        'portfolio_value': converted_values,
-        'total_invested': converted_invested,
+        'portfolio_value': portfolio_values_arr,
+        'total_invested': total_invested_arr,
         'total_return_pct': return_pct,
-        'strategy': 'DCA',
-        'currency': currency
+        'strategy': 'DCA'
     })
 
     return result
 
 def run_backtest(
     strategy: str,
-    portfolio_mode: str,
     start_date: str,
     end_date: str,
+    tickers_weights: dict,
     initial_investment: float = 10000,
     monthly_amount: float = 1000,
-    risk_level: str = None,
-    tickers_weights: dict = None,
-    currency: str = "USD"
 ) -> pd.DataFrame:
     """
-    Unified entry point for running a backtest. Called by Streamlit pages.
+    Unified entry point for running a backtest. Called by the Streamlit dashboard.
 
     Parameters:
         strategy           : "LumpSum" or "DCA"
-        portfolio_mode     : "auto" (risk-level based) or "custom" (user-defined)
         start_date         : "YYYY-MM-DD"
         end_date           : "YYYY-MM-DD"
+        tickers_weights    : {ticker: weight} — e.g. {"SPY": 0.6, "BTC-USD": 0.4}
         initial_investment : used when strategy="LumpSum"
         monthly_amount     : used when strategy="DCA"
-        risk_level         : "Low" / "Medium" / "High" / "Extreme High" (auto mode only)
-        tickers_weights    : e.g. {"SPY": 0.6, "BTC-USD": 0.4} (custom mode only)
 
     Returns:
         DataFrame with columns: date, portfolio_value, total_invested, total_return_pct, strategy
     """
-    # --- Auto mode: assign default portfolios by risk level ---
-    AUTO_PORTFOLIOS = {
-        "Low":          {"0050.TW": 0.5, "SPY": 0.3, "GLD": 0.2},
-        "Medium":       {"SPY": 0.5, "QQQ": 0.3, "0050.TW": 0.2},
-        "High":         {"QQQ": 0.5, "BTC-USD": 0.3, "SPY": 0.2},
-        "Extreme High": {"BTC-USD": 0.6, "ETH-USD": 0.4},
-    }
-
-    if portfolio_mode == "auto":
-        if risk_level not in AUTO_PORTFOLIOS:
-            raise ValueError(f"Invalid risk_level '{risk_level}'. Choose from: {list(AUTO_PORTFOLIOS.keys())}")
-        tickers_weights = AUTO_PORTFOLIOS[risk_level]
-
-    elif portfolio_mode == "custom":
-        if not tickers_weights:
-            raise ValueError("portfolio_mode='custom' requires tickers_weights to be provided.")
-
-    else:
-        raise ValueError(f"Invalid portfolio_mode '{portfolio_mode}'. Choose 'auto' or 'custom'.")
+    if not tickers_weights:
+        raise ValueError("tickers_weights must be provided and non-empty.")
 
     # --- Load price data ---
     tickers = list(tickers_weights.keys())
@@ -270,24 +223,22 @@ def run_backtest(
 
     # --- Run selected strategy ---
     if strategy == "LumpSum":
-        return run_lumpsum(prices_df, tickers_weights, start_date, end_date, initial_investment, currency)
+        return run_lumpsum(prices_df, tickers_weights, start_date, end_date, initial_investment)
     elif strategy == "DCA":
-        return run_dca(prices_df, tickers_weights, start_date, end_date, monthly_amount, currency)
+        return run_dca(prices_df, tickers_weights, start_date, end_date, monthly_amount)
     else:
         raise ValueError(f"Invalid strategy '{strategy}'. Choose 'LumpSum' or 'DCA'.")
 
 if __name__ == "__main__":
-    print("=== Test: Auto mode, Medium risk, DCA, TWD ===")
+    print("=== Test: Custom weights (SPY 50 / QQQ 30 / 0050.TW 20), DCA ===")
     r = run_backtest(
         strategy="DCA",
-        portfolio_mode="auto",
-        risk_level="Medium",
         start_date="2020-01-01",
         end_date="2024-12-31",
+        tickers_weights={"SPY": 0.5, "QQQ": 0.3, "0050.TW": 0.2},
         monthly_amount=30000,
-        currency="TWD"
     )
     print(r.tail(5).to_string(index=False))
-    print(f"\nFinal value (TWD): {r['portfolio_value'].iloc[-1]:,.0f}")
-    print(f"Total invested (TWD): {r['total_invested'].iloc[-1]:,.0f}")
+    print(f"\nFinal value: {r['portfolio_value'].iloc[-1]:,.0f}")
+    print(f"Total invested: {r['total_invested'].iloc[-1]:,.0f}")
     print(f"Total return: {r['total_return_pct'].iloc[-1]:.2f}%")

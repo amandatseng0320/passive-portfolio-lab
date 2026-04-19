@@ -6,13 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Default portfolio weights per risk level (must match backtest.py AUTO_PORTFOLIOS)
-AUTO_PORTFOLIOS = {
-    "Low":          {"0050.TW": 0.5, "SPY": 0.3, "GLD": 0.2},
-    "Medium":       {"SPY": 0.5, "QQQ": 0.3, "0050.TW": 0.2},
-    "High":         {"QQQ": 0.5, "BTC-USD": 0.3, "SPY": 0.2},
-    "Extreme High": {"BTC-USD": 0.6, "ETH-USD": 0.4},
-}
 
 def load_cagr_from_bq(tickers: list) -> dict:
     """
@@ -34,15 +27,20 @@ def load_cagr_from_bq(tickers: list) -> dict:
     return dict(zip(df['ticker'], df['cagr']))
 
 
-def get_portfolio_cagr(risk_level: str) -> float:
+def get_portfolio_cagr(weights: dict) -> float:
     """
-    Calculate the weighted average CAGR for a given risk level
-    using the portfolio composition from AUTO_PORTFOLIOS.
-    """
-    if risk_level not in AUTO_PORTFOLIOS:
-        raise ValueError(f"Invalid risk_level '{risk_level}'. Choose from: {list(AUTO_PORTFOLIOS.keys())}")
+    Calculate the weighted average CAGR for a portfolio defined by `weights`.
 
-    weights = AUTO_PORTFOLIOS[risk_level]
+    Parameters:
+        weights : {ticker: weight} — e.g. {"SPY": 0.6, "QQQ": 0.4}
+
+    Returns:
+        Weighted average CAGR (float). Weights are renormalized over the
+        tickers for which CAGR data is actually available.
+    """
+    if not weights:
+        raise ValueError("weights dict is empty; cannot compute portfolio CAGR.")
+
     tickers = list(weights.keys())
     cagr_map = load_cagr_from_bq(tickers)
 
@@ -63,7 +61,7 @@ def calculate_fire(
     target_amount: float,
     monthly_contribution: float,
     initial_capital: float,
-    risk_level: str,
+    weights: dict,
     max_years: int = 50
 ) -> dict:
     """
@@ -73,7 +71,9 @@ def calculate_fire(
         target_amount        : retirement goal (e.g. 10_000_000)
         monthly_contribution : fixed monthly investment amount
         initial_capital      : current savings/investment balance
-        risk_level           : "Low" / "Medium" / "High" / "Extreme High"
+        weights              : {ticker: weight} portfolio composition — typically
+                               the user's current allocation from the Risk
+                               Allocation section (st.session_state['allocation'])
         max_years            : cap simulation at this many years (default 50)
 
     Returns:
@@ -82,7 +82,7 @@ def calculate_fire(
             - annual_cagr      : float (the weighted CAGR used)
             - projection       : DataFrame with columns: year, portfolio_value
     """
-    annual_cagr = get_portfolio_cagr(risk_level)
+    annual_cagr = get_portfolio_cagr(weights)
     monthly_rate = (1 + annual_cagr) ** (1 / 12) - 1
 
     portfolio_value = float(initial_capital)
@@ -110,11 +110,13 @@ def calculate_fire(
 
 
 if __name__ == "__main__":
+    # Example: 50/30/20 SPY/QQQ/0050.TW portfolio
+    example_weights = {"SPY": 0.5, "QQQ": 0.3, "0050.TW": 0.2}
     result = calculate_fire(
         target_amount=10_000_000,
         monthly_contribution=30000,
         initial_capital=500000,
-        risk_level="Medium"
+        weights=example_weights
     )
 
     print(f"Annual CAGR used: {result['annual_cagr']:.2%}")
