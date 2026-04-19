@@ -18,7 +18,46 @@ from src.data_collection.fetch_macro import get_latest_cpi_yoy
 
 load_dotenv()
 
+# ── Streamlit Cloud setup: materialize GCP credentials from st.secrets ──────
+# Locally, auth goes through .env + credentials.json (GOOGLE_APPLICATION_CREDENTIALS).
+# On Streamlit Cloud, credentials.json doesn't exist — so if st.secrets has the
+# service-account table, dump it to a temp JSON file and point the env var there,
+# so every existing pandas_gbq call keeps working with no further changes.
+_app_password = None
+try:
+    if "gcp_service_account" in st.secrets:
+        import json
+        import tempfile
+        _creds_path = os.path.join(tempfile.gettempdir(), "gcp_credentials.json")
+        with open(_creds_path, "w") as _f:
+            json.dump(dict(st.secrets["gcp_service_account"]), _f)
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _creds_path
+    # Top-level TOML keys are auto-injected as env vars on Streamlit Cloud,
+    # so os.getenv("GOOGLE_CLOUD_PROJECT") etc. still work. We only need to
+    # read APP_PASSWORD explicitly for the password gate below.
+    _app_password = st.secrets.get("APP_PASSWORD")
+except Exception:
+    # Local dev: no secrets.toml, skip silently.
+    pass
+
 st.set_page_config(page_title="Passive Portfolio Lab", layout="wide", initial_sidebar_state="expanded")
+
+# ── Password gate (activated only when APP_PASSWORD is configured in secrets) ──
+if _app_password:
+    def _check_password():
+        if st.session_state.get("authenticated", False):
+            return
+        st.markdown("### 🔒 Passive Portfolio Lab")
+        st.caption("This dashboard is currently shared for project review. Please enter the access password.")
+        pw = st.text_input("Password", type="password", key="pw_input")
+        if pw:
+            if pw == _app_password:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
+        st.stop()
+    _check_password()
 
 st.markdown("""
 <style>

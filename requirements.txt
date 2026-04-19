@@ -1,8 +1,10 @@
 streamlit
 yfinance
 pandas
-requests
-google-cloud-bigquery
-python-dotenv
-pandas-gbq
 numpy
+requests
+plotly
+beautifulsoup4
+google-cloud-bigquery
+pandas-gbq
+python-dotenv

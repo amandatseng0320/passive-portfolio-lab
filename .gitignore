@@ -30,6 +30,10 @@ MANIFEST
 .env
 credentials.json
 
+# Streamlit secrets (local dev only; production secrets live in Streamlit Cloud)
+.streamlit/secrets.toml
+secrets.template.toml
+
 # Data
 data/
 
