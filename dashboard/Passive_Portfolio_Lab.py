@@ -1378,6 +1378,7 @@ st.divider()
 st.markdown("<div id='summary' style='padding-top: 70px; margin-top: -70px;'></div>", unsafe_allow_html=True)
 st.title("Summary")
 st.caption("A snapshot of your portfolio based on the selections above.")
+st.caption("📌 Backtest returns are calculated using adjusted close prices, which reflect dividend distributions and stock splits. Dividend reinvestment is implicitly assumed.")
 
 allocation = st.session_state.get('allocation', {})
 risk_pref = st.session_state.get('risk_pref', None)
