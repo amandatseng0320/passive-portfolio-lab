@@ -10,12 +10,31 @@ def load_fx_rate(start_date: str, end_date: str) -> pd.Series:
     """
     Fetch daily TWD/USD exchange rate using Yahoo Finance REST API.
     Returns a pd.Series indexed by date (timezone-naive).
+
+    Notes on robustness:
+    - Uses period1/period2 (unix timestamps) instead of `range=max`, because
+      Yahoo silently downsamples older TWD=X data to monthly when `range=max`
+      is used, which then propagates through ffill() and causes catastrophic
+      portfolio-value spikes when backtests cross into those periods.
+    - Filters out implausible rates as a second line of defence. TWD/USD has
+      historically stayed in 25-40; anything outside 20-50 is treated as a
+      bad tick and dropped (downstream ffill will then bridge over it).
     """
     import requests
     headers = {'User-Agent': 'Mozilla/5.0'}
-    url = 'https://query1.finance.yahoo.com/v8/finance/chart/TWD=X?interval=1d&range=max'
+
+    # Pull a wider window than requested so downstream reindex + ffill always
+    # has a nearby anchor, but still use period1/period2 to keep daily granularity.
+    start_ts = int(pd.Timestamp(start_date).timestamp())
+    # End timestamp: end_date + 1 day to make sure the end_date itself is included.
+    end_ts = int((pd.Timestamp(end_date) + pd.Timedelta(days=1)).timestamp())
+
+    url = (
+        'https://query1.finance.yahoo.com/v8/finance/chart/TWD=X'
+        f'?interval=1d&period1={start_ts}&period2={end_ts}'
+    )
     try:
-        r = requests.get(url, headers=headers, timeout=10, verify=False)
+        r = requests.get(url, headers=headers, timeout=15, verify=False)
         data = r.json()
         result = data['chart']['result'][0]
         timestamps = result['timestamp']
@@ -24,6 +43,11 @@ def load_fx_rate(start_date: str, end_date: str) -> pd.Series:
         series = pd.Series(closes, index=index)
         series = series.dropna()
         series = series[~series.index.duplicated(keep='first')]
+
+        # Second line of defence: drop implausible outliers.
+        # TWD/USD has been between ~25 and ~40 since the early 1990s.
+        series = series[(series >= 20) & (series <= 50)]
+
         start = pd.to_datetime(start_date)
         end = pd.to_datetime(end_date)
         series = series[(series.index >= start) & (series.index <= end)]

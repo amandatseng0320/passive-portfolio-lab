@@ -9,6 +9,25 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
+# Tickers that appear in the upstream rankings (MoneyDJ / CoinGecko) but do NOT
+# have a usable daily-price feed on Yahoo Finance, so they would just spam the
+# fetch log and never produce metrics. We filter them at the end of
+# get_all_candidates() so they also never show up in the dashboard watchlist.
+#
+# If Yahoo later starts carrying one of these, just remove it from the set.
+YAHOO_UNAVAILABLE_TICKERS = {
+    # TW bond ETFs — MoneyDJ market-cap top-10 often includes these but
+    # Yahoo doesn't price them (different data provider).
+    "00937B.TW",
+    "00679B.TW",
+    "00687B.TW",
+    "00687C.TW",
+    "00751B.TW",
+    # Bitfinex exchange token — appears in CoinGecko top-20 by market cap
+    # but Yahoo Finance has no LEO-USD feed.
+    "LEO-USD",
+}
+
 def get_tw_etf_ranking():
     try:
         url = "https://www.moneydj.com/ETF/X/Rank/Rank0004.xdjhtm?eRank=mkt&eOrd=t800074&eMid=TW&eArea=0&eTarget=0&eCoin=0&eTab=5&ePeriod=1Y"
@@ -46,6 +65,33 @@ def get_tw_etf_ranking():
             })
             if len(results) == 10:
                 break
+
+        # Manually include specific ETFs that may not appear in top-10 by market cap
+        # but are considered important reference assets for the dashboard.
+        # - 00646.TW: TW-listed S&P 500 tracker, useful for "SPY in TWD" comparison.
+        # - 00955.TW: Newly-launched (2024) Japan trading-house ETF, offers Japan exposure.
+        # Dedupe happens downstream via get_all_candidates(); if MoneyDJ already returned
+        # one of these in its top-10, the manual entry is skipped here.
+        manual_additions = [
+            {"ticker": "00646.TW", "name": "元大 S&P 500"},
+            # 00955 is listed on TPEx (Taipei Exchange, OTC board), so on Yahoo
+            # Finance it carries the .TWO suffix rather than .TW. Using .TW
+            # returns HTTP 404 from the v8 chart endpoint.
+            {"ticker": "00955.TWO", "name": "中信日本商社"},
+        ]
+        existing_tickers = {r["ticker"] for r in results}
+        for add in manual_additions:
+            if add["ticker"] not in existing_tickers:
+                results.append({
+                    "rank": len(results) + 1,
+                    "ticker": add["ticker"],
+                    "name": add["name"],
+                    "category": "TW_ETF",
+                    "source": "Manual",
+                    "aum_or_market_cap": "N/A",
+                    "currency": "TWD",
+                })
+
         return pd.DataFrame(results)
     except Exception as e:
         print(f"Error fetching TW ETF ranking: {e}")
@@ -111,49 +157,41 @@ def get_defensive_etf_list():
 
 def get_crypto_ranking():
     """
-    Fetch top crypto by market cap from CoinGecko, excluding stablecoins.
-    HYPE (Hyperliquid) is added manually as rank 10 since it may not appear
-    in the standard top-10 API results but is ranked ~#13 by market cap.
+    Return a fixed list of the top-5 cryptocurrencies by market cap (as of
+    2025): BTC, ETH, XRP, BNB, SOL.
+
+    This is intentionally hardcoded rather than scraped from CoinGecko for
+    three reasons:
+      1. Market-cap rankings shift daily — a scraped list would make the
+         watchlist and the dashboard copy ("Crypto (5): BTC, ETH, XRP, BNB,
+         SOL …") drift out of sync over time.
+      2. It removes a runtime dependency on CoinGecko's rate-limited public
+         API, which intermittently throttles unauthenticated requests.
+      3. Stablecoins (USDT, USDC, DAI, …), wrapped variants (WBTC, wstETH),
+         exchange-specific tokens (LEO, WBT), and memecoins (DOGE, SHIB) are
+         deliberately excluded because they don't fit the passive-portfolio
+         investment thesis this dashboard is built around. BNB is retained
+         because it also functions as the native gas token of BNB Chain, not
+         purely an exchange token.
     """
-    try:
-        url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1"
-        response = requests.get(url, headers=HEADERS, verify=False)
-        data = response.json()
-        exclude_symbols = {'usdt','usdc','busd','dai','tusd','fdusd','usds','usde','wbtc','wsteth','figr_heloc','hype'}
-        results = []
-        rank = 1
-        for coin in data:
-            symbol = coin.get('symbol','').lower()
-            if symbol in exclude_symbols:
-                continue
-            results.append({
-                "rank": rank,
-                "ticker": f"{symbol.upper()}-USD",
-                "name": coin.get('name',''),
-                "category": "CRYPTO",
-                "source": "CoinGecko",
-                "aum_or_market_cap": coin.get('market_cap',''),
-                "currency": "USD"
-            })
-            rank += 1
-            if len(results) == 9:
-                break
-
-        # Manually add HYPE as rank 10
-        results.append({
-            "rank": 10,
-            "ticker": "HYPE-USD",
-            "name": "Hyperliquid",
+    coins = [
+        {"rank": 1, "ticker": "BTC-USD", "name": "Bitcoin"},
+        {"rank": 2, "ticker": "ETH-USD", "name": "Ethereum"},
+        {"rank": 3, "ticker": "XRP-USD", "name": "XRP"},
+        {"rank": 4, "ticker": "BNB-USD", "name": "BNB"},
+        {"rank": 5, "ticker": "SOL-USD", "name": "Solana"},
+    ]
+    results = [
+        {
+            **c,
             "category": "CRYPTO",
-            "source": "CoinGecko",
-            "aum_or_market_cap": "~10B",
-            "currency": "USD"
-        })
-
-        return pd.DataFrame(results)
-    except Exception as e:
-        print(f"Error fetching Crypto ranking: {e}")
-        return pd.DataFrame(columns=["rank","ticker","name","category","source","aum_or_market_cap","currency"])
+            "source": "Manual",
+            "aum_or_market_cap": "N/A",
+            "currency": "USD",
+        }
+        for c in coins
+    ]
+    return pd.DataFrame(results)
 
 
 def get_all_candidates():
@@ -162,7 +200,12 @@ def get_all_candidates():
     defensive_df = get_defensive_etf_list()
     crypto_df = get_crypto_ranking()
     combined = pd.concat([tw_df, us_df, defensive_df, crypto_df], ignore_index=True)
-    return combined.drop_duplicates(subset='ticker', keep='first').reset_index(drop=True)
+    combined = combined.drop_duplicates(subset='ticker', keep='first').reset_index(drop=True)
+    # Drop tickers that Yahoo Finance doesn't actually price — they would just
+    # fail to fetch, never appear in asset_metrics, and add no value to the
+    # watchlist UI. See YAHOO_UNAVAILABLE_TICKERS above for rationale.
+    combined = combined[~combined['ticker'].isin(YAHOO_UNAVAILABLE_TICKERS)].reset_index(drop=True)
+    return combined
 
 
 if __name__ == "__main__":

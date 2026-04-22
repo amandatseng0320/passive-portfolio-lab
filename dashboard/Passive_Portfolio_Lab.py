@@ -12,8 +12,9 @@ import plotly.express as px
 from datetime import date
 from dotenv import load_dotenv
 from src.processing.screening import get_all_candidates
-from src.processing.backtest import run_backtest
+from src.processing.backtest import run_backtest, load_prices_for_tickers
 from src.processing.fire_calculator import calculate_fire
+from src.processing.drawdown_events import identify_drawdown_events, MARKET_EVENTS
 from src.data_collection.fetch_macro import get_latest_cpi_yoy
 
 load_dotenv()
@@ -146,6 +147,165 @@ def fetch_price_and_volume(tickers: list) -> dict:
 def fetch_inflation_default():
     return get_latest_cpi_yoy()
 
+
+# ── Correlation check (Phase 2) ────────────────────────────────────────────────
+@st.cache_data(ttl=3600)
+def load_prices_wide(tickers_tuple: tuple) -> pd.DataFrame:
+    """
+    Load daily close prices for the given tickers from BigQuery and return as a
+    wide DataFrame (index=date, columns=ticker). Cached for 1 hour so repeated
+    watchlist edits don't re-query BigQuery.
+    """
+    if not tickers_tuple:
+        return pd.DataFrame()
+    df = load_prices_for_tickers(list(tickers_tuple))
+    if df.empty:
+        return pd.DataFrame()
+    pivot = df.pivot(index='date', columns='ticker', values='close').sort_index()
+    return pivot
+
+
+def render_correlation_check(tickers: list) -> None:
+    """
+    Render a collapsed expander below the watchlist showing:
+      - summary row (avg correlation, top / bottom pair, data window)
+      - Plotly heatmap of the Pearson correlation matrix
+      - a short interpretation based on the average correlation
+    Uses daily returns from the last 3 years with intersection-aligned dates.
+    """
+    with st.expander("🔗 Correlation Check (3-year daily returns)", expanded=False):
+        if len(tickers) < 2:
+            st.info("Select at least 2 assets in the watchlist to compute correlations.")
+            return
+
+        prices = load_prices_wide(tuple(sorted(tickers)))
+        if prices.empty or prices.shape[1] < 2:
+            st.warning("Not enough price data available in BigQuery to compute correlations.")
+            return
+
+        # Trim to last 3 years.
+        end_ts = prices.index.max()
+        start_ts = end_ts - pd.DateOffset(years=3)
+        window = prices.loc[prices.index >= start_ts].copy()
+
+        # Flag assets with short history (useful context when e.g. 00955.TWO is
+        # in the watchlist — it launched in 2024 so the effective overlap is short).
+        per_ticker_days = window.count()
+        window_total = len(window)
+        short_history = per_ticker_days[per_ticker_days < window_total * 0.5]
+
+        # Intersection-aligned daily returns: only keep days where all tickers
+        # have a close. This is necessary because TW and US markets close on
+        # different calendars, and new ETFs have missing early days.
+        returns = window.pct_change().dropna(how='any')
+
+        if len(returns) < 30:
+            st.warning(
+                f"Only {len(returns)} overlapping trading days in the last 3 years. "
+                "Correlation requires more common history — consider removing newly-listed "
+                "assets from the watchlist, or widening the time window manually."
+            )
+            return
+
+        # Pearson correlation across tickers.
+        corr = returns.corr()
+        n = len(corr)
+
+        # Summary stats across unique off-diagonal pairs.
+        mask = np.triu(np.ones_like(corr, dtype=bool), k=1)
+        pair_vals = corr.where(mask).stack()
+        avg_corr = float(pair_vals.mean())
+        top_pair = pair_vals.idxmax()
+        top_val = float(pair_vals.max())
+        bot_pair = pair_vals.idxmin()
+        bot_val = float(pair_vals.min())
+
+        if avg_corr < 0.3:
+            dot, label = "🟢", "Well diversified"
+        elif avg_corr < 0.7:
+            dot, label = "🟡", "Moderate overlap"
+        else:
+            dot, label = "🔴", "High concentration"
+
+        # ── Summary (stacked in order) ────────────────────────────────────────
+        st.markdown(f"**Average correlation:** {avg_corr:.2f} {dot} _{label}_")
+        st.markdown(f"**Highest:** {top_pair[0]} ↔ {top_pair[1]} = **{top_val:.2f}**")
+
+        # Inline advisory when the top pair is highly correlated — holding both
+        # adds little diversification, so suggest keeping only one.
+        if top_val >= 0.95:
+            st.caption(
+                f"💡 **{top_pair[0]}** and **{top_pair[1]}** are near-identical "
+                "(ρ ≥ 0.95). Consider keeping only one to avoid redundant exposure."
+            )
+        elif top_val >= 0.85:
+            st.caption(
+                f"💡 **{top_pair[0]}** and **{top_pair[1]}** move very closely "
+                "together. Keeping just one would simplify the portfolio without "
+                "sacrificing much diversification."
+            )
+
+        if not short_history.empty:
+            detail = ", ".join(
+                f"{t} ({int(per_ticker_days[t])} days)" for t in short_history.index
+            )
+            st.caption(
+                f"⚠️ Limited history for: {detail}. Correlation for these assets "
+                "is based on a shorter sample and should be read as indicative only."
+            )
+
+        # ── Automated interpretation ──────────────────────────────────────────
+        if avg_corr < 0.3 and bot_val < 0:
+            st.success(
+                f"Your portfolio includes at least one negatively-correlated pair "
+                f"({bot_pair[0]} ↔ {bot_pair[1]} = {bot_val:.2f}). Diversification "
+                "is working well — downturns in one asset are often cushioned by "
+                "the other."
+            )
+        elif avg_corr < 0.3:
+            st.success(
+                "Average correlation is low. Your selected assets behave fairly "
+                "independently, which is the goal of diversification."
+            )
+        elif avg_corr < 0.7:
+            st.info(
+                f"Moderate diversification. Watch **{top_pair[0]} ↔ {top_pair[1]}** "
+                f"(ρ = {top_val:.2f}) — these two assets tend to move together, so "
+                "both may draw down during the same market shocks."
+            )
+        else:
+            st.warning(
+                f"⚠️ High concentration. Most assets move in sync "
+                f"(average ρ = {avg_corr:.2f}). Adding an asset from a different "
+                "category — defensive ETFs (TLT, BND), gold (GLD), or crypto — "
+                "would increase diversification."
+            )
+
+        # ── Detailed heatmap (nested expander, collapsed by default) ──────────
+        # Kept behind an opt-in toggle so the default view stays compact; the
+        # heatmap can get tall when the watchlist has many assets.
+        with st.expander("📊 View full correlation matrix", expanded=False):
+            labels = list(corr.columns)
+            fig = go.Figure(data=go.Heatmap(
+                z=corr.values,
+                x=labels,
+                y=labels,
+                zmin=-1, zmax=1, zmid=0,
+                colorscale="RdBu_r",   # red = high positive, blue = negative, white ≈ 0
+                text=corr.round(2).values,
+                texttemplate="%{text}",
+                textfont={"size": 11},
+                hovertemplate="<b>%{y} ↔ %{x}</b><br>ρ = %{z:.3f}<extra></extra>",
+                colorbar=dict(title="ρ", thickness=14),
+            ))
+            fig.update_layout(
+                height=max(280, 34 * n + 120),
+                margin=dict(l=40, r=20, t=10, b=60),
+                xaxis=dict(side="bottom", tickangle=-40),
+                yaxis=dict(autorange="reversed"),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
 def convert_display(amount, display_usd, rate):
     """Convert TWD amount to USD for display if needed."""
     if display_usd and rate:
@@ -194,17 +354,16 @@ st.title("Asset Screening")
 st.caption("Filter and sort assets from the pool below. Click ＋ to add an asset to your watchlist.")
 with st.expander("📋 How assets are selected", expanded=False):
     st.markdown("""
-    The **24 assets** in this pool were selected using a two-step process. The asset pool is dynamically sourced — categories and rankings may shift over time as market conditions change.
+    The **26 assets** in this pool come from four categories. Selection combines live scraping (TW / US ETFs) with curated fixed lists (Defensive, Crypto). Counts may shift slightly over time as upstream rankings change.
 
-    **Step 1 — Universe by trading volume ranking:**
-    Assets were sourced from four categories ranked by AUM or market cap:
-    - **TW ETF** (5): Top 5 Taiwan ETFs by AUM from MoneyDJ
-    - **US ETF** (10): Top 10 US ETFs by AUM from TradingView (includes GLD as a commodity ETF)
-    - **Defensive** (4): Bond and commodity ETFs representing stable, low-correlation asset classes — TLT, IEF, BND, DBC
-    - **Crypto** (5): Top 5 cryptocurrencies by market cap from CoinGecko — BTC, ETH, XRP, BNB, SOL (stablecoins, wrapped tokens, and exchange-native tokens excluded)
+    **Step 1 — Asset universe:**
+    - **TW ETF** (7): Top Taiwan ETFs by AUM from MoneyDJ, filtered to those with a Yahoo Finance price feed (a few bond ETFs are excluded because Yahoo doesn't carry their data). Plus two reference trackers manually included regardless of ranking: **00646.TW** (元大 S&P 500, for "SPY in TWD" comparison) and **00955.TWO** (中信日本商社, Japan exposure).
+    - **US ETF** (9): Top 10 US ETFs by AUM from TradingView, deduplicated against the Defensive list.
+    - **Defensive** (5): Bond, commodity, and gold ETFs representing stable, low-correlation asset classes — TLT, IEF, BND, DBC, GLD.
+    - **Crypto** (5): Fixed list of the top-5 cryptocurrencies by market cap — BTC, ETH, XRP, BNB, SOL. Stablecoins, wrapped tokens, exchange-specific tokens, and memecoins are deliberately excluded because they don't fit the passive-portfolio thesis this dashboard is built around.
 
     **Step 2 — Data quality filter:**
-    Assets were retained only if sufficient historical price data was available to calculate CAGR, volatility, max drawdown, and Sharpe ratio. Assets with incomplete data were excluded.
+    Assets with insufficient historical price data to calculate CAGR, volatility, max drawdown, and Sharpe ratio are excluded.
 
     All metrics are calculated from the full available price history for each asset using daily closing prices from Yahoo Finance, stored in Google BigQuery.
     """)
@@ -355,6 +514,9 @@ else:
     wl_display = build_display_df(wl_raw)
     st.dataframe(wl_display, use_container_width=True, hide_index=True)
 
+    # Phase 2: correlation heatmap + auto-interpretation for the current watchlist.
+    render_correlation_check(st.session_state.watchlist)
+
     if st.button("Clear Watchlist", type="secondary", key="clear_watchlist"):
         st.session_state.watchlist = []
         st.rerun()
@@ -399,6 +561,30 @@ else:
         achievable = [k for k, v in RISK_ORDER.items() if min_risk_num <= v <= max_risk_num]
 
         st.info(f"Based on your selected assets, achievable risk range: **{min_risk}** to **{max_risk}**")
+
+        with st.expander("ℹ️ How is the achievable risk range determined?"):
+            st.markdown(
+                f"""
+The achievable risk range is derived from the **annualized volatility** of the assets in your watchlist:
+
+1. Compute each asset's annualized volatility (stdev of daily returns × √N).
+2. Find the **lowest** and **highest** volatility across your watchlist.
+3. Map each to a risk tier using these fixed thresholds:
+
+| Annualized Volatility | Risk Tier |
+|---|---|
+| &lt; 16% | Low |
+| 16% &ndash; 27% | Medium |
+| 27% &ndash; 50% | High |
+| &ge; 50% | Extreme High |
+
+4. The achievable range spans from the tier of the **least volatile** asset to the tier of the **most volatile** asset.
+
+**Why this is the full achievable range.** The allocation algorithm combines assets by a weighted average of their volatilities (ignoring cross-asset correlations), so the resulting portfolio volatility is always bounded between the minimum and maximum single-asset volatility in your watchlist &mdash; you cannot reach a tier below the lowest-vol asset or above the highest-vol asset.
+
+**Your watchlist right now:** lowest volatility = **{min_vol:.1%}** ({min_risk}), highest volatility = **{max_vol:.1%}** ({max_risk}).
+                """
+            )
 
         # ── Risk preference selector (only show achievable levels) ─────────────
         risk_pref = st.radio(
@@ -522,7 +708,18 @@ else:
                     'tv_url': f"https://www.tradingview.com/symbols/{tv_ticker}/",
                 })
         treemap_data = json.dumps(treemap_data_list)
-        st.caption("💡 Click any asset block in the treemap to see its details.")
+        st.markdown("### Portfolio Composition")
+        st.markdown(
+            f"""
+            <div style="padding:10px 16px; margin:6px 0 14px 0; border-radius:6px;
+                        background:#eff5fb; border-left:3px solid #4182b9;
+                        font-size:14.5px; color:#1f3b5c; line-height:1.55;">
+              Weights automatically fitted to your target risk level
+              (<strong>{risk_pref}</strong>). Click any tile for details.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         html_code = f"""
         <style>
             g.pathbar, .pathbar, .slice.pathbar {{ display: none !important; }}
@@ -565,7 +762,7 @@ else:
             return {{r:r, g:g, b:b}};
         }}
         function rgbStringToObj(s) {{
-            var m = s.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            var m = s.match(/rgb\\((\\d+),\\s*(\\d+),\\s*(\\d+)\\)/);
             if (m) return {{r:parseInt(m[1]), g:parseInt(m[2]), b:parseInt(m[3])}};
             return hexToRgb(s.replace('#',''));
         }}
@@ -803,6 +1000,31 @@ else:
                      "in Risk Allocation, which uses each asset's native-currency historical average."
             )
 
+            # ── Top-5 drawdown episodes (shared by both charts + table below) ───
+            dd_events_df = identify_drawdown_events(
+                result_df['date'], result_df['portfolio_value'], top_n=5
+            )
+
+            def _add_drawdown_shading(fig, events_df):
+                """Overlay semi-transparent shading for each Top-N drawdown episode."""
+                for _, ev in events_df.iterrows():
+                    x0 = pd.Timestamp(ev['peak_date'])
+                    x1 = pd.Timestamp(
+                        ev['recovery_date']
+                        if pd.notna(ev['recovery_date'])
+                        else result_df['date'].iloc[-1]
+                    )
+                    fig.add_vrect(
+                        x0=x0, x1=x1,
+                        fillcolor="rgba(244, 67, 54, 0.10)",
+                        line_width=0,
+                        layer="below",
+                        annotation_text=f"#{int(ev['rank'])}",
+                        annotation_position="top left",
+                        annotation_font_size=11,
+                        annotation_font_color="#b71c1c",
+                    )
+
             st.subheader("Portfolio Value Over Time")
             line_fig = go.Figure()
             chart_divisor = fx_rate if display_usd else 1.0
@@ -817,6 +1039,8 @@ else:
                 mode='lines', name='Total Invested',
                 line=dict(color='#9E9E9E', width=1.5, dash='dash')
             ))
+            if not dd_events_df.empty:
+                _add_drawdown_shading(line_fig, dd_events_df)
             line_fig.update_layout(
                 height=320, margin=dict(t=20, b=20, l=20, r=20),
                 yaxis_title=f"Value ({chart_cs})",
@@ -847,6 +1071,8 @@ else:
                 fill='tozeroy',
                 line=dict(color='#F44336', width=1.5)
             ))
+            if not dd_events_df.empty:
+                _add_drawdown_shading(dd_fig, dd_events_df)
             dd_fig.update_layout(
                 height=260, margin=dict(t=20, b=20, l=20, r=20),
                 yaxis_title="Drawdown (%)",
@@ -859,6 +1085,46 @@ else:
                 f'border-left:4px solid #F44336; font-size:14px; color:#1a1a1a;">{insight2}</div>',
                 unsafe_allow_html=True
             )
+
+            # ── Top-5 drawdowns table (collapsible) ───────────────────────────
+            if not dd_events_df.empty:
+                with st.expander("📉 View Top 5 Drawdown Episodes"):
+                    st.caption(
+                        "The five most severe independent drawdowns during this backtest, "
+                        "ranked by depth. Shaded bands on the charts above correspond to "
+                        "these periods (labelled #1–#5). Historical context is matched from "
+                        "a curated list of notable market events."
+                    )
+                    dd_table = dd_events_df.copy()
+                    dd_table['Rank'] = dd_table['rank'].astype(int)
+                    dd_table['Peak'] = pd.to_datetime(dd_table['peak_date']).dt.strftime('%Y-%m-%d')
+                    dd_table['Trough'] = pd.to_datetime(dd_table['trough_date']).dt.strftime('%Y-%m-%d')
+                    dd_table['Recovery'] = dd_table['recovery_date'].apply(
+                        lambda d: pd.to_datetime(d).strftime('%Y-%m-%d') if pd.notna(d) else 'Ongoing'
+                    )
+                    dd_table['Drawdown'] = (dd_table['drawdown_pct'] * 100).round(2).astype(str) + '%'
+
+                    def _fmt_days(n):
+                        if pd.isna(n):
+                            return '—'
+                        n = int(n)
+                        if n >= 30:
+                            months = n / 30.44
+                            return f"{n}d ({months:.1f}mo)"
+                        return f"{n}d"
+                    dd_table['Fall Time'] = dd_table['duration_days'].apply(_fmt_days)
+                    dd_table['Recovery Time'] = dd_table['recovery_days'].apply(
+                        lambda n: _fmt_days(n) if pd.notna(n) else 'Ongoing'
+                    )
+                    dd_table['Historical Context'] = dd_table['event_label']
+
+                    display_cols = ['Rank', 'Peak', 'Trough', 'Recovery',
+                                    'Drawdown', 'Fall Time', 'Recovery Time', 'Historical Context']
+                    st.dataframe(
+                        dd_table[display_cols],
+                        use_container_width=True,
+                        hide_index=True,
+                    )
 
             st.subheader("Annual Returns")
             result_df['year'] = pd.to_datetime(result_df['date']).dt.year
@@ -913,8 +1179,17 @@ elif portfolio_cagr:
     st.success(f"Using portfolio weighted CAGR: **{portfolio_cagr:.2%}** (from your Risk Allocation)")
 
 # ── Advanced Settings ──────────────────────────────────────────────────────────
+# The FIRE target is now DERIVED from (Annual Expenses ÷ Withdrawal Rate) rather
+# than being a directly-entered number. This aligns with the canonical FIRE /
+# Trinity-Study framing and lets the demo-preset personas describe retirement
+# in lifestyle terms ("NT$ 800k/yr at 3.5% withdrawal") instead of opaque
+# targets. Downstream code (Summary section, calculate_fire call site below)
+# reads st.session_state['fire_target'], which we populate with the computed
+# value so no other callers need to know about expenses/rate.
 currency_symbol_fire = "NT$"
-target_amount = 30000000
+annual_expenses = 1200000          # NT$ 1.2M/yr ⇒ implies NT$ 30M target at 4%
+withdrawal_rate = 0.04
+target_amount = int(annual_expenses / withdrawal_rate)
 initial_capital = int(bt_params.get('initial', 300000))
 monthly_contribution = int(bt_params.get('monthly', 15000))
 risk_level_fire = risk_from_allocation if risk_from_allocation in ["Low", "Medium", "High", "Extreme High"] else "Medium"
@@ -923,27 +1198,52 @@ inflation_rate_pct = round(default_inflation * 100, 2)
 
 with st.expander("⚙️ Advanced Settings", expanded=False):
     st.markdown("Adjust the parameters below. Risk Level is carried over from your Risk Allocation.")
+
+    # Row 1 — FIRE math: Annual Expenses ÷ Withdrawal Rate = Implied Target
     fire_r1c1, fire_r1c2, fire_r1c3 = st.columns(3)
     with fire_r1c1:
-        target_amount = st.number_input(
-            "Retirement Target (NT$)",
-            min_value=100000, max_value=500000000,
-            value=30000000, step=100000, key="fire_target"
+        annual_expenses = st.number_input(
+            "Annual Expenses (NT$)",
+            min_value=100000, max_value=50000000,
+            value=1200000, step=10000, key="fire_annual_expenses",
+            help="How much you expect to spend per year in retirement (in TWD). "
+                 "Drives the implied FIRE target via the withdrawal rate."
         )
     with fire_r1c2:
+        withdrawal_rate_pct = st.number_input(
+            "Withdrawal Rate (%)",
+            min_value=1.0, max_value=10.0,
+            value=4.0, step=0.1, key="fire_withdrawal_rate",
+            help="The fraction of the portfolio withdrawn in year 1. "
+                 "See \"About the 4% Rule\" below for guidance."
+        )
+        withdrawal_rate = withdrawal_rate_pct / 100
+    with fire_r1c3:
+        target_amount = int(annual_expenses / withdrawal_rate) if withdrawal_rate > 0 else 0
+        st.markdown("**Implied FIRE Target**")
+        st.markdown(f"NT$ {target_amount:,.0f}")
+        st.caption("= Expenses ÷ Withdrawal Rate")
+
+    # Keep downstream readers (Summary section, etc.) working without having to
+    # know about the new expenses/rate inputs. The old fire_target widget key is
+    # gone, so writing this session_state key directly is safe (no widget conflict).
+    st.session_state['fire_target'] = target_amount
+
+    # Row 2 — capital + contribution + inflation
+    fire_r2c1, fire_r2c2, fire_r2c3 = st.columns(3)
+    with fire_r2c1:
         initial_capital = st.number_input(
             "Current Savings (NT$)",
             min_value=0, value=int(bt_params.get('initial', 300000)),
             step=10000, key="fire_capital"
         )
-    with fire_r1c3:
+    with fire_r2c2:
         monthly_contribution = st.number_input(
             "Monthly Contribution (NT$)",
             min_value=0, value=int(bt_params.get('monthly', 15000)),
             step=1000, key="fire_monthly"
         )
-    fire_r2c1, fire_r2c2, fire_r2c3 = st.columns(3)
-    with fire_r2c1:
+    with fire_r2c3:
         inflation_rate_pct = st.number_input(
             "Annual Inflation Rate (%)",
             min_value=0.0, max_value=10.0,
@@ -953,14 +1253,46 @@ with st.expander("⚙️ Advanced Settings", expanded=False):
         )
         inflation_rate = inflation_rate_pct / 100
         st.caption(f"Current US CPI YoY: {default_inflation:.2%}")
-    with fire_r2c2:
-        st.markdown(f"**Risk Level**")
+
+    # Row 3 — read-only Risk Level + Currency
+    fire_r3c1, fire_r3c2 = st.columns(2)
+    with fire_r3c1:
+        st.markdown("**Risk Level**")
         st.markdown(f"{risk_level_fire}")
         st.caption("Carried over from Risk Allocation")
-    with fire_r2c3:
-        st.markdown(f"**Currency**")
+    with fire_r3c2:
+        st.markdown("**Currency**")
         st.markdown("NT$ (TWD)")
         st.caption("All calculations in New Taiwan Dollar")
+
+# ── Educational note: 4% Rule / Trinity Study ─────────────────────────────────
+# Kept as a sibling expander (NOT nested inside Advanced Settings) because
+# Streamlit disallows nested expanders. Sitting right below the parameter
+# block, it's still in plain sight for users wondering where the 4% comes from.
+with st.expander("📖 About the 4% Rule (Trinity Study)"):
+    st.markdown("""
+The default **4% withdrawal rate** comes from the **Trinity Study**
+(Cooley, Hubbard & Walz, 1998), which backtested US equity + bond
+portfolios from 1926–1995. Withdrawing 4% of the initial balance in
+year 1 (adjusted for inflation thereafter) had roughly a **95% success
+rate** of lasting a full 30-year retirement without running out.
+
+The shortcut form is the **Rule of 25**:
+
+> **FIRE target ≈ 25 × annual expenses**
+
+**How to adjust the rate to your situation:**
+- **3.0 – 3.5%** — more conservative, suitable for 40+ year
+  retirement horizons, lower expected returns, or higher risk aversion.
+- **4.0%** — the classic baseline for a 30-year retirement.
+- **4.5 – 5.0%** — more aggressive, suitable if you have other income
+  sources (part-time work, rental income, social security) that reduce
+  how much you need to pull from the portfolio.
+
+_Reference: Cooley, P., Hubbard, C., & Walz, D. (1998).
+"Retirement Savings: Choosing a Withdrawal Rate That Is Sustainable."
+AAII Journal._
+""")
 
 # ── Auto-run FIRE calculation ──────────────────────────────────────────────────
 with st.spinner("Calculating FIRE projection..."):
