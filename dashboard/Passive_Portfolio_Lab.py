@@ -354,11 +354,11 @@ st.title("Asset Screening")
 st.caption("Filter and sort assets from the pool below. Click ＋ to add an asset to your watchlist.")
 with st.expander("📋 How assets are selected", expanded=False):
     st.markdown("""
-    The **26 assets** in this pool come from four categories. Selection combines live scraping (TW / US ETFs) with curated fixed lists (Defensive, Crypto). Counts may shift slightly over time as upstream rankings change.
+    The **27 assets** in this pool come from four categories. Selection combines live scraping (TW / US ETFs) with curated fixed lists (Defensive, Crypto). Counts may shift slightly over time as upstream rankings change.
 
     **Step 1 — Asset universe:**
     - **TW ETF** (7): Top Taiwan ETFs by AUM from MoneyDJ, filtered to those with a Yahoo Finance price feed (a few bond ETFs are excluded because Yahoo doesn't carry their data). Plus two reference trackers manually included regardless of ranking: **00646.TW** (元大 S&P 500, for "SPY in TWD" comparison) and **00955.TWO** (中信日本商社, Japan exposure).
-    - **US ETF** (9): Top 10 US ETFs by AUM from TradingView, deduplicated against the Defensive list.
+    - **US ETF** (10): Top 10 US ETFs by AUM from TradingView, deduplicated against the Defensive list.
     - **Defensive** (5): Bond, commodity, and gold ETFs representing stable, low-correlation asset classes — TLT, IEF, BND, DBC, GLD.
     - **Crypto** (5): Fixed list of the top-5 cryptocurrencies by market cap — BTC, ETH, XRP, BNB, SOL. Stablecoins, wrapped tokens, exchange-specific tokens, and memecoins are deliberately excluded because they don't fit the passive-portfolio thesis this dashboard is built around.
 
@@ -925,51 +925,48 @@ st.caption("How would your portfolio have performed historically — and could y
 if 'allocation' not in st.session_state or not st.session_state['allocation']:
     st.info("Complete the Risk Allocation section first.")
 else:
-    # ── Advanced Settings ──────────────────────────────────────────────────────
+    # ── Advanced Settings ────────────────────────────────────────────
     # Set defaults first
     if 'bt_params' not in st.session_state:
         st.session_state['bt_params'] = {
-            'strategy': 'LumpSum',
             'initial': 300000,
             'monthly': 15000,
+            'start': date(2010, 1, 1),
+            'end': date.today(),
         }
 
     with st.expander("⚙️ Advanced Settings", expanded=False):
-        adv_col1, adv_col2, adv_col3 = st.columns(3)
-        with adv_col1:
-            strategy_bt = st.radio("Strategy", ["LumpSum", "DCA"], key="bt_strategy", index=0)
-        with adv_col2:
-            if strategy_bt == "LumpSum":
-                initial_bt = st.number_input("Initial Investment (NT$)", min_value=1000, value=300000, step=10000, key="bt_initial")
-                monthly_bt = 15000
-            else:
-                monthly_bt = st.number_input("Monthly Contribution (NT$)", min_value=100, value=15000, step=1000, key="bt_monthly")
-                initial_bt = 300000
-        with adv_col3:
-            start_bt = st.date_input("Start Date", value=date(2010, 1, 1), key="bt_start")
-            end_bt = st.date_input("End Date", value=date.today(), key="bt_end")
+        row1_col1, row1_col2 = st.columns(2)
+        with row1_col1:
+            initial_bt = st.number_input("Initial Investment (NT$)", min_value=0, value=st.session_state['bt_params'].get('initial', 300000), step=10000, key="bt_initial")
+        with row1_col2:
+            monthly_bt = st.number_input("Monthly Contribution (NT$)", min_value=0, value=st.session_state['bt_params'].get('monthly', 15000), step=1000, key="bt_monthly")
+        row2_col1, row2_col2 = st.columns(2)
+        with row2_col1:
+            start_bt = st.date_input("Start Date", value=st.session_state['bt_params'].get('start', date(2010, 1, 1)), key="bt_start")
+        with row2_col2:
+            end_bt = st.date_input("End Date", value=st.session_state['bt_params'].get('end', date.today()), key="bt_end")
 
         st.session_state['bt_params'] = {
-            'strategy': strategy_bt,
             'initial': initial_bt,
-            'monthly': monthly_bt if strategy_bt == 'DCA' else st.session_state.get('bt_params', {}).get('monthly', 500),
+            'monthly': monthly_bt,
+            'start': start_bt,
+            'end': end_bt,
         }
 
-    strategy_bt = st.session_state['bt_params']['strategy']
     initial_bt = st.session_state['bt_params']['initial']
     monthly_bt = st.session_state['bt_params']['monthly']
-    start_bt = st.session_state.get('bt_start', date(2010, 1, 1))
-    end_bt = st.session_state.get('bt_end', date.today())
+    start_bt = st.session_state['bt_params']['start']
+    end_bt = st.session_state['bt_params']['end']
 
     # ── Run backtest automatically ─────────────────────────────────────────────
     with st.spinner("Running backtest..."):
         try:
             result_df = run_backtest(
-                strategy=strategy_bt,
                 start_date=str(start_bt),
                 end_date=str(end_bt),
                 initial_investment=initial_bt,
-                monthly_amount=monthly_bt,
+                monthly_contribution=monthly_bt,
                 tickers_weights=st.session_state['allocation'],
             )
             display_usd = st.session_state.get('display_usd', False)
@@ -1237,12 +1234,14 @@ with st.expander("⚙️ Advanced Settings", expanded=False):
             min_value=0, value=int(bt_params.get('initial', 300000)),
             step=10000, key="fire_capital"
         )
+        st.caption("Carried over from Backtest & Pain Index")
     with fire_r2c2:
         monthly_contribution = st.number_input(
             "Monthly Contribution (NT$)",
             min_value=0, value=int(bt_params.get('monthly', 15000)),
             step=1000, key="fire_monthly"
         )
+        st.caption("Carried over from Backtest & Pain Index")
     with fire_r2c3:
         inflation_rate_pct = st.number_input(
             "Annual Inflation Rate (%)",

@@ -216,24 +216,117 @@ def run_dca(
 
     return result
 
+def run_combined(
+    prices_df: pd.DataFrame,
+    tickers_weights: dict,
+    start_date: str,
+    end_date: str,
+    initial_investment: float,
+    monthly_contribution: float,
+) -> pd.DataFrame:
+    """
+    Combined backtest: invest initial_investment as a lump sum on day one,
+    then add monthly_contribution on the first trading day of each subsequent month.
+    All calculations are performed in TWD.
+    USD-denominated assets are converted to TWD using daily FX rates.
+    """
+    start = pd.to_datetime(start_date)
+    end = pd.to_datetime(end_date)
+
+    df = prices_df[
+        (prices_df['date'] >= start) &
+        (prices_df['date'] <= end)
+    ].copy()
+
+    pivot = df.pivot(index='date', columns='ticker', values='close')
+    pivot = pivot.sort_index().ffill().bfill()
+
+    valid_tickers = [t for t in tickers_weights if t in pivot.columns]
+    pivot = pivot[valid_tickers]
+
+    # Convert USD assets to TWD using daily FX rates
+    usd_tickers = [t for t in valid_tickers if not t.endswith('.TW')]
+    if usd_tickers:
+        fx = load_fx_rate(start_date, end_date)
+        fx = fx.reindex(pivot.index).ffill().bfill()
+        for ticker in usd_tickers:
+            pivot[ticker] = pivot[ticker] * fx.values
+
+    total_weight = sum(tickers_weights[t] for t in valid_tickers)
+    weights = {t: tickers_weights[t] / total_weight for t in valid_tickers}
+
+    # Determine monthly DCA dates (first trading day of each month, excluding day one)
+    first_day = pivot.index[0]
+    monthly_dates = (
+        pivot.resample('MS').first().index
+    )
+    monthly_dates = [d for d in monthly_dates if d in pivot.index and d != first_day]
+
+    shares = {ticker: 0.0 for ticker in valid_tickers}
+    total_invested = 0.0
+    portfolio_values = []
+    total_invested_list = []
+
+    for date in pivot.index:
+        # Day one: lump sum
+        if date == first_day:
+            for ticker in valid_tickers:
+                allocated = initial_investment * weights[ticker]
+                price = pivot.loc[date, ticker]
+                shares[ticker] += allocated / price
+            total_invested += initial_investment
+        # Monthly: DCA contribution
+        elif date in monthly_dates:
+            for ticker in valid_tickers:
+                allocated = monthly_contribution * weights[ticker]
+                price = pivot.loc[date, ticker]
+                shares[ticker] += allocated / price
+            total_invested += monthly_contribution
+
+        daily_value = sum(shares[ticker] * pivot.loc[date, ticker] for ticker in valid_tickers)
+        portfolio_values.append(daily_value)
+        total_invested_list.append(total_invested)
+
+    total_invested_arr = np.array(total_invested_list, dtype=float)
+    portfolio_values_arr = np.array(portfolio_values, dtype=float)
+
+    with np.errstate(invalid='ignore', divide='ignore'):
+        return_pct = np.where(
+            total_invested_arr > 0,
+            (portfolio_values_arr / total_invested_arr - 1) * 100,
+            0.0
+        )
+
+    result = pd.DataFrame({
+        'date': pivot.index,
+        'portfolio_value': portfolio_values_arr,
+        'total_invested': total_invested_arr,
+        'total_return_pct': return_pct,
+        'strategy': 'Combined'
+    })
+
+    return result
+
+
 def run_backtest(
-    strategy: str,
     start_date: str,
     end_date: str,
     tickers_weights: dict,
-    initial_investment: float = 10000,
-    monthly_amount: float = 1000,
+    initial_investment: float = 300000,
+    monthly_contribution: float = 15000,
+    # Legacy parameters kept for backward compatibility but no longer used by UI
+    strategy: str = "Combined",
+    monthly_amount: float = 15000,
 ) -> pd.DataFrame:
     """
     Unified entry point for running a backtest. Called by the Streamlit dashboard.
 
     Parameters:
-        strategy           : "LumpSum" or "DCA"
-        start_date         : "YYYY-MM-DD"
-        end_date           : "YYYY-MM-DD"
-        tickers_weights    : {ticker: weight} — e.g. {"SPY": 0.6, "BTC-USD": 0.4}
-        initial_investment : used when strategy="LumpSum"
-        monthly_amount     : used when strategy="DCA"
+        start_date          : "YYYY-MM-DD"
+        end_date            : "YYYY-MM-DD"
+        tickers_weights     : {ticker: weight} — e.g. {"SPY": 0.6, "BTC-USD": 0.4}
+        initial_investment  : lump sum invested on day one
+        monthly_contribution: amount added on the first trading day of each subsequent month
 
     Returns:
         DataFrame with columns: date, portfolio_value, total_invested, total_return_pct, strategy
@@ -241,17 +334,10 @@ def run_backtest(
     if not tickers_weights:
         raise ValueError("tickers_weights must be provided and non-empty.")
 
-    # --- Load price data ---
     tickers = list(tickers_weights.keys())
     prices_df = load_prices_for_tickers(tickers)
 
-    # --- Run selected strategy ---
-    if strategy == "LumpSum":
-        return run_lumpsum(prices_df, tickers_weights, start_date, end_date, initial_investment)
-    elif strategy == "DCA":
-        return run_dca(prices_df, tickers_weights, start_date, end_date, monthly_amount)
-    else:
-        raise ValueError(f"Invalid strategy '{strategy}'. Choose 'LumpSum' or 'DCA'.")
+    return run_combined(prices_df, tickers_weights, start_date, end_date, initial_investment, monthly_contribution)
 
 if __name__ == "__main__":
     print("=== Test: Custom weights (SPY 50 / QQQ 30 / 0050.TW 20), DCA ===")
