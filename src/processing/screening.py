@@ -194,19 +194,58 @@ def get_crypto_ranking():
     return pd.DataFrame(results)
 
 
-def get_all_candidates():
-    tw_df = get_tw_etf_ranking()
-    us_df = get_us_etf_ranking()
-    defensive_df = get_defensive_etf_list()
-    crypto_df = get_crypto_ranking()
-    combined = pd.concat([tw_df, us_df, defensive_df, crypto_df], ignore_index=True)
-    combined = combined.drop_duplicates(subset='ticker', keep='first').reset_index(drop=True)
-    # Drop tickers that Yahoo Finance doesn't actually price — they would just
-    # fail to fetch, never appear in asset_metrics, and add no value to the
-    # watchlist UI. See YAHOO_UNAVAILABLE_TICKERS above for rationale.
-    combined = combined[~combined['ticker'].isin(YAHOO_UNAVAILABLE_TICKERS)].reset_index(drop=True)
-    return combined
+# US ETFs that are manually pinned regardless of TradingView's live ranking.
+MANUAL_US_ETFS = [
+    {"ticker": "VGT", "name": "Vanguard Information Technology ETF"},
+    {"ticker": "VO",  "name": "Vanguard Mid-Cap ETF"},
+]
 
+def get_all_candidates():
+    """
+    Returns the fixed asset universe for the dashboard.
+    The scraping functions above (get_tw_etf_ranking, get_us_etf_ranking, etc.)
+    represent the original screening process used to build this list.
+    The final universe is hardcoded here for stability — live scraping results
+    shift daily and would cause the asset pool to drift from what's in BigQuery.
+    """
+    assets = [
+        # ── TW ETF (7) ────────────────────────────────────────────────────────
+        {"ticker": "0050.TW",   "name": "元大台灣50",       "category": "TW_ETF", "currency": "TWD"},
+        {"ticker": "0056.TW",   "name": "元大高股息",       "category": "TW_ETF", "currency": "TWD"},
+        {"ticker": "006208.TW", "name": "富邦台50",         "category": "TW_ETF", "currency": "TWD"},
+        {"ticker": "00646.TW",  "name": "元大 S&P 500",    "category": "TW_ETF", "currency": "TWD"},
+        {"ticker": "00878.TW",  "name": "國泰永續高股息",   "category": "TW_ETF", "currency": "TWD"},
+        {"ticker": "00919.TW",  "name": "群益台灣精選高息", "category": "TW_ETF", "currency": "TWD"},
+        {"ticker": "00955.TWO", "name": "中信日本商社",     "category": "TW_ETF", "currency": "TWD"},
+        # ── US ETF (10) ───────────────────────────────────────────────────────
+        {"ticker": "VOO",  "name": "Vanguard S&P 500 ETF",               "category": "US_ETF", "currency": "USD"},
+        {"ticker": "IVV",  "name": "iShares Core S&P 500 ETF",           "category": "US_ETF", "currency": "USD"},
+        {"ticker": "SPY",  "name": "SPDR S&P 500 ETF Trust",             "category": "US_ETF", "currency": "USD"},
+        {"ticker": "VTI",  "name": "Vanguard Total Stock Market ETF",    "category": "US_ETF", "currency": "USD"},
+        {"ticker": "QQQ",  "name": "Invesco QQQ Trust",                  "category": "US_ETF", "currency": "USD"},
+        {"ticker": "VEA",  "name": "Vanguard FTSE Developed Markets ETF","category": "US_ETF", "currency": "USD"},
+        {"ticker": "VUG",  "name": "Vanguard Growth ETF",                "category": "US_ETF", "currency": "USD"},
+        {"ticker": "IEFA", "name": "iShares Core MSCI EAFE ETF",         "category": "US_ETF", "currency": "USD"},
+        {"ticker": "VTV",  "name": "Vanguard Value ETF",                 "category": "US_ETF", "currency": "USD"},
+        {"ticker": "VT",   "name": "Vanguard Total World Stock ETF",     "category": "US_ETF", "currency": "USD"},
+        # ── Defensive (5) ─────────────────────────────────────────────────────
+        {"ticker": "TLT", "name": "iShares 20+ Year Treasury Bond ETF", "category": "DEFENSIVE", "currency": "USD"},
+        {"ticker": "IEF", "name": "iShares 7-10 Year Treasury Bond ETF","category": "DEFENSIVE", "currency": "USD"},
+        {"ticker": "BND", "name": "Vanguard Total Bond Market ETF",     "category": "DEFENSIVE", "currency": "USD"},
+        {"ticker": "GLD", "name": "SPDR Gold Shares",                   "category": "DEFENSIVE", "currency": "USD"},
+        {"ticker": "DBC", "name": "Invesco DB Commodity Index ETF",     "category": "DEFENSIVE", "currency": "USD"},
+        # ── Crypto (5) ────────────────────────────────────────────────────────
+        {"ticker": "BTC-USD", "name": "Bitcoin",  "category": "CRYPTO", "currency": "USD"},
+        {"ticker": "ETH-USD", "name": "Ethereum", "category": "CRYPTO", "currency": "USD"},
+        {"ticker": "XRP-USD", "name": "XRP",      "category": "CRYPTO", "currency": "USD"},
+        {"ticker": "BNB-USD", "name": "BNB",      "category": "CRYPTO", "currency": "USD"},
+        {"ticker": "SOL-USD", "name": "Solana",   "category": "CRYPTO", "currency": "USD"},
+    ]
+    df = pd.DataFrame(assets)
+    df["rank"] = range(1, len(df) + 1)
+    df["source"] = "Manual"
+    df["aum_or_market_cap"] = "N/A"
+    return df
 
 if __name__ == "__main__":
     candidates = get_all_candidates()

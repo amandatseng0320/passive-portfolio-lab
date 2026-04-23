@@ -227,23 +227,33 @@ def render_correlation_check(tickers: list) -> None:
         else:
             dot, label = "🔴", "High concentration"
 
-        # ── Summary (stacked in order) ────────────────────────────────────────
+        # ── Summary + redundancy suggestions ──────────────────────────────────
         st.markdown(f"**Average correlation:** {avg_corr:.2f} {dot} _{label}_")
-        st.markdown(f"**Highest:** {top_pair[0]} ↔ {top_pair[1]} = **{top_val:.2f}**")
 
-        # Inline advisory when the top pair is highly correlated — holding both
-        # adds little diversification, so suggest keeping only one.
-        if top_val >= 0.95:
-            st.caption(
-                f"💡 **{top_pair[0]}** and **{top_pair[1]}** are near-identical "
-                "(ρ ≥ 0.95). Consider keeping only one to avoid redundant exposure."
-            )
-        elif top_val >= 0.85:
-            st.caption(
-                f"💡 **{top_pair[0]}** and **{top_pair[1]}** move very closely "
-                "together. Keeping just one would simplify the portfolio without "
-                "sacrificing much diversification."
-            )
+        # Identify redundant groups (ρ ≥ 0.95) using union-find
+        high_pairs = pair_vals[pair_vals >= 0.95].sort_values(ascending=False)
+        if not high_pairs.empty:
+            from collections import defaultdict
+            parent = {}
+            def find(x):
+                if x not in parent: parent[x] = x
+                if parent[x] != x: parent[x] = find(parent[x])
+                return parent[x]
+            def union(x, y):
+                parent[find(x)] = find(y)
+            for (t1, t2), val in high_pairs.items():
+                union(t1, t2)
+            groups = defaultdict(list)
+            for t in set([t for pair in high_pairs.index for t in pair]):
+                groups[find(t)].append(t)
+            redundant_groups = [sorted(v) for v in groups.values() if len(v) > 1]
+            for group in redundant_groups:
+                keep = group[0]
+                remove = group[1:]
+                st.caption(
+                    f"💡 **{chr(32).join([f"{t} ↔" for t in group[:-1]])} {group[-1]}** are near-identical (ρ ≥ 0.95). "
+                    f"Consider keeping only **{keep}** and removing {chr(44).join(f'**{r}**' for r in remove)}."
+                )
 
         if not short_history.empty:
             detail = ", ".join(
@@ -281,17 +291,16 @@ def render_correlation_check(tickers: list) -> None:
                 "would increase diversification."
             )
 
-        # ── Detailed heatmap (nested expander, collapsed by default) ──────────
-        # Kept behind an opt-in toggle so the default view stays compact; the
-        # heatmap can get tall when the watchlist has many assets.
-        with st.expander("📊 View full correlation matrix", expanded=False):
+        # ── Full correlation heatmap (always shown) ──────────────────────────
+        st.markdown("**Full correlation matrix:**")
+        if True:
             labels = list(corr.columns)
             fig = go.Figure(data=go.Heatmap(
                 z=corr.values,
                 x=labels,
                 y=labels,
                 zmin=-1, zmax=1, zmid=0,
-                colorscale="RdBu_r",   # red = high positive, blue = negative, white ≈ 0
+                colorscale="RdBu_r",
                 text=corr.round(2).values,
                 texttemplate="%{text}",
                 textfont={"size": 11},
@@ -476,7 +485,13 @@ def render_asset_pool():
 
     editor_df = display_df.copy()
     select_all_state = st.session_state.get('select_all', False)
-    editor_df.insert(0, 'Add', select_all_state)
+    # Use pending_tickers if available (user is mid-selection), else fall back to confirmed watchlist
+    pending = st.session_state.get('pending_tickers', list(st.session_state.watchlist))
+    # Each ticker's checkbox reflects whether it's currently in pending_tickers
+    editor_df.insert(0, 'Add', [
+        True if select_all_state else (t in pending)
+        for t in filtered_reset['ticker']
+    ])
 
     edited = st.data_editor(
         editor_df,
@@ -494,21 +509,38 @@ def render_asset_pool():
         key="asset_pool_editor"
     )
 
-    selected_tickers = filtered_reset.loc[edited['Add'] == True, 'ticker'].tolist()
-    if selected_tickers:
-        if st.button(f"Add {len(selected_tickers)} asset(s) to Watchlist", type="primary", key="add_to_watchlist"):
-            for t in selected_tickers:
-                if t not in st.session_state.watchlist:
-                    st.session_state.watchlist.append(t)
-            st.session_state.watchlist = list(dict.fromkeys(st.session_state.watchlist))
+    # ── Update watchlist directly from checkbox state ─────────────────────
+    checked_tickers = filtered_reset.loc[edited['Add'] == True, 'ticker'].tolist()
+    visible_tickers = filtered_reset['ticker'].tolist()
+    # Keep tickers already in watchlist that are hidden by current filters
+    hidden_confirmed = [t for t in st.session_state.watchlist if t not in visible_tickers]
+    st.session_state['pending_tickers'] = list(dict.fromkeys(hidden_confirmed + checked_tickers))
+
+    # ── Run Analysis button ───────────────────────────────────────────────────
+    st.markdown("")
+    col_run, _ = st.columns([1, 3])
+    with col_run:
+        pending = st.session_state.get('pending_tickers', [])
+        if st.button("▶ Run Analysis", type="primary", key="run_analysis_btn", use_container_width=True,
+                     disabled=len(pending) == 0):
+            st.session_state.watchlist = list(pending)
+            st.session_state['pending_tickers'] = list(pending)
+            if 'asset_pool_editor' in st.session_state:
+                del st.session_state['asset_pool_editor']
             st.rerun(scope="app")
+
+
 
 render_asset_pool()
 
+
+
 # ── Watchlist ──────────────────────────────────────────────────────────────────
-st.markdown("#### Watchlist")
+wl_count = len(st.session_state.watchlist)
+wl_title = f"#### Watchlist ({wl_count} asset{'s' if wl_count != 1 else ''} selected)" if wl_count > 0 else "#### Watchlist"
+st.markdown(wl_title)
 if not st.session_state.watchlist:
-    st.info("No assets selected yet. Tick the checkbox in the Asset Pool above to add assets.")
+    st.info("No assets confirmed yet. Select assets in the Asset Pool above and click **▶ Run Analysis**.")
 else:
     wl_raw = pool_df[pool_df['ticker'].isin(st.session_state.watchlist)].copy()
     wl_display = build_display_df(wl_raw)
@@ -516,12 +548,6 @@ else:
 
     # Phase 2: correlation heatmap + auto-interpretation for the current watchlist.
     render_correlation_check(st.session_state.watchlist)
-
-    if st.button("Clear Watchlist", type="secondary", key="clear_watchlist"):
-        st.session_state.watchlist = []
-        st.rerun()
-
-st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 3 — RISK ALLOCATION
