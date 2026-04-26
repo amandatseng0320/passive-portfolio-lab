@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "streamlit",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd \"$(dirname \"$0\")\" && python3 -m streamlit run dashboard/Passive_Portfolio_Lab.py --server.headless true"],
+      "port": 8501
+    }
+  ]
+}
