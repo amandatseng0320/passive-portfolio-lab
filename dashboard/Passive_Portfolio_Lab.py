@@ -18,8 +18,11 @@ from src.processing.backtest import run_backtest, load_prices_for_tickers
 from src.processing.fire_calculator import calculate_fire
 from src.processing.drawdown_events import identify_drawdown_events, MARKET_EVENTS
 from src.data_collection.fetch_macro import get_latest_cpi_yoy
+from google import genai
 
 load_dotenv()
+# The new google-genai SDK uses a Client object for configuration.
+# Top-level configuration is no longer needed.
 
 # ── Streamlit Cloud setup: materialize GCP credentials from st.secrets ──────
 # Locally, auth goes through .env + credentials.json (GOOGLE_APPLICATION_CREDENTIALS).
@@ -283,7 +286,10 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
     # Calculate average correlation before and after
     def calc_avg_corr(t_list):
         if len(t_list) < 2: return 0.0
-        c_sub = corr.loc[t_list, t_list]
+        # Defensive filtering: only use tickers that actually exist in the correlation matrix
+        valid_tickers = [t for t in t_list if t in corr.index]
+        if len(valid_tickers) < 2: return 0.0
+        c_sub = corr.loc[valid_tickers, valid_tickers]
         mask_ut = np.triu(np.ones_like(c_sub, dtype=bool), k=1)
         pair_vals = c_sub.where(mask_ut).stack().dropna()
         return float(pair_vals.mean()) if not pair_vals.empty else 0.0
@@ -365,6 +371,52 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
 
     if st.session_state.get('portfolio_confirmed', False):
         st.success("✅ Portfolio Confirmed! Scroll down to Risk Allocation.")
+
+@st.cache_data(ttl=300, show_spinner=False)
+def get_gemini_insights(
+    watchlist: tuple,
+    allocation: tuple,
+    cagr_bt: float,
+    max_drawdown: float,
+    total_return: float,
+    fire_years: float,
+    fire_target: int,
+    risk_level: str,
+) -> str:
+    """Call Gemini API to generate portfolio insights using the new google-genai SDK."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return ""
+    try:
+        # Initialize the new Client
+        client = genai.Client(api_key=api_key)
+        allocation_str = ", ".join([f"{t} ({w*100:.0f}%)" for t, w in allocation])
+        prompt = f"""You are a concise financial educator helping a Taiwan-based passive investor understand their portfolio.
+
+Portfolio details:
+- Assets: {allocation_str}
+- Risk level: {risk_level}
+- Backtest CAGR: {cagr_bt*100:.1f}%
+- Max drawdown: {max_drawdown*100:.1f}%
+- Total return: {total_return:.1f}%
+- FIRE target: NT${fire_target:,}
+- Estimated years to FIRE (Real/Inflation-adjusted): {fire_years:.1f} years
+
+Give 3-5 sentences of honest, practical insights about this portfolio. Focus on:
+1. Whether the risk/return tradeoff makes sense
+2. One specific concern or weakness
+3. One actionable suggestion
+
+Be direct and avoid generic advice. Write in English. Do not use bullet points."""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        return response.text.strip()
+    except Exception as e:
+        # Log error for debugging if needed (st.error is usually too intrusive here)
+        return ""
 
 def convert_display(amount, display_usd, rate):
     """Convert TWD amount to USD for display if needed."""
@@ -449,7 +501,9 @@ def apply_persona(name):
     st.session_state['fire_annual_expenses'] = p['annual_expenses']
     # Auto-confirm to bypass Correlation Analysis
     st.session_state['portfolio_confirmed'] = True
-    st.session_state['corr_tickers'] = tuple(sorted(p['watchlist']))
+    # Clear old correlation cache to force a reload of the new persona's data
+    st.session_state.pop('corr_data', None)
+    st.session_state.pop('corr_tickers', None)
     # Reset backtest result to force refresh
     st.session_state.pop('backtest_cagr', None)
     # Clear AgGrid state to ensure it refreshes with the new persona watchlist
@@ -1192,6 +1246,7 @@ else:
             years = (pd.to_datetime(end_bt) - pd.to_datetime(start_bt)).days / 365.0
             cagr_bt = (final_val / total_inv) ** (1 / years) - 1 if years > 0 and total_inv > 0 else 0.0
             st.session_state['backtest_cagr'] = cagr_bt
+            st.session_state['backtest_total_return'] = total_ret
 
             disp_final, cs = convert_display(final_val, display_usd, fx_rate)
             disp_inv, _ = convert_display(total_inv, display_usd, fx_rate)
@@ -1290,6 +1345,7 @@ else:
                 plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(dd_fig, use_container_width=True)
             max_dd_val = float(drawdown.min())
+            st.session_state['backtest_max_drawdown'] = max_dd_val / 100.0
             insight2 = f"The worst drawdown during this period was {max_dd_val:.1f}%. This is the pain a buy-and-hold investor would have had to endure without selling — the key behavioral challenge of passive investing."
             st.markdown(
                 f'<div style="background-color:#fdf0f0; padding:12px 16px; border-radius:8px; '
@@ -1539,6 +1595,7 @@ with st.spinner("Calculating FIRE projection..."):
             (int(row['year']) for _, row in projection_df.iterrows() if row['real_value'] >= target_amount),
             None
         )
+        st.session_state['fire_years_real'] = real_fire_year
 
         display_usd = st.session_state.get('display_usd', False)
         fx_rate = st.session_state.get('live_twd_usd', 32.0)
@@ -1706,6 +1763,41 @@ else:
     """
     st.markdown(combined, unsafe_allow_html=True)
 
+    # ── AI Insights ───────────────────────────────────────────────────────────────
+    from dotenv import load_dotenv
+    load_dotenv(override=True)  # Force reload to pick up key if added while app is running
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    
+    if gemini_key and st.session_state.get('allocation'):
+        # Dynamic configuration is handled by initializing genai.Client inside get_gemini_insights
+        if st.session_state.get('backtest_cagr') is not None:
+            allocation_tuple = tuple(sorted(st.session_state['allocation'].items()))
+            watchlist_tuple = tuple(sorted(st.session_state.get('watchlist', [])))
+            fire_years_val = st.session_state.get('fire_years_real', 0)
+            fire_target_val = st.session_state.get('fire_target', 0)
+            max_dd_val = st.session_state.get('backtest_max_drawdown', 0)
+            total_ret_val = st.session_state.get('backtest_total_return', 0)
+            risk_val = st.session_state.get('risk_pref', 'Medium')
+
+            with st.spinner("Generating AI insights..."):
+                insight_text = get_gemini_insights(
+                    watchlist=watchlist_tuple,
+                    allocation=allocation_tuple,
+                    cagr_bt=st.session_state['backtest_cagr'],
+                    max_drawdown=max_dd_val,
+                    total_return=total_ret_val,
+                    fire_years=fire_years_val if fire_years_val is not None else 0,
+                    fire_target=fire_target_val,
+                    risk_level=risk_val,
+                )
+
+            if insight_text:
+                st.markdown("#### ✨ AI Insights")
+                st.caption("Generated by Gemini · Based on your current portfolio configuration")
+                st.info(insight_text)
+        else:
+            st.caption("✨ AI Insights will be available once the backtest calculation is complete.")
+
     # ── Methodology caveat: fat tails (only for crypto-heavy / high-risk portfolios) ──
     crypto_weight = category_weights.get('CRYPTO', 0)
     if crypto_weight >= 0.10 or risk_pref in ["High", "Extreme High"]:
@@ -1723,6 +1815,8 @@ else:
             """,
             unsafe_allow_html=True
         )
+
+
 
 st.divider()
 

@@ -9,3 +9,4 @@ google-cloud-bigquery
 db-data-utils
 pandas-gbq
 pyarrow
+google-genai==1.47.0

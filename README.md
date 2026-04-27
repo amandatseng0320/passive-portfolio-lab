@@ -6,7 +6,7 @@ The central question the dashboard tries to answer: **When a portfolio's backtes
 
 ---
 
-The Streamlit dashboard is organized into five main modules, guiding you from quick setup to deep-dive projections.
+The Streamlit dashboard is organized into six main modules, guiding you from quick setup to deep-dive projections.
 
 ### 0. Quick Start: Investor Personas
 
@@ -42,6 +42,11 @@ Simulate holding your portfolio through history and project your future.
 *   **Pain Index & Drawdowns**: Beyond CAGR, we visualize "Pain" by highlighting the top 5 historic drawdown episodes, tagged with macro events (e.g., 2008 GFC, COVID-19).
 *   **FIRE Calculator**: Derives your retirement target from annual expenses and withdrawal rates. It projects years-to-FIRE using weighted historical CAGRs, with both nominal and inflation-adjusted (Real) horizons.
 
+### 5. Summary & AI Insights
+
+Receive an instant, holistic review of your portfolio structure, risk trade-offs, and FIRE timeline. Powered by **Gemini 2.5 Flash**, the AI provides actionable, practical insights and specific warnings based on your unique asset allocation and historical performance. This section translates complex metrics into plain language for better decision-making.
+
+
 ---
 
 ## Tech Stack
@@ -53,6 +58,7 @@ Simulate holding your portfolio through history and project your future.
 | Data Processing | Pandas, NumPy, Scipy |
 | Data Collection | Yahoo Finance v8 API (Direct REST), FRED API, BeautifulSoup |
 | Storage | Google BigQuery |
+| AI Engine | **Google Gemini 2.5 Flash** |
 
 ---
 
