@@ -44,7 +44,7 @@ Simulate holding your portfolio through history and project your future.
 
 ### 5. Summary & AI Insights
 
-Receive an instant, holistic review of your portfolio structure, risk trade-offs, and FIRE timeline. Powered by **Gemini 2.5 Flash**, the AI provides actionable, practical insights and specific warnings based on your unique asset allocation and historical performance. This section translates complex metrics into plain language for better decision-making.
+Receive an instant, holistic review of your portfolio structure, risk trade-offs, and FIRE timeline. Powered by **Gemini 2.5 Flash**, the AI provides **Strategic Next Steps** — actionable, practical advice on how to optimize your allocation and adjust your savings rate to reach your financial goals faster.
 
 
 ---

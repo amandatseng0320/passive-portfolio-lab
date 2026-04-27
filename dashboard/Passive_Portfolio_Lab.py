@@ -19,6 +19,14 @@ from src.processing.fire_calculator import calculate_fire
 from src.processing.drawdown_events import identify_drawdown_events, MARKET_EVENTS
 from src.data_collection.fetch_macro import get_latest_cpi_yoy
 from google import genai
+import warnings
+from urllib3.exceptions import InsecureRequestWarning
+
+# Suppress annoying warnings from libraries
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+warnings.simplefilter(action='ignore', category=DeprecationWarning)
+
 
 load_dotenv()
 # The new google-genai SDK uses a Client object for configuration.
@@ -365,7 +373,7 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
         st.markdown(" ".join([f"`{t}`" for t in final_tickers]), unsafe_allow_html=True)
         
     with conf_col2:
-        if st.button("Confirm Assets →", type="primary", use_container_width=True):
+        if st.button("Confirm Assets →", type="primary", width="stretch"):
             st.session_state['portfolio_confirmed'] = True
             st.rerun()
 
@@ -382,40 +390,55 @@ def get_gemini_insights(
     fire_years: float,
     fire_target: int,
     risk_level: str,
+    initial_cap: float,
+    monthly_cont: float,
+    annual_exp: float,
+    existing_summaries: list = None
 ) -> str:
-    """Call Gemini API to generate portfolio insights using the new google-genai SDK."""
+    """Call Gemini API to generate structured, actionable portfolio insights."""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return ""
     try:
-        # Initialize the new Client
         client = genai.Client(api_key=api_key)
         allocation_str = ", ".join([f"{t} ({w*100:.0f}%)" for t, w in allocation])
-        prompt = f"""You are a concise financial educator helping a Taiwan-based passive investor understand their portfolio.
+        summary_context = "\n".join([f"- {s}" for s in existing_summaries]) if existing_summaries else ""
+        
+        prompt = f"""You are a professional financial advisor helping a Taiwan-based passive investor. 
+Analyze the following portfolio and provide exactly 3-5 concise bullet points of Strategic Next Steps.
 
-Portfolio details:
-- Assets: {allocation_str}
-- Risk level: {risk_level}
-- Backtest CAGR: {cagr_bt*100:.1f}%
-- Max drawdown: {max_drawdown*100:.1f}%
-- Total return: {total_return:.1f}%
-- FIRE target: NT${fire_target:,}
-- Estimated years to FIRE (Real/Inflation-adjusted): {fire_years:.1f} years
+Financial Context:
+- Current Portfolio: {allocation_str}
+- Risk Level: {risk_level}
+- Historical Performance: {cagr_bt*100:.1f}% CAGR, {max_drawdown*100:.1f}% Max Drawdown, {total_return:.1f}x Total Return
+- FIRE Target: NT${fire_target:,}
+- Years to FIRE (Real): {fire_years:.1f}
+- Current Stats: Initial NT${initial_cap:,.0f}, Monthly Contribution NT${monthly_cont:,.0f}, Annual Expenses NT${annual_exp:,.0f}
 
-Give 3-5 sentences of honest, practical insights about this portfolio. Focus on:
-1. Whether the risk/return tradeoff makes sense
-2. One specific concern or weakness
-3. One actionable suggestion
+Base Insights:
+{summary_context}
 
-Be direct and avoid generic advice. Write in English. Do not use bullet points."""
+Please provide your response in the following format:
+
+🚀 **Strategic Next Steps**
+- (Concise point 1)
+- (Concise point 2)
+- (Concise point 3)
+- (Up to 2 more points)
+
+Rules:
+1. MAX 5 bullet points total.
+2. Each bullet should be 1-2 sentences.
+3. DO NOT use bold (**) or italics (*) inside the bullet points.
+4. Focus on high-impact actions to reach FIRE faster.
+5. Write in English."""
 
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
         return response.text.strip()
-    except Exception as e:
-        # Log error for debugging if needed (st.error is usually too intrusive here)
+    except Exception:
         return ""
 
 def convert_display(amount, display_usd, rate):
@@ -427,6 +450,59 @@ def convert_display(amount, display_usd, rate):
 candidates_df = load_candidates()
 metrics_df = load_metrics()
 default_inflation = fetch_inflation_default()
+
+# ── Demo Preset Personas ───────────────────────────────────────────────────────
+PERSONAS = {
+    "🐣 Young Professional": {
+        "watchlist": ["0050.TW", "00878.TW", "006208.TW", "BND", "GLD"],
+        "weights": {"0050.TW": 0.40, "00878.TW": 0.20, "006208.TW": 0.15, "BND": 0.15, "GLD": 0.10},
+        "risk": "Low",
+        "initial": 100000,
+        "monthly": 10000,
+        "annual_expenses": 600000,
+    },
+    "🕊️ Pre-Retirement": {
+        "watchlist": ["0050.TW", "0056.TW", "00878.TW", "BND", "GLD"],
+        "weights": {"0050.TW": 0.20, "0056.TW": 0.25, "00878.TW": 0.25, "BND": 0.20, "GLD": 0.10},
+        "risk": "Low",
+        "initial": 5000000,
+        "monthly": 50000,
+        "annual_expenses": 1200000,
+    },
+    "🚀 Aggressive Growth": {
+        "watchlist": ["0050.TW", "006208.TW", "VT", "VTI", "BTC-USD"],
+        "weights": {"0050.TW": 0.15, "006208.TW": 0.15, "VT": 0.30, "VTI": 0.30, "BTC-USD": 0.10},
+        "risk": "High",
+        "initial": 200000,
+        "monthly": 30000,
+        "annual_expenses": 800000,
+    },
+}
+
+def apply_persona(p_name):
+    p = PERSONAS[p_name]
+    st.session_state['watchlist'] = p['watchlist']
+    st.session_state['risk_pref'] = p['risk']
+    st.session_state['bt_params'] = {
+        'initial': p['initial'],
+        'monthly': p['monthly'],
+        'start': st.session_state.get('bt_params', {}).get('start', date(2010, 1, 1)),
+        'end': st.session_state.get('bt_params', {}).get('end', date.today()),
+    }
+    st.session_state['fire_annual_expenses'] = p['annual_expenses']
+    # Auto-confirm to bypass Correlation Analysis
+    st.session_state['portfolio_confirmed'] = True
+    # Clear old correlation cache to force a reload of the new persona's data
+    st.session_state.pop('corr_data', None)
+    st.session_state.pop('corr_tickers', None)
+    # Reset backtest result to force refresh
+    st.session_state.pop('backtest_cagr', None)
+    # Clear AgGrid state to ensure it refreshes with the new persona watchlist
+    if 'asset_pool_aggrid' in st.session_state:
+        del st.session_state['asset_pool_aggrid']
+    st.session_state['active_persona'] = p_name
+    st.rerun()
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 1 — INTRODUCTION
@@ -457,76 +533,6 @@ This dashboard helps you explore that thesis with real data:
 
 st.divider()
 
-# ── Demo Preset Personas ───────────────────────────────────────────────────────
-PERSONAS = {
-    "🐣 Young Professional": {
-        "watchlist": ["0050.TW", "00878.TW", "006208.TW", "BND", "GLD"],
-        "weights": {"0050.TW": 0.40, "00878.TW": 0.20, "006208.TW": 0.15, "BND": 0.15, "GLD": 0.10},
-        "risk": "Low",
-        "initial": 100000,
-        "monthly": 10000,
-        "annual_expenses": 600000,
-    },
-    "🕊️ Pre-Retirement": {
-        "watchlist": ["0050.TW", "VOO", "TLT", "BND", "GLD"],
-        "weights": {"0050.TW": 0.25, "VOO": 0.20, "TLT": 0.20, "BND": 0.20, "GLD": 0.15},
-        "risk": "Low",
-        "initial": 3000000,
-        "monthly": 30000,
-        "annual_expenses": 1200000,
-    },
-    "🚀 Aggressive Growth": {
-        "watchlist": ["QQQ", "VUG", "0050.TW", "BTC-USD", "ETH-USD"],
-        "weights": {"QQQ": 0.30, "VUG": 0.20, "0050.TW": 0.20, "BTC-USD": 0.20, "ETH-USD": 0.10},
-        "risk": "Extreme High",
-        "initial": 300000,
-        "monthly": 15000,
-        "annual_expenses": 1200000,
-    },
-}
-
-def apply_persona(name):
-    p = PERSONAS[name]
-    st.session_state['active_persona'] = name
-    st.session_state['watchlist'] = list(p['watchlist'])
-    st.session_state['pending_tickers'] = list(p['watchlist'])
-    st.session_state['persona_weights'] = dict(p['weights'])
-    st.session_state['persona_risk'] = p['risk']
-    st.session_state['bt_params'] = {
-        'initial': p['initial'],
-        'monthly': p['monthly'],
-        'start': st.session_state.get('bt_params', {}).get('start', date(2010, 1, 1)),
-        'end': st.session_state.get('bt_params', {}).get('end', date.today()),
-    }
-    st.session_state['fire_annual_expenses'] = p['annual_expenses']
-    # Auto-confirm to bypass Correlation Analysis
-    st.session_state['portfolio_confirmed'] = True
-    # Clear old correlation cache to force a reload of the new persona's data
-    st.session_state.pop('corr_data', None)
-    st.session_state.pop('corr_tickers', None)
-    # Reset backtest result to force refresh
-    st.session_state.pop('backtest_cagr', None)
-    # Clear AgGrid state to ensure it refreshes with the new persona watchlist
-    if 'asset_pool_aggrid' in st.session_state:
-        del st.session_state['asset_pool_aggrid']
-
-st.markdown("<div id='persona' style='padding-top: 70px; margin-top: -70px;'></div>", unsafe_allow_html=True)
-st.title("🎯 Quick Start: Choose a Persona")
-st.caption("Select a preset investor profile to auto-fill the sections below. All values are editable after applying.")
-
-persona_options = ["— Select a persona —"] + list(PERSONAS.keys())
-selected_persona = st.selectbox(
-    "Investor profile",
-    options=persona_options,
-    key="persona_select",
-    label_visibility="collapsed",
-)
-
-if selected_persona != "— Select a persona —" and selected_persona != st.session_state.get('active_persona'):
-    apply_persona(selected_persona)
-    st.rerun()
-
-st.divider()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION 2 — ASSET SCREENING
@@ -685,18 +691,18 @@ def render_asset_pool():
     bc1.markdown(f"**{len(pending)} asset{'s' if len(pending) != 1 else ''} selected** (Showing {len(filtered_reset)} total)")
     
     # Render select/deselect buttons in the second column
-    if bc2.button("☑ Select All", use_container_width=True):
+    if bc2.button("☑ Select All", width="stretch"):
         st.session_state['pending_tickers'] = filtered_reset['ticker'].tolist()
         st.session_state.pop('asset_pool_editor', None)
         st.rerun()
         
-    if bc3.button("☐ Clear", key="clear_selected", use_container_width=True):
+    if bc3.button("☐ Clear", key="clear_selected", width="stretch"):
         st.session_state['pending_tickers'] = []
         st.session_state.pop('asset_pool_aggrid', None) # Update key to match AgGrid
         st.rerun()
         
     bc4.button("Review Portfolio →", type="primary", key="review_portfolio_btn", 
-               use_container_width=True, disabled=len(pending) == 0, on_click=handle_review_click)
+               width="stretch", disabled=len(pending) == 0, on_click=handle_review_click)
 
     # ── AG Grid ──────────────────────────────────────────────────────────────────
     display_df = build_display_df(filtered_reset)
@@ -738,25 +744,57 @@ def render_asset_pool():
         gridOptions=gb.build(),
         update_mode=GridUpdateMode.VALUE_CHANGED,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-        use_container_width=True,
+        width="stretch",
         height=450,
         theme="streamlit",
         key="asset_pool_aggrid"
     )
 
     result_df = grid_response["data"]
-    checked_tickers = filtered_reset.loc[result_df['Add'] == True, 'ticker'].tolist()
-    visible_tickers = filtered_reset['ticker'].tolist()
-    hidden_confirmed = [t for t in st.session_state.watchlist if t not in visible_tickers]
+    
+    # AgGrid returns all-False on first render before JS initializes.
+    # Only sync back if at least one checkbox is True, or if we need to
+    # clear a previously-set pending list.
+    if result_df is not None and not result_df.empty:
+        checked_tickers = filtered_reset.loc[result_df['Add'] == True, 'ticker'].tolist()
+        visible_tickers = filtered_reset['ticker'].tolist()
+        hidden_confirmed = [t for t in st.session_state.watchlist if t not in visible_tickers]
+        new_pending = list(dict.fromkeys(hidden_confirmed + checked_tickers))
 
-    new_pending = list(dict.fromkeys(hidden_confirmed + checked_tickers))
-    if set(new_pending) != set(pending):
-        st.session_state['pending_tickers'] = new_pending
-        st.rerun()
+        has_any_checked = result_df['Add'].any()
+        pending_was_set = 'pending_tickers' in st.session_state
+
+        if (has_any_checked or pending_was_set) and set(new_pending) != set(pending):
+            st.session_state['pending_tickers'] = new_pending
+            st.rerun()
 
 
+
+# ── Demo Preset Personas (Relocated for better UX) ─────────────────────────────
+st.markdown("<br>", unsafe_allow_html=True)
+with st.container(border=True):
+    st.markdown("💡 **Not sure where to start?** Try a preset investor persona:")
+    p_names = ["Select a persona..."] + list(PERSONAS.keys())
+    idx = 0
+    if st.session_state.get('active_persona') in PERSONAS:
+        try:
+            idx = p_names.index(st.session_state['active_persona'])
+        except ValueError:
+            idx = 0
+    
+    sel_p = st.selectbox(
+        "Choose a Persona", 
+        options=p_names, 
+        index=idx, 
+        label_visibility="collapsed",
+        key="persona_quick_start_selectbox"
+    )
+    if sel_p != "Select a persona..." and sel_p != st.session_state.get('active_persona'):
+        apply_persona(sel_p)
 
 render_asset_pool()
+
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1313,7 +1351,7 @@ else:
                 plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                 legend=dict(orientation="h", yanchor="bottom", y=1.02)
             )
-            st.plotly_chart(line_fig, use_container_width=True)
+            st.plotly_chart(line_fig, width="stretch")
             total_gain = final_val - total_inv
             insight1 = (
                 f"Starting with {cs}{disp_inv:,.0f}, "
@@ -1343,7 +1381,7 @@ else:
                 height=260, margin=dict(t=20, b=20, l=20, r=20),
                 yaxis_title="Drawdown (%)",
                 plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(dd_fig, use_container_width=True)
+            st.plotly_chart(dd_fig, width="stretch")
             max_dd_val = float(drawdown.min())
             st.session_state['backtest_max_drawdown'] = max_dd_val / 100.0
             insight2 = f"The worst drawdown during this period was {max_dd_val:.1f}%. This is the pain a buy-and-hold investor would have had to endure without selling — the key behavioral challenge of passive investing."
@@ -1389,7 +1427,7 @@ else:
                                     'Drawdown', 'Fall Time', 'Recovery Time', 'Historical Context']
                     st.dataframe(
                         dd_table[display_cols],
-                        use_container_width=True,
+                        width="stretch",
                         hide_index=True,
                     )
 
@@ -1397,7 +1435,7 @@ else:
             result_df['year'] = pd.to_datetime(result_df['date']).dt.year
             annual = result_df.groupby('year').apply(
                 lambda x: (x['portfolio_value'].iloc[-1] / x['portfolio_value'].iloc[0] - 1) * 100
-                if x['portfolio_value'].iloc[0] > 0 else float('nan')
+                if x['portfolio_value'].iloc[0] > 0 else float('nan'), include_groups=False
             ).reset_index(name='annual_return')
             annual = annual[annual['annual_return'].notna() & ~annual['annual_return'].isin([float('inf'), float('-inf')])]
             colors_annual = ['#F44336' if r < 0 else '#4CAF50' for r in annual['annual_return']]
@@ -1412,7 +1450,7 @@ else:
                 height=280, margin=dict(t=20, b=20, l=20, r=20),
                 yaxis_title="Return (%)",
                 plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(bar_fig, use_container_width=True)
+            st.plotly_chart(bar_fig, width="stretch")
             neg_years = (annual['annual_return'] < 0).sum()
             best_year = annual.loc[annual['annual_return'].idxmax()]
             worst_year_row = annual.loc[annual['annual_return'].idxmin()]
@@ -1639,13 +1677,13 @@ with st.spinner("Calculating FIRE projection..."):
             plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(t=40, b=40, l=40, r=40)
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         display_df = projection_df.copy()
         display_df['portfolio_value'] = display_df['portfolio_value'].apply(lambda x: f"{fire_cs}{x/fire_divisor:,.0f}")
         display_df['real_value'] = display_df['real_value'].apply(lambda x: f"{fire_cs}{x/fire_divisor:,.0f}")
         display_df.columns = ['Year', 'Nominal Value', 'Real Value (Inflation-Adjusted)']
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        st.dataframe(display_df, width="stretch", hide_index=True)
 
     except Exception as e:
         st.error(f"Calculation failed: {e}")
@@ -1780,6 +1818,13 @@ else:
             risk_val = st.session_state.get('risk_pref', 'Medium')
 
             with st.spinner("Generating AI insights..."):
+                # Strip HTML tags from existing summaries for cleaner AI prompt
+                import re
+                clean_summaries = [re.sub('<[^<]+?>', '', s) for s in [insight1, insight2, insight3]]
+                
+                # Fetch parameters from bt_params dict
+                bt_p = st.session_state.get('bt_params', {})
+                
                 insight_text = get_gemini_insights(
                     watchlist=watchlist_tuple,
                     allocation=allocation_tuple,
@@ -1789,12 +1834,28 @@ else:
                     fire_years=fire_years_val if fire_years_val is not None else 0,
                     fire_target=fire_target_val,
                     risk_level=risk_val,
+                    initial_cap=bt_p.get('initial', 0),
+                    monthly_cont=bt_p.get('monthly', 0),
+                    annual_exp=st.session_state.get('fire_annual_expenses', 0),
+                    existing_summaries=clean_summaries
                 )
 
             if insight_text:
                 st.markdown("#### ✨ AI Insights")
-                st.caption("Generated by Gemini · Based on your current portfolio configuration")
-                st.info(insight_text)
+                st.caption("Strategic review generated by Gemini 2.5 Flash")
+                
+                # Escape $ to prevent LaTeX parsing issues in Streamlit markdown
+                safe_text = insight_text.replace("$", r"\$")
+                
+                with st.container(border=True):
+                    st.markdown(
+                        '<div style="border-left: 5px solid #008080; padding-left: 16px; margin-bottom: 4px;">'
+                        '<strong>🚀 Strategic Next Steps</strong></div>',
+                        unsafe_allow_html=True
+                    )
+                    # Strip the header line from insight_text if the model includes it
+                    body = safe_text.replace("🚀 **Strategic Next Steps**", "").strip()
+                    st.markdown(body)
         else:
             st.caption("✨ AI Insights will be available once the backtest calculation is complete.")
 
