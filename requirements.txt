@@ -1,0 +1,11 @@
+streamlit
+streamlit-aggrid
+yfinance
+pandas
+numpy
+plotly
+scipy
+google-cloud-bigquery
+db-data-utils
+pandas-gbq
+pyarrow
