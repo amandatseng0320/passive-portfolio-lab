@@ -108,6 +108,8 @@ if 'watchlist' not in st.session_state:
     st.session_state.watchlist = []
 if 'portfolio_confirmed' not in st.session_state:
     st.session_state['portfolio_confirmed'] = False
+if 'active_persona' not in st.session_state:
+    st.session_state['active_persona'] = None
 
 # ── Load Data ──────────────────────────────────────────────────────────────────
 
@@ -400,6 +402,75 @@ This dashboard helps you explore that thesis with real data:
 
 > *All portfolio calculations are performed in New Taiwan Dollar (TWD). For USD-denominated assets (US ETFs, bonds, commodities, and crypto), daily prices are converted to TWD using historical exchange rates — meaning currency fluctuations are factored into the returns. This reflects the real experience of a Taiwan-based investor holding foreign assets. All input amounts should be entered in TWD.*
 """)
+
+st.divider()
+
+# ── Demo Preset Personas ───────────────────────────────────────────────────────
+PERSONAS = {
+    "🐣 Young Professional": {
+        "watchlist": ["0050.TW", "00878.TW", "006208.TW", "BND", "GLD"],
+        "weights": {"0050.TW": 0.40, "00878.TW": 0.20, "006208.TW": 0.15, "BND": 0.15, "GLD": 0.10},
+        "risk": "Low",
+        "initial": 100000,
+        "monthly": 10000,
+        "annual_expenses": 600000,
+    },
+    "🕊️ Pre-Retirement": {
+        "watchlist": ["0050.TW", "VOO", "TLT", "BND", "GLD"],
+        "weights": {"0050.TW": 0.25, "VOO": 0.20, "TLT": 0.20, "BND": 0.20, "GLD": 0.15},
+        "risk": "Low",
+        "initial": 3000000,
+        "monthly": 30000,
+        "annual_expenses": 1200000,
+    },
+    "🚀 Aggressive Growth": {
+        "watchlist": ["QQQ", "VUG", "0050.TW", "BTC-USD", "ETH-USD"],
+        "weights": {"QQQ": 0.30, "VUG": 0.20, "0050.TW": 0.20, "BTC-USD": 0.20, "ETH-USD": 0.10},
+        "risk": "Extreme High",
+        "initial": 300000,
+        "monthly": 15000,
+        "annual_expenses": 1200000,
+    },
+}
+
+def apply_persona(name):
+    p = PERSONAS[name]
+    st.session_state['active_persona'] = name
+    st.session_state['watchlist'] = list(p['watchlist'])
+    st.session_state['pending_tickers'] = list(p['watchlist'])
+    st.session_state['persona_weights'] = dict(p['weights'])
+    st.session_state['persona_risk'] = p['risk']
+    st.session_state['bt_params'] = {
+        'initial': p['initial'],
+        'monthly': p['monthly'],
+        'start': st.session_state.get('bt_params', {}).get('start', date(2010, 1, 1)),
+        'end': st.session_state.get('bt_params', {}).get('end', date.today()),
+    }
+    st.session_state['fire_annual_expenses'] = p['annual_expenses']
+    # Auto-confirm to bypass Correlation Analysis
+    st.session_state['portfolio_confirmed'] = True
+    st.session_state['corr_tickers'] = tuple(sorted(p['watchlist']))
+    # Reset backtest result to force refresh
+    st.session_state.pop('backtest_cagr', None)
+    # Clear AgGrid state to ensure it refreshes with the new persona watchlist
+    if 'asset_pool_aggrid' in st.session_state:
+        del st.session_state['asset_pool_aggrid']
+
+st.markdown("<div id='persona' style='padding-top: 70px; margin-top: -70px;'></div>", unsafe_allow_html=True)
+st.title("🎯 Quick Start: Choose a Persona")
+st.caption("Select a preset investor profile to auto-fill the sections below. All values are editable after applying.")
+
+persona_options = ["— Select a persona —"] + list(PERSONAS.keys())
+selected_persona = st.selectbox(
+    "Investor profile",
+    options=persona_options,
+    key="persona_select",
+    label_visibility="collapsed",
+)
+
+if selected_persona != "— Select a persona —" and selected_persona != st.session_state.get('active_persona'):
+    apply_persona(selected_persona)
+    st.rerun()
 
 st.divider()
 
@@ -713,10 +784,14 @@ The achievable risk range is derived from the **annualized volatility** of the a
             )
 
         # ── Risk preference selector (only show achievable levels) ─────────────
+        persona_risk = st.session_state.get('persona_risk')
+        default_risk_idx = achievable.index(persona_risk) if persona_risk in achievable else 0
+        
         risk_pref = st.radio(
             "Target Risk Level",
             options=achievable,
             horizontal=True,
+            index=default_risk_idx,
             key="risk_pref"
         )
 
@@ -750,7 +825,18 @@ The achievable risk range is derived from the **annualized volatility** of the a
             df['weight'] = df['weight'] / df['weight'].sum()
             return df
 
-        alloc_df = compute_allocation(selected_metrics, target_vol)
+        # ── Weight assignment ──────────────────────────────────────────────────
+        # If a persona is active and the watchlist matches, use its preset weights
+        p_weights = st.session_state.get('persona_weights')
+        p_name = st.session_state.get('active_persona')
+        use_persona_weights = (p_weights and p_name and 
+                              set(p_weights.keys()) == set(selected_metrics['ticker']))
+        
+        if use_persona_weights:
+            alloc_df = selected_metrics.copy()
+            alloc_df['weight'] = alloc_df['ticker'].map(p_weights)
+        else:
+            alloc_df = compute_allocation(selected_metrics, target_vol)
 
         # Final portfolio metrics
         port_vol = float(np.dot(alloc_df['weight'].values, alloc_df['volatility'].values))
@@ -1341,7 +1427,7 @@ with st.expander("⚙️ Advanced Settings", expanded=False):
         annual_expenses = st.number_input(
             "Annual Expenses (NT$)",
             min_value=100000, max_value=50000000,
-            value=1200000, step=10000, key="fire_annual_expenses",
+            value=st.session_state.get('fire_annual_expenses', 1200000), step=10000, key="fire_annual_expenses",
             help="How much you expect to spend per year in retirement (in TWD). "
                  "Drives the implied FIRE target via the withdrawal rate."
         )

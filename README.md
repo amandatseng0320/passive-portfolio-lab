@@ -6,9 +6,11 @@ The central question the dashboard tries to answer: **When a portfolio's backtes
 
 ---
 
-## Features
+The Streamlit dashboard is organized into five main modules, guiding you from quick setup to deep-dive projections.
 
-The Streamlit dashboard is organized into four main modules, guiding you from asset selection to long-term projections.
+### 0. Quick Start: Investor Personas
+
+Select a preset investor profile (e.g., **Young Professional**, **Pre-Retirement**, **Aggressive Growth**) to instantly populate the dashboard with expert-curated asset allocations, risk levels, and financial parameters. This bypasses the manual screening process and allows for immediate visualization and backtesting of proven strategies.
 
 ### 1. Asset Screening & Watchlist
 
