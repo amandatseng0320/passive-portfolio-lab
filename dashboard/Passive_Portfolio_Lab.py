@@ -95,6 +95,14 @@ ZH_TW = {
     "Review Portfolio →": "檢視投資組合 →",
     "Preset applied": "已套用預設",
     "Diagnostic only": "僅供參考",
+    "Review overlaps": "檢視重疊",
+    "Suggested Removals Action: keep only ONE asset from each group.": "建議移除操作：每個群組只保留 1 個資產。",
+    "Recommendation": "建議保留",
+    "Reason": "原因",
+    "highest AUM / liquidity in this correlated group.": "在此高相關群組中 AUM / 流動性最高。",
+    "Select ONE asset to keep": "選擇要保留的 1 個資產",
+    "Keep Selected Assets": "保留所選資產",
+    "Portfolio updated. Correlation analysis has been refreshed.": "投資組合已更新，相關性分析已重新整理。",
     "Not sure where to start?": "不知道從哪裡開始？",
     "Try a preset investor persona:": "試試預設投資人情境：",
     "Select a persona...": "選擇投資人情境...",
@@ -197,9 +205,9 @@ def risk_label(value: str) -> str:
     return tr(value)
 
 def fmt_years(value):
-    if value:
-        return f"{value} 年"
-    return "50+ 年" if st.session_state.get('lang') == "zh-TW" else "50+ yrs"
+    if st.session_state.get('lang') == "zh-TW":
+        return f"{value} 年" if value else "50+ 年"
+    return f"{value} yrs" if value else "50+ yrs"
 
 # ── Password gate (activated only when APP_PASSWORD is configured in secrets) ──
 if _app_password:
@@ -455,19 +463,8 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
     active_persona = st.session_state.get('active_persona')
     persona_mode = active_persona in PERSONAS
     
-    # Track ignored suggestions in session state
-    if 'ignored_suggestions' not in st.session_state:
-        st.session_state['ignored_suggestions'] = set()
-        
-    def effective_removed():
-        rm = set()
-        for s in suggestions:
-            if s['id'] not in st.session_state['ignored_suggestions']:
-                rm.update(s['remove'])
-        return rm
-        
-    rm_set = set() if persona_mode else effective_removed()
-    final_tickers = list(tickers) if persona_mode else [t for t in tickers if t not in rm_set]
+    rm_set = set()
+    final_tickers = list(tickers)
     
     # Calculate average correlation before and after
     def calc_avg_corr(t_list):
@@ -490,7 +487,7 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
         st.container(border=True).metric(
             tr("Selected Assets", "已選資產"),
             f"{len(tickers)}", 
-            delta=tr("Preset applied") if persona_mode else (tr(f"Suggested: {len(final_tickers)}", f"建議保留：{len(final_tickers)}") if len(final_tickers) < len(tickers) else tr("No reductions", "無需刪減")),
+            delta=tr("Preset applied") if persona_mode else (tr("Review overlaps") if suggestions else tr("No reductions", "無需刪減")),
             delta_color="normal" if len(final_tickers) == len(tickers) else "inverse"
         )
     with col2:
@@ -523,34 +520,57 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
 
     # ── UI: Suggestions Engine ──────────────────────────────────────────────
     if suggestions:
-        st.markdown(tr("##### 🔴 Suggested Removals", "##### 🔴 建議移除"))
+        st.markdown(f"##### 🔴 {tr('Suggested Removals Action: keep only ONE asset from each group.')}")
+        selected_keeps = {}
         for s in suggestions:
-            is_ignored = s['id'] in st.session_state['ignored_suggestions']
-            
+            group_str = ", ".join(s['group'])
             with st.container(border=True):
-                hc1, hc2 = st.columns([4, 1])
-                keep_str = f"**{s['keep']}**"
-                rm_str = "、".join([f"~~{t}~~" if not is_ignored else t for t in s['remove']])
-                hc1.markdown(tr(f"Keep {keep_str} · Remove {rm_str}", f"保留 {keep_str} · 移除 {rm_str}"))
-                hc2.markdown(f"<div style='text-align:right; color:gray; font-size:12px;'>ρ ≥ {s['max_corr']:.2f}</div>", unsafe_allow_html=True)
-                
-                st.caption(tr(
-                    f"**{', '.join(s['group'])}** have high historical correlation (≥ {REDUNDANCY_THRESHOLD}). "
-                    f"Retaining **{s['keep']}** due to its higher liquidity / AUM.",
-                    f"**{', '.join(s['group'])}** 的歷史相關性偏高（≥ {REDUNDANCY_THRESHOLD}）。"
-                    f"由於 **{s['keep']}** 的流動性 / AUM 較高，建議保留此資產。"
-                ))
-                
-                def toggle_ignore(s_id=s['id']):
-                    if st.session_state[f"chk_{s_id}"]:
-                        st.session_state['ignored_suggestions'].add(s_id)
-                    else:
-                        st.session_state['ignored_suggestions'].discard(s_id)
-                        
-                st.checkbox(tr("Ignore this suggestion and keep all", "忽略此建議並全部保留"),
-                            value=is_ignored, 
-                            key=f"chk_{s['id']}", 
-                            on_change=toggle_ignore)
+                st.markdown(
+                    f"""
+                    <div style="padding:12px 14px; margin:-4px 0 12px 0; border-radius:6px;
+                                background:#f6fbff; border-left:4px solid #4182b9;">
+                      <div style="font-weight:700; margin-bottom:8px;">
+                        {tr(
+                            f"{group_str} have high historical correlation (≥ {REDUNDANCY_THRESHOLD:.2f}).",
+                            f"{group_str} 的歷史相關性偏高（≥ {REDUNDANCY_THRESHOLD:.2f}）。"
+                        )}
+                      </div>
+                      <div style="display:flex; flex-wrap:wrap; gap:8px 18px; font-size:14px;">
+                        <span><strong>{tr("Recommendation")}:</strong> {s['keep']}</span>
+                        <span><strong>{tr("Reason")}:</strong> {tr("highest AUM / liquidity in this correlated group.")}</span>
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                st.markdown(f"**{tr('Select ONE asset to keep')}:**")
+                keep_choice = st.radio(
+                    f"{tr('Select ONE asset to keep')} - {group_str}",
+                    options=s['group'],
+                    index=s['group'].index(s['keep']) if s['keep'] in s['group'] else 0,
+                    horizontal=True,
+                    label_visibility="collapsed",
+                    key=f"keep_{s['id']}",
+                )
+                selected_keeps[s['id']] = keep_choice
+
+        keep_col, _ = st.columns([1, 3])
+        if keep_col.button(tr("Keep Selected Assets"), type="primary", width="stretch"):
+            selected_for_remove = set()
+            for s in suggestions:
+                keep_choice = selected_keeps.get(s['id'], s['keep'])
+                selected_for_remove.update(t for t in s['group'] if t != keep_choice)
+
+            new_watchlist = [t for t in tickers if t not in selected_for_remove]
+            st.session_state.watchlist = new_watchlist
+            st.session_state['pending_tickers'] = new_watchlist
+            st.session_state['final_tickers'] = new_watchlist
+            st.session_state['portfolio_confirmed'] = False
+            st.session_state['active_persona'] = None
+            st.session_state.pop('corr_data', None)
+            st.session_state.pop('corr_tickers', None)
+            st.success(tr("Portfolio updated. Correlation analysis has been refreshed."))
+            st.rerun()
     else:
         st.success(tr("✅ Your portfolio has no major overlaps (all correlations < 0.85).",
                       "✅ 你的投資組合沒有明顯重疊（所有相關性 < 0.85）。"))
@@ -652,26 +672,26 @@ default_inflation = fetch_inflation_default()
 # ── Demo Preset Personas ───────────────────────────────────────────────────────
 PERSONAS = {
     "🐣 Young Professional": {
-        "watchlist": ["0050.TW", "00878.TW", "006208.TW", "BND", "GLD"],
-        "weights": {"0050.TW": 0.40, "00878.TW": 0.20, "006208.TW": 0.15, "BND": 0.15, "GLD": 0.10},
-        "risk": "Low",
+        "watchlist": ["0050.TW", "VTI", "VEA", "BND", "GLD", "BTC-USD"],
+        "weights": {"0050.TW": 0.25, "VTI": 0.25, "VEA": 0.15, "BND": 0.20, "GLD": 0.10, "BTC-USD": 0.05},
+        "risk": "Medium",
         "initial": 100000,
         "monthly": 10000,
         "annual_expenses": 600000,
     },
     "🕊️ Pre-Retirement": {
-        "watchlist": ["0050.TW", "0056.TW", "00878.TW", "BND", "GLD"],
-        "weights": {"0050.TW": 0.20, "0056.TW": 0.25, "00878.TW": 0.25, "BND": 0.20, "GLD": 0.10},
+        "watchlist": ["0050.TW", "00878.TW", "VEA", "BND", "GLD", "VTI"],
+        "weights": {"0050.TW": 0.20, "00878.TW": 0.20, "VEA": 0.15, "BND": 0.25, "GLD": 0.15, "VTI": 0.05},
         "risk": "Low",
         "initial": 5000000,
         "monthly": 50000,
         "annual_expenses": 1200000,
     },
     "🚀 Aggressive Growth": {
-        "watchlist": ["0050.TW", "006208.TW", "VT", "VTI", "BTC-USD"],
-        "weights": {"0050.TW": 0.15, "006208.TW": 0.15, "VT": 0.30, "VTI": 0.30, "BTC-USD": 0.10},
+        "watchlist": ["VTI", "QQQ", "0050.TW", "VEA", "BTC-USD", "GLD"],
+        "weights": {"VTI": 0.35, "QQQ": 0.20, "0050.TW": 0.15, "VEA": 0.10, "BTC-USD": 0.15, "GLD": 0.05},
         "risk": "High",
-        "initial": 200000,
+        "initial": 800000,
         "monthly": 30000,
         "annual_expenses": 800000,
     },
@@ -697,9 +717,6 @@ def apply_persona(p_name, rerun=False):
     st.session_state.pop('corr_tickers', None)
     # Reset backtest result to force refresh
     st.session_state.pop('backtest_cagr', None)
-    # Clear AgGrid state to ensure it refreshes with the new persona watchlist
-    if 'asset_pool_aggrid' in st.session_state:
-        del st.session_state['asset_pool_aggrid']
     st.session_state['active_persona'] = p_name
     st.session_state['skip_aggrid_sync_once'] = True
     if rerun:
@@ -943,7 +960,7 @@ def render_asset_pool():
     editor_df.insert(0, 'Add', [t in pending for t in filtered_reset['ticker']])
 
     gb = GridOptionsBuilder.from_dataframe(editor_df)
-    gb.configure_default_column(sortable=True, resizable=True, filter=False)
+    gb.configure_default_column(sortable=True, resizable=True, filter=False, floatingFilter=False, suppressMenu=True)
 
     gb.configure_column("Add", headerName="＋", width=60, editable=True,
                         cellRenderer="agCheckboxCellRenderer",
@@ -973,7 +990,12 @@ def render_asset_pool():
     for col in ['Ann. Return', 'Volatility', 'Max Drawdown', 'Worst Year Ret.']:
         gb.configure_column(col, headerName=tr(col), valueFormatter="value != null ? value.toFixed(2) + '%' : 'N/A'")
     gb.configure_column("Worst Year", headerName=tr("Worst Year"))
-    gb.configure_grid_options(suppressMovableColumns=True)
+    gb.configure_grid_options(
+        suppressMovableColumns=True,
+        suppressMenuHide=True,
+        suppressFieldDotNotation=True,
+        sideBar=False,
+    )
 
     grid_response = AgGrid(
         editor_df,

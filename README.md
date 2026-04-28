@@ -38,9 +38,9 @@ The screening table uses Streamlit-AgGrid and supports:
 
 After browsing the asset pool, users can choose one of three preset investor personas:
 
-- Young Professional
-- Pre-Retirement
-- Aggressive Growth
+- Young Professional: medium-risk accumulation with Taiwan, US, developed-market, bond, gold, and Bitcoin exposure
+- Pre-Retirement: low-risk retirement sprint with diversified equity, bond, and gold exposure
+- Aggressive Growth: high-risk growth portfolio with VTI, QQQ, Taiwan equity, developed markets, Bitcoin, and gold
 
 The persona buttons sit below the asset table, matching the intended flow: users first see the asset universe, then use a preset if they are not sure where to start.
 
@@ -53,8 +53,10 @@ The correlation module computes pairwise correlation using the last 3 years of d
 For manually selected portfolios, it:
 
 - Flags highly correlated asset groups
-- Suggests which redundant assets to remove
-- Allows users to ignore suggestions and keep all assets
+- Shows a "keep only one asset from each group" action prompt
+- Recommends one asset to keep based on AUM / liquidity
+- Lets users choose the one asset they want to keep from each correlated group
+- Removes the unselected overlapping assets only after users confirm the keep choices
 - Requires asset confirmation before unlocking downstream calculations
 
 For persona portfolios, it:
