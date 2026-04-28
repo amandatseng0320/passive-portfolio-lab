@@ -56,20 +56,165 @@ except Exception:
 
 st.set_page_config(page_title="Passive Portfolio Lab", layout="wide", initial_sidebar_state="expanded")
 
+# ── Language / i18n ───────────────────────────────────────────────────────────
+if 'lang' not in st.session_state:
+    st.session_state['lang'] = st.query_params.get("lang", "en")
+
+LANG_OPTIONS = {
+    "English": "en",
+    "繁體中文": "zh-TW",
+}
+
+ZH_TW = {
+    "This dashboard is currently shared for project review. Please enter the access password.": "此儀表板目前供專案審閱使用，請輸入存取密碼。",
+    "Password": "密碼",
+    "Incorrect password.": "密碼不正確。",
+    "Introduction": "介紹",
+    "Asset Screening": "資產篩選",
+    "Correlation Analysis": "相關性分析",
+    "Risk Allocation": "風險配置",
+    "Backtest & Pain Index": "回測與痛苦指數",
+    "FIRE Calculator": "財務自由試算",
+    "Summary": "總結",
+    "A data-driven toolkit for long-term passive investors": "為長期被動投資者打造的資料化工具箱",
+    "Passive Portfolio Lab": "被動投資組合實驗室",
+    "Filter and sort assets from the pool below. Click ＋ to add an asset to your watchlist.": "從下方資產池篩選與排序。點選 ＋ 將資產加入你的觀察清單。",
+    "📋 How assets are selected": "📋 資產如何被選入",
+    "Fetching current prices and volume...": "正在取得最新價格與成交量...",
+    "Asset Pool": "資產池",
+    "Search": "搜尋",
+    "Search assets...": "搜尋資產...",
+    "Category": "類別",
+    "All": "全部",
+    "Crypto": "加密貨幣",
+    "Max DD": "最大回撤",
+    "CAGR ≥": "CAGR ≥",
+    "Sharpe ≥": "Sharpe ≥",
+    "Select All": "全選",
+    "Clear": "清除",
+    "Review Portfolio →": "檢視投資組合 →",
+    "Preset applied": "已套用預設",
+    "Diagnostic only": "僅供參考",
+    "Not sure where to start?": "不知道從哪裡開始？",
+    "Try a preset investor persona:": "試試預設投資人情境：",
+    "Select a persona...": "選擇投資人情境...",
+    "Choose a Persona": "選擇投資人情境",
+    "🐣 Young Professional": "🐣 年輕上班族",
+    "🕊️ Pre-Retirement": "🕊️ 準退休族",
+    "🚀 Aggressive Growth": "🚀 積極成長型",
+    "Confirm your portfolio is genuinely diversified before running risk and FIRE calculations.": "在進行風險與財務自由試算前，先確認你的投資組合真的足夠分散。",
+    "The preset has been applied. Assets are auto-confirmed for the calculations below.": "已套用預設情境，系統已自動確認資產並進入下方計算。",
+    "Based on your watchlist, the system automatically allocates weights to match your target risk level.": "系統會根據你的觀察清單，自動配置權重以符合目標風險等級。",
+    "Add assets to your watchlist in Asset Screening first.": "請先在資產篩選中加入資產到觀察清單。",
+    "Confirm your portfolio in **Correlation Analysis** above to unlock this section.": "請先在上方的 **相關性分析** 確認投資組合，才能解鎖此區塊。",
+    "No metric data found for your selected assets.": "找不到你所選資產的指標資料。",
+    "How is the achievable risk range determined?": "可達成風險範圍如何判定？",
+    "Target Risk Level": "目標風險等級",
+    "Weighted CAGR": "加權 CAGR",
+    "Portfolio Volatility": "投資組合波動率",
+    "Weighted Max Drawdown": "加權最大回撤",
+    "Weighted Sharpe": "加權 Sharpe",
+    "Portfolio Composition": "投資組合組成",
+    "Complete the Risk Allocation section first.": "請先完成風險配置區塊。",
+    "How would your portfolio have performed historically — and could you have endured the downturns?": "你的投資組合在歷史上表現如何？而你是否撐得過下跌？",
+    "Advanced Settings": "進階設定",
+    "Initial Investment (NT$)": "初始投資金額 (NT$)",
+    "Monthly Contribution (NT$)": "每月投入 (NT$)",
+    "Start Date": "開始日期",
+    "End Date": "結束日期",
+    "Running backtest...": "正在執行回測...",
+    "Final Value": "最終資產",
+    "Total Invested": "總投入",
+    "Total Return": "總報酬",
+    "Portfolio Value Over Time": "投資組合價值走勢",
+    "Portfolio Value": "投資組合價值",
+    "Max Drawdown Over Time (Pain Index)": "最大回撤走勢（痛苦指數）",
+    "Drawdown": "回撤",
+    "Drawdown (%)": "回撤 (%)",
+    "View Top 5 Drawdown Episodes": "查看前 5 大回撤區間",
+    "Ongoing": "尚未恢復",
+    "Annual Returns": "年度報酬",
+    "Return (%)": "報酬率 (%)",
+    "Ticker": "代號",
+    "Name": "名稱",
+    "Price": "價格",
+    "Volume": "成交量",
+    "Ann. Return": "年化報酬",
+    "Volatility": "波動率",
+    "Max Drawdown": "最大回撤",
+    "Worst Year Ret.": "最差年度報酬",
+    "Worst Year": "最差年度",
+    "Rank": "排名",
+    "Peak": "高點",
+    "Trough": "低點",
+    "Recovery": "恢復",
+    "Fall Time": "下跌時間",
+    "Recovery Time": "恢復時間",
+    "Historical Context": "歷史背景",
+    "Based on your allocation's historical CAGR, estimate when you can reach financial independence.": "根據配置的歷史 CAGR，估算你何時能達成財務自由。",
+    "Using backtest CAGR:": "使用回測 CAGR：",
+    "Using portfolio weighted CAGR:": "使用投資組合加權 CAGR：",
+    "Adjust the parameters below. Risk Level is carried over from your Risk Allocation.": "調整下方參數。風險等級會沿用風險配置區塊的設定。",
+    "Annual Expenses (NT$)": "年度支出 (NT$)",
+    "Withdrawal Rate (%)": "提領率 (%)",
+    "Implied FIRE Target": "推算 FIRE 目標",
+    "= Expenses ÷ Withdrawal Rate": "= 支出 ÷ 提領率",
+    "Current Savings (NT$)": "目前存款 (NT$)",
+    "Annual Inflation Rate (%)": "年通膨率 (%)",
+    "Risk Level": "風險等級",
+    "Currency": "幣別",
+    "All calculations in New Taiwan Dollar": "所有計算皆以新台幣進行",
+    "About the 4% Rule (Trinity Study)": "關於 4% 法則（Trinity Study）",
+    "Calculating FIRE projection...": "正在計算 FIRE 預測...",
+    "CAGR Used": "採用 CAGR",
+    "Years to FIRE (Nominal)": "距離 FIRE 年數（名目）",
+    "Years to FIRE (Real)": "距離 FIRE 年數（實質）",
+    "Inflation Applied": "套用通膨率",
+    "Nominal Value": "名目價值",
+    "Real Value (Inflation-Adjusted)": "實質價值（通膨調整後）",
+    "Years": "年數",
+    "A snapshot of your portfolio based on the selections above.": "根據上方選擇產生的投資組合快照。",
+    "Complete the Risk Allocation section to see your portfolio summary.": "完成風險配置後即可查看投資組合總結。",
+    "AI Insights": "AI 洞察",
+    "Strategic review generated by Gemini 2.5 Flash": "由 Gemini 2.5 Flash 產生的策略檢視",
+    "Generating AI insights...": "正在產生 AI 洞察...",
+    "AI Insights will be available once the backtest calculation is complete.": "完成回測計算後即可查看 AI 洞察。",
+    "Switch to USD": "切換為 USD",
+    "Switch to TWD": "切換為 TWD",
+    "Currently displaying in TWD. Input fields remain in TWD regardless of display currency.": "目前以 TWD 顯示。無論顯示幣別為何，輸入欄位皆維持 TWD。",
+    "Low": "低",
+    "Medium": "中",
+    "High": "高",
+    "Extreme High": "極高",
+}
+
+def tr(text: str, zh_tw: str = None) -> str:
+    if st.session_state.get('lang') == "zh-TW":
+        return zh_tw or ZH_TW.get(text, text)
+    return text
+
+def risk_label(value: str) -> str:
+    return tr(value)
+
+def fmt_years(value):
+    if value:
+        return f"{value} 年"
+    return "50+ 年" if st.session_state.get('lang') == "zh-TW" else "50+ yrs"
+
 # ── Password gate (activated only when APP_PASSWORD is configured in secrets) ──
 if _app_password:
     def _check_password():
         if st.session_state.get("authenticated", False):
             return
         st.markdown("### 🔒 Passive Portfolio Lab")
-        st.caption("This dashboard is currently shared for project review. Please enter the access password.")
-        pw = st.text_input("Password", type="password", key="pw_input")
+        st.caption(tr("This dashboard is currently shared for project review. Please enter the access password."))
+        pw = st.text_input(tr("Password"), type="password", key="pw_input")
         if pw:
             if pw == _app_password:
                 st.session_state["authenticated"] = True
                 st.rerun()
             else:
-                st.error("Incorrect password.")
+                st.error(tr("Incorrect password."))
         st.stop()
     _check_password()
 
@@ -81,15 +226,42 @@ st.markdown("""
 [data-testid="metric-container"] [data-testid="stMetricValue"] {
     font-size: 1.4rem !important;
 }
+iframe[title="st_aggrid.agGrid"] {
+    position: relative !important;
+    z-index: 0 !important;
+}
+.st-key-persona_quick_start_container {
+    position: relative !important;
+    z-index: 1000 !important;
+    isolation: isolate !important;
+    background: var(--background-color);
+}
+.st-key-persona_quick_start_container button {
+    pointer-events: auto !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("""
+    current_lang = st.session_state.get("lang", "en")
+    selected_lang_label = st.radio(
+        "Language / 語言",
+        options=list(LANG_OPTIONS.keys()),
+        index=list(LANG_OPTIONS.values()).index(current_lang) if current_lang in LANG_OPTIONS.values() else 0,
+        horizontal=True,
+        key="language_toggle",
+    )
+    selected_lang = LANG_OPTIONS[selected_lang_label]
+    if selected_lang != current_lang:
+        st.session_state["lang"] = selected_lang
+        st.query_params["lang"] = selected_lang
+        st.rerun()
+
+    st.markdown(f"""
 <style>
-.nav-link {
+.nav-link {{
     display: block;
     padding: 6px 12px;
     margin: 2px 0;
@@ -98,19 +270,19 @@ with st.sidebar:
     font-size: 14px;
     font-weight: 400;
     border-radius: 6px;
-}
-.nav-link:hover {
+}}
+.nav-link:hover {{
     background-color: #f0f2f6;
     color: #111 !important;
-}
+}}
 </style>
-<a class="nav-link" href="#introduction">Introduction</a>
-<a class="nav-link" href="#asset-screening">Asset Screening</a>
-<a class="nav-link" href="#correlation-analysis">Correlation Analysis</a>
-<a class="nav-link" href="#risk-allocation">Risk Allocation</a>
-<a class="nav-link" href="#backtest">Backtest & Pain Index</a>
-<a class="nav-link" href="#fire-calculator">FIRE Calculator</a>
-<a class="nav-link" href="#summary">Summary</a>
+<a class="nav-link" href="#introduction">{tr("Introduction")}</a>
+<a class="nav-link" href="#asset-screening">{tr("Asset Screening")}</a>
+<a class="nav-link" href="#correlation-analysis">{tr("Correlation Analysis")}</a>
+<a class="nav-link" href="#risk-allocation">{tr("Risk Allocation")}</a>
+<a class="nav-link" href="#backtest">{tr("Backtest & Pain Index")}</a>
+<a class="nav-link" href="#fire-calculator">{tr("FIRE Calculator")}</a>
+<a class="nav-link" href="#summary">{tr("Summary")}</a>
 """, unsafe_allow_html=True)
 
 # ── Session State ──────────────────────────────────────────────────────────────
@@ -240,7 +412,8 @@ def _compute_redundant_groups(corr: pd.DataFrame, pool_df: pd.DataFrame, thresho
 
 def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
     if not tickers:
-        st.info("Select assets in **Asset Screening** above and click **Review Portfolio →**.")
+        st.info(tr("Select assets in **Asset Screening** above and click **Review Portfolio →**.",
+                   "請先在上方 **資產篩選** 選擇資產，並點選 **檢視投資組合 →**。"))
         return
 
     # ── Load price data (session_state cache) ─────────────────────────────
@@ -248,18 +421,20 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
     cached_ok = (st.session_state.get('corr_tickers') == tickers_key and
                  'corr_data' in st.session_state)
     if not cached_ok:
-        with st.spinner(f"Loading 3-year price data for {len(tickers)} assets..."):
+        with st.spinner(tr(f"Loading 3-year price data for {len(tickers)} assets...",
+                           f"正在載入 {len(tickers)} 個資產的 3 年價格資料...")):
             try:
                 prices = load_prices_wide(tickers_key)
                 st.session_state['corr_data'] = prices
                 st.session_state['corr_tickers'] = tickers_key
             except Exception as e:
-                st.error(f"Failed to load correlation data: {e}")
+                st.error(tr(f"Failed to load correlation data: {e}", f"相關性資料載入失敗：{e}"))
                 return
 
     prices = st.session_state['corr_data']
     if prices.empty or prices.shape[1] < 2:
-        st.warning("Not enough price data available in BigQuery to compute correlations.")
+        st.warning(tr("Not enough price data available in BigQuery to compute correlations.",
+                      "BigQuery 中可用價格資料不足，無法計算相關性。"))
         return
 
     # ── Pairwise correlation on last 3 years ──────────────────────────────
@@ -270,12 +445,15 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
     corr = returns.corr(min_periods=60)
 
     if corr.isna().all().all():
-        st.warning("Not enough overlapping history to compute correlations. "
-                   "Consider removing very newly-listed assets.")
+        st.warning(tr("Not enough overlapping history to compute correlations. "
+                      "Consider removing very newly-listed assets.",
+                      "重疊歷史資料不足，無法計算相關性。可考慮移除非常新上市的資產。"))
         return
 
     # Redundancy detection
     suggestions = _compute_redundant_groups(corr, pool_df, REDUNDANCY_THRESHOLD)
+    active_persona = st.session_state.get('active_persona')
+    persona_mode = active_persona in PERSONAS
     
     # Track ignored suggestions in session state
     if 'ignored_suggestions' not in st.session_state:
@@ -288,8 +466,8 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
                 rm.update(s['remove'])
         return rm
         
-    rm_set = effective_removed()
-    final_tickers = [t for t in tickers if t not in rm_set]
+    rm_set = set() if persona_mode else effective_removed()
+    final_tickers = list(tickers) if persona_mode else [t for t in tickers if t not in rm_set]
     
     # Calculate average correlation before and after
     def calc_avg_corr(t_list):
@@ -310,31 +488,42 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
     
     with col1:
         st.container(border=True).metric(
-            "Selected Assets", 
+            tr("Selected Assets", "已選資產"),
             f"{len(tickers)}", 
-            delta=f"Suggested: {len(final_tickers)}" if len(final_tickers) < len(tickers) else "No reductions", 
+            delta=tr("Preset applied") if persona_mode else (tr(f"Suggested: {len(final_tickers)}", f"建議保留：{len(final_tickers)}") if len(final_tickers) < len(tickers) else tr("No reductions", "無需刪減")),
             delta_color="normal" if len(final_tickers) == len(tickers) else "inverse"
         )
     with col2:
         issues_count = len(suggestions)
         removable_count = sum(len(s['remove']) for s in suggestions)
         st.container(border=True).metric(
-            "Overlaps Found", 
+            tr("Overlaps Found", "發現重疊"),
             f"{issues_count}", 
-            delta=f"Can remove {removable_count}" if removable_count else "No issues", 
+            delta=tr("Diagnostic only") if persona_mode else (tr(f"Can remove {removable_count}", f"可移除 {removable_count} 個") if removable_count else tr("No issues", "無問題")),
             delta_color="inverse" if removable_count else "off"
         )
     with col3:
         st.container(border=True).metric(
-            "Avg Correlation (After)", 
+            tr("Avg Correlation (After)", "平均相關性（調整後）"),
             f"{avg_corr_after:.2f}", 
-            delta=f"Was {avg_corr_before:.2f}" if avg_corr_before != avg_corr_after else None, 
+            delta=tr(f"Was {avg_corr_before:.2f}", f"原為 {avg_corr_before:.2f}") if avg_corr_before != avg_corr_after else None,
             delta_color="inverse"
         )
 
+    if persona_mode:
+        st.info(
+            tr(
+                f"The “{active_persona}” preset has been applied. Assets are auto-confirmed for the calculations below.",
+                f"已套用「{tr(active_persona)}」預設情境，系統已自動確認資產並進入下方計算。"
+            )
+        )
+        st.session_state['final_tickers'] = final_tickers
+        st.session_state['portfolio_confirmed'] = True
+        return
+
     # ── UI: Suggestions Engine ──────────────────────────────────────────────
     if suggestions:
-        st.markdown("##### 🔴 Suggested Removals")
+        st.markdown(tr("##### 🔴 Suggested Removals", "##### 🔴 建議移除"))
         for s in suggestions:
             is_ignored = s['id'] in st.session_state['ignored_suggestions']
             
@@ -342,11 +531,15 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
                 hc1, hc2 = st.columns([4, 1])
                 keep_str = f"**{s['keep']}**"
                 rm_str = "、".join([f"~~{t}~~" if not is_ignored else t for t in s['remove']])
-                hc1.markdown(f"Keep {keep_str} · Remove {rm_str}")
+                hc1.markdown(tr(f"Keep {keep_str} · Remove {rm_str}", f"保留 {keep_str} · 移除 {rm_str}"))
                 hc2.markdown(f"<div style='text-align:right; color:gray; font-size:12px;'>ρ ≥ {s['max_corr']:.2f}</div>", unsafe_allow_html=True)
                 
-                st.caption(f"**{', '.join(s['group'])}** have high historical correlation (≥ {REDUNDANCY_THRESHOLD}). "
-                           f"Retaining **{s['keep']}** due to its higher liquidity / AUM.")
+                st.caption(tr(
+                    f"**{', '.join(s['group'])}** have high historical correlation (≥ {REDUNDANCY_THRESHOLD}). "
+                    f"Retaining **{s['keep']}** due to its higher liquidity / AUM.",
+                    f"**{', '.join(s['group'])}** 的歷史相關性偏高（≥ {REDUNDANCY_THRESHOLD}）。"
+                    f"由於 **{s['keep']}** 的流動性 / AUM 較高，建議保留此資產。"
+                ))
                 
                 def toggle_ignore(s_id=s['id']):
                     if st.session_state[f"chk_{s_id}"]:
@@ -354,12 +547,13 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
                     else:
                         st.session_state['ignored_suggestions'].discard(s_id)
                         
-                st.checkbox("Ignore this suggestion and keep all", 
+                st.checkbox(tr("Ignore this suggestion and keep all", "忽略此建議並全部保留"),
                             value=is_ignored, 
                             key=f"chk_{s['id']}", 
                             on_change=toggle_ignore)
     else:
-        st.success("✅ Your portfolio has no major overlaps (all correlations < 0.85).")
+        st.success(tr("✅ Your portfolio has no major overlaps (all correlations < 0.85).",
+                      "✅ 你的投資組合沒有明顯重疊（所有相關性 < 0.85）。"))
 
     # ── UI: Confirmation Bar ────────────────────────────────────────────────
     st.markdown("---")
@@ -367,18 +561,20 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
     
     conf_col1, conf_col2 = st.columns([3, 1])
     with conf_col1:
-        st.markdown(f"**Confirm {len(final_tickers)} assets to enter Risk Allocation**")
+        st.markdown(tr(f"**Confirm {len(final_tickers)} assets to enter Risk Allocation**",
+                       f"**確認 {len(final_tickers)} 個資產並進入風險配置**"))
         if len(rm_set) > 0:
-            st.caption(f"Removed {len(rm_set)} redundant assets.")
+            st.caption(tr(f"Removed {len(rm_set)} redundant assets.", f"已移除 {len(rm_set)} 個重複性較高的資產。"))
         st.markdown(" ".join([f"`{t}`" for t in final_tickers]), unsafe_allow_html=True)
         
     with conf_col2:
-        if st.button("Confirm Assets →", type="primary", width="stretch"):
+        if st.button(tr("Confirm Assets →", "確認資產 →"), type="primary", width="stretch"):
             st.session_state['portfolio_confirmed'] = True
             st.rerun()
 
     if st.session_state.get('portfolio_confirmed', False):
-        st.success("✅ Portfolio Confirmed! Scroll down to Risk Allocation.")
+        st.success(tr("✅ Portfolio Confirmed! Scroll down to Risk Allocation.",
+                      "✅ 投資組合已確認！請往下到風險配置區塊。"))
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_gemini_insights(
@@ -431,7 +627,9 @@ Rules:
 2. Each bullet should be 1-2 sentences.
 3. DO NOT use bold (**) or italics (*) inside the bullet points.
 4. Focus on high-impact actions to reach FIRE faster.
-5. Write in English."""
+5. Write in Traditional Chinese if the dashboard language is zh-TW; otherwise write in English.
+
+Dashboard language: {st.session_state.get('lang', 'en')}"""
 
         response = client.models.generate_content(
             model="gemini-2.5-flash",
@@ -479,9 +677,11 @@ PERSONAS = {
     },
 }
 
-def apply_persona(p_name):
+def apply_persona(p_name, rerun=False):
     p = PERSONAS[p_name]
     st.session_state['watchlist'] = p['watchlist']
+    st.session_state['pending_tickers'] = p['watchlist']
+    st.session_state['final_tickers'] = p['watchlist']
     st.session_state['risk_pref'] = p['risk']
     st.session_state['bt_params'] = {
         'initial': p['initial'],
@@ -501,7 +701,9 @@ def apply_persona(p_name):
     if 'asset_pool_aggrid' in st.session_state:
         del st.session_state['asset_pool_aggrid']
     st.session_state['active_persona'] = p_name
-    st.rerun()
+    st.session_state['skip_aggrid_sync_once'] = True
+    if rerun:
+        st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -509,9 +711,9 @@ def apply_persona(p_name):
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("<div id='introduction' style='padding-top: 70px; margin-top: -70px; pointer-events: none;'></div>", unsafe_allow_html=True)
-st.title("Passive Portfolio Lab")
-st.subheader("A data-driven toolkit for long-term passive investors")
-st.markdown("""
+st.title(tr("Passive Portfolio Lab"))
+st.subheader(tr("A data-driven toolkit for long-term passive investors"))
+st.markdown(tr("""
 > *"The stock market is a device for transferring money from the impatient to the patient."*
 > — Benjamin Graham, as cited in **A Random Walk Down Wall Street** (Burton Malkiel)
 
@@ -529,7 +731,22 @@ This dashboard helps you explore that thesis with real data:
 - **FIRE Calculator** — estimate when you can retire based on your allocation
 
 > *All portfolio calculations are performed in New Taiwan Dollar (TWD). For USD-denominated assets (US ETFs, bonds, commodities, and crypto), daily prices are converted to TWD using historical exchange rates — meaning currency fluctuations are factored into the returns. This reflects the real experience of a Taiwan-based investor holding foreign assets. All input amounts should be entered in TWD.*
-""")
+""", """
+> *「股市是一個把金錢從沒有耐心的人手中，轉移到有耐心的人手中的裝置。」*
+> — Benjamin Graham，引自 Burton Malkiel 的 **A Random Walk Down Wall Street**
+
+學術證據相當清楚：多數主動型經理人長期難以打敗市場。
+**A Random Walk Down Wall Street** 主張，被動指數策略，也就是買進並持有分散化投資組合、不選股、不擇時，在扣除費用後通常能勝過主動管理。
+**The Simple Path to Wealth**（JL Collins）與 **Your Money or Your Life**（Vicki Robin）則把這套邏輯延伸到 FIRE 運動：降低成本、提高儲蓄率，並在市場循環中持續投入，財務自由就更像是時間問題，而不是運氣問題。
+
+這個儀表板用真實資料協助你探索這個命題：
+- **資產篩選** — 瀏覽並選擇資產到觀察清單
+- **風險配置** — 依各資產風險特性自動配置權重
+- **回測與痛苦指數** — 查看歷史報酬，以及你需要承受的回撤
+- **財務自由試算** — 依照配置估算何時能退休
+
+> *所有投資組合計算皆以新台幣（TWD）進行。對於以美元計價的資產（美股 ETF、債券、商品與加密貨幣），每日價格會使用歷史匯率轉換為 TWD，因此匯率波動也會反映在報酬中。這更貼近台灣投資人持有海外資產的真實經驗。所有輸入金額都應以 TWD 填寫。*
+"""))
 
 st.divider()
 
@@ -539,10 +756,10 @@ st.divider()
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("<div id='asset-screening' style='padding-top: 70px; margin-top: -70px; pointer-events: none;'></div>", unsafe_allow_html=True)
-st.title("Asset Screening")
-st.caption("Filter and sort assets from the pool below. Click ＋ to add an asset to your watchlist.")
-with st.expander("📋 How assets are selected", expanded=False):
-    st.markdown("""
+st.title(tr("Asset Screening"))
+st.caption(tr("Filter and sort assets from the pool below. Click ＋ to add an asset to your watchlist."))
+with st.expander(tr("📋 How assets are selected"), expanded=False):
+    st.markdown(tr("""
     The **35 assets** in this pool come from three categories. The list is static and curated by AUM / market-cap rank — no live scraping occurs at runtime.
 
     **Asset universe:**
@@ -554,7 +771,19 @@ with st.expander("📋 How assets are selected", expanded=False):
     Assets with insufficient historical price data to calculate CAGR, volatility, max drawdown, and Sharpe ratio are excluded from the metrics view.
 
     All metrics are calculated from the full available price history for each asset using daily closing prices from Yahoo Finance, stored in Google BigQuery.
-    """)
+    """, """
+    這個資產池共有 **35 個資產**，來自三個類別。清單是依 AUM / 市值排名靜態整理而成，執行時不會即時爬取資料。
+
+    **資產 universe：**
+    - **台股 ETF**（12）：截至 2026/04/27 依 AUM 排名的台灣主要 ETF（來源：Yahoo Finance TW），涵蓋市值型、高股息、ESG、債券與 AI 主題策略。價格歷史不足的資產會被排除。
+    - **美股 ETF**（15）：截至 2026/03–04 依 AUM 排名的前 15 大美國 ETF（來源：TipRanks / InvestLane），包含大盤、成長、價值、國際、債券與黃金 ETF。
+    - **加密貨幣**（8）：截至 2026/04 依市值排名的前 10 大加密貨幣，排除穩定幣與交易歷史不足的資產（來源：CoinMarketCap）。
+
+    **資料品質篩選：**
+    若資產歷史價格不足以計算 CAGR、波動率、最大回撤與 Sharpe ratio，將不會出現在指標檢視中。
+
+    所有指標皆使用 Yahoo Finance 的每日收盤價完整歷史資料計算，並儲存在 Google BigQuery。
+    """))
 
 # ── Merge candidates with metrics ─────────────────────────────────────────────
 candidates_subset = candidates_df[['ticker', 'category', 'currency', 'rank', 'aum_or_market_cap']].drop_duplicates(subset='ticker')
@@ -567,7 +796,7 @@ pool_df = candidates_subset.merge(
 
 # ── Fetch current prices ───────────────────────────────────────────────────────
 if 'market_data' not in st.session_state:
-    with st.spinner("Fetching current prices and volume..."):
+    with st.spinner(tr("Fetching current prices and volume...")):
         price_data = fetch_price_and_volume(pool_df['ticker'].tolist())
         # Only update session state if we got valid data
         has_valid = any(v.get('price') is not None for v in price_data.values())
@@ -629,20 +858,20 @@ def build_display_df(df):
 
 # ── Asset Pool ─────────────────────────────────────────────────────────────────
 def render_asset_pool():
-    st.markdown("#### Asset Pool")
+    st.markdown(f"#### {tr('Asset Pool')}")
     
     # ── Toolbar ──────────────────────────────────────────────────────────────────
     fc1, fc2, fc3, fc4, fc5 = st.columns(5)
     with fc1:
-        search_query = st.text_input("Search", placeholder="Search assets...", label_visibility="collapsed")
+        search_query = st.text_input(tr("Search"), placeholder=tr("Search assets..."), label_visibility="collapsed")
     with fc2:
-        selected_type = st.selectbox("Category", ["All", "TW ETF", "US ETF", "Crypto"], label_visibility="collapsed")
+        selected_type = st.selectbox(tr("Category"), ["All", "TW ETF", "US ETF", "Crypto"], label_visibility="collapsed", format_func=lambda x: tr(x))
     with fc3:
-        selected_cagr = st.selectbox("CAGR ≥", ["CAGR ≥ 0", "CAGR ≥ 5%", "CAGR ≥ 10%", "CAGR ≥ 15%", "CAGR ≥ 20%"], label_visibility="collapsed")
+        selected_cagr = st.selectbox(tr("CAGR ≥"), ["CAGR ≥ 0", "CAGR ≥ 5%", "CAGR ≥ 10%", "CAGR ≥ 15%", "CAGR ≥ 20%"], label_visibility="collapsed")
     with fc4:
-        selected_sharpe = st.selectbox("Sharpe ≥", ["Sharpe ≥ 0", "Sharpe ≥ 0.5", "Sharpe ≥ 1.0", "Sharpe ≥ 1.5"], label_visibility="collapsed")
+        selected_sharpe = st.selectbox(tr("Sharpe ≥"), ["Sharpe ≥ 0", "Sharpe ≥ 0.5", "Sharpe ≥ 1.0", "Sharpe ≥ 1.5"], label_visibility="collapsed")
     with fc5:
-        selected_mdd = st.selectbox("Max DD", ["Max DD All", "Max DD ≤ 20%", "Max DD ≤ 30%", "Max DD ≤ 50%"], label_visibility="collapsed")
+        selected_mdd = st.selectbox(tr("Max DD"), ["Max DD All", "Max DD ≤ 20%", "Max DD ≤ 30%", "Max DD ≤ 50%"], label_visibility="collapsed", format_func=lambda x: tr(x, x.replace("Max DD", "最大回撤") if x.startswith("Max DD") else x))
 
     filtered = pool_df.copy()
 
@@ -680,6 +909,7 @@ def render_asset_pool():
         p_list = st.session_state.get('pending_tickers', [])
         st.session_state.watchlist = list(p_list)
         st.session_state['portfolio_confirmed'] = False
+        st.session_state['active_persona'] = None
         tickers_key = tuple(sorted(p_list))
         if st.session_state.get('corr_tickers') != tickers_key:
             st.session_state.pop('corr_data', None)
@@ -688,20 +918,23 @@ def render_asset_pool():
     bar_container = st.container(border=True)
     bc1, bc2, bc3, bc4 = bar_container.columns([3, 1, 1, 2])
     
-    bc1.markdown(f"**{len(pending)} asset{'s' if len(pending) != 1 else ''} selected** (Showing {len(filtered_reset)} total)")
+    bc1.markdown(tr(
+        f"**{len(pending)} asset{'s' if len(pending) != 1 else ''} selected** (Showing {len(filtered_reset)} total)",
+        f"**已選 {len(pending)} 個資產**（目前顯示 {len(filtered_reset)} 個）"
+    ))
     
     # Render select/deselect buttons in the second column
-    if bc2.button("☑ Select All", width="stretch"):
+    if bc2.button(f"☑ {tr('Select All')}", width="stretch"):
         st.session_state['pending_tickers'] = filtered_reset['ticker'].tolist()
         st.session_state.pop('asset_pool_editor', None)
         st.rerun()
         
-    if bc3.button("☐ Clear", key="clear_selected", width="stretch"):
+    if bc3.button(f"☐ {tr('Clear')}", key="clear_selected", width="stretch"):
         st.session_state['pending_tickers'] = []
         st.session_state.pop('asset_pool_aggrid', None) # Update key to match AgGrid
         st.rerun()
         
-    bc4.button("Review Portfolio →", type="primary", key="review_portfolio_btn", 
+    bc4.button(tr("Review Portfolio →"), type="primary", key="review_portfolio_btn",
                width="stretch", disabled=len(pending) == 0, on_click=handle_review_click)
 
     # ── AG Grid ──────────────────────────────────────────────────────────────────
@@ -717,26 +950,29 @@ def render_asset_pool():
                         cellEditor="agCheckboxCellEditor",
                         pinned="left") # Pin checkbox to left
     
-    gb.configure_column("Ticker", pinned="left", width=100) # Pin Ticker next to checkbox
+    gb.configure_column("Ticker", headerName=tr("Ticker"), pinned="left", width=100) # Pin Ticker next to checkbox
+    gb.configure_column("Name", headerName=tr("Name"))
+    gb.configure_column("Category", headerName=tr("Category"))
 
     # Decouple value from display for Price and Volume
     gb.configure_column("Price", 
                         valueGetter="data.price_usd", 
                         valueFormatter="data.Price",
-                        headerName="Price",
+                        headerName=tr("Price"),
                         sortable=True)
     
     gb.configure_column("Volume",
                         valueGetter="data.volume_raw",
                         valueFormatter="data.Volume",
-                        headerName="Volume",
+                        headerName=tr("Volume"),
                         sortable=True)
     
     gb.configure_column("price_usd", hide=True)
     gb.configure_column("volume_raw", hide=True)
 
     for col in ['Ann. Return', 'Volatility', 'Max Drawdown', 'Worst Year Ret.']:
-        gb.configure_column(col, valueFormatter="value != null ? value.toFixed(2) + '%' : 'N/A'")
+        gb.configure_column(col, headerName=tr(col), valueFormatter="value != null ? value.toFixed(2) + '%' : 'N/A'")
+    gb.configure_column("Worst Year", headerName=tr("Worst Year"))
     gb.configure_grid_options(suppressMovableColumns=True)
 
     grid_response = AgGrid(
@@ -755,7 +991,8 @@ def render_asset_pool():
     # AgGrid returns all-False on first render before JS initializes.
     # Only sync back if at least one checkbox is True, or if we need to
     # clear a previously-set pending list.
-    if result_df is not None and not result_df.empty:
+    skip_aggrid_sync = st.session_state.pop('skip_aggrid_sync_once', False)
+    if result_df is not None and not result_df.empty and not skip_aggrid_sync:
         checked_tickers = filtered_reset.loc[result_df['Add'] == True, 'ticker'].tolist()
         visible_tickers = filtered_reset['ticker'].tolist()
         hidden_confirmed = [t for t in st.session_state.watchlist if t not in visible_tickers]
@@ -770,29 +1007,25 @@ def render_asset_pool():
 
 
 
-# ── Demo Preset Personas (Relocated for better UX) ─────────────────────────────
-st.markdown("<br>", unsafe_allow_html=True)
-with st.container(border=True):
-    st.markdown("💡 **Not sure where to start?** Try a preset investor persona:")
-    p_names = ["Select a persona..."] + list(PERSONAS.keys())
-    idx = 0
-    if st.session_state.get('active_persona') in PERSONAS:
-        try:
-            idx = p_names.index(st.session_state['active_persona'])
-        except ValueError:
-            idx = 0
-    
-    sel_p = st.selectbox(
-        "Choose a Persona", 
-        options=p_names, 
-        index=idx, 
-        label_visibility="collapsed",
-        key="persona_quick_start_selectbox"
-    )
-    if sel_p != "Select a persona..." and sel_p != st.session_state.get('active_persona'):
-        apply_persona(sel_p)
+def render_persona_quick_start():
+    st.markdown("<div style='height:72px;'></div>", unsafe_allow_html=True)
+    with st.container(border=True, key="persona_quick_start_container"):
+        st.markdown(f"💡 **{tr('Not sure where to start?')}** {tr('Try a preset investor persona:')}")
+        cols = st.columns(len(PERSONAS))
+        active_persona = st.session_state.get('active_persona')
+        for col, p_name in zip(cols, PERSONAS.keys()):
+            button_type = "primary" if p_name == active_persona else "secondary"
+            col.button(
+                tr(p_name),
+                key=f"persona_quick_start_{p_name}",
+                type=button_type,
+                width="stretch",
+                on_click=apply_persona,
+                args=(p_name,),
+            )
 
 render_asset_pool()
+render_persona_quick_start()
 
 
 
@@ -803,8 +1036,8 @@ render_asset_pool()
 
 st.markdown("<div id='correlation-analysis' style='padding-top: 70px; margin-top: -70px; pointer-events: none;'></div>",
             unsafe_allow_html=True)
-st.title("Correlation Analysis")
-st.caption("Confirm your portfolio is genuinely diversified before running risk and FIRE calculations.")
+st.title(tr("Correlation Analysis"))
+st.caption(tr("Confirm your portfolio is genuinely diversified before running risk and FIRE calculations."))
 
 render_correlation_analysis(st.session_state.watchlist, pool_df)
 
@@ -814,19 +1047,19 @@ render_correlation_analysis(st.session_state.watchlist, pool_df)
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("<div id='risk-allocation' style='padding-top: 70px; margin-top: -70px; pointer-events: none;'></div>", unsafe_allow_html=True)
-st.title("Risk Allocation")
-st.caption("Based on your watchlist, the system automatically allocates weights to match your target risk level.")
+st.title(tr("Risk Allocation"))
+st.caption(tr("Based on your watchlist, the system automatically allocates weights to match your target risk level."))
 
 if not st.session_state.watchlist:
-    st.info("Add assets to your watchlist in Asset Screening first.")
+    st.info(tr("Add assets to your watchlist in Asset Screening first."))
 elif not st.session_state.get('portfolio_confirmed', False):
-    st.info("ℹ️ Confirm your portfolio in **Correlation Analysis** above to unlock this section.")
+    st.info("ℹ️ " + tr("Confirm your portfolio in **Correlation Analysis** above to unlock this section."))
 else:
     final_tickers = st.session_state.get('final_tickers', st.session_state.watchlist)
     selected_metrics = metrics_df[metrics_df['ticker'].isin(final_tickers)].copy()
 
     if selected_metrics.empty:
-        st.warning("No metric data found for your selected assets.")
+        st.warning(tr("No metric data found for your selected assets."))
     else:
         # ── Calculate achievable risk range ────────────────────────────────────
         vols = selected_metrics.set_index('ticker')['volatility']
@@ -849,11 +1082,14 @@ else:
 
         achievable = [k for k, v in RISK_ORDER.items() if min_risk_num <= v <= max_risk_num]
 
-        st.info(f"Based on your selected assets, achievable risk range: **{min_risk}** to **{max_risk}**")
+        st.info(tr(
+            f"Based on your selected assets, achievable risk range: **{min_risk}** to **{max_risk}**",
+            f"根據你選擇的資產，可達成的風險範圍為：**{risk_label(min_risk)}** 到 **{risk_label(max_risk)}**"
+        ))
 
-        with st.expander("ℹ️ How is the achievable risk range determined?"):
+        with st.expander("ℹ️ " + tr("How is the achievable risk range determined?")):
             st.markdown(
-                f"""
+                tr(f"""
 The achievable risk range is derived from the **annualized volatility** of the assets in your watchlist:
 
 1. Compute each asset's annualized volatility (stdev of daily returns × √N).
@@ -872,7 +1108,26 @@ The achievable risk range is derived from the **annualized volatility** of the a
 **Why this is the full achievable range.** The allocation algorithm combines assets by a weighted average of their volatilities (ignoring cross-asset correlations), so the resulting portfolio volatility is always bounded between the minimum and maximum single-asset volatility in your watchlist &mdash; you cannot reach a tier below the lowest-vol asset or above the highest-vol asset.
 
 **Your watchlist right now:** lowest volatility = **{min_vol:.1%}** ({min_risk}), highest volatility = **{max_vol:.1%}** ({max_risk}).
-                """
+                """, f"""
+可達成的風險範圍是由觀察清單中資產的 **年化波動率** 推導而來：
+
+1. 計算每個資產的年化波動率（日報酬標準差 × √N）。
+2. 找出觀察清單中 **最低** 與 **最高** 的波動率。
+3. 依照固定門檻映射到風險等級：
+
+| 年化波動率 | 風險等級 |
+|---|---|
+| &lt; 16% | 低 |
+| 16% &ndash; 27% | 中 |
+| 27% &ndash; 50% | 高 |
+| &ge; 50% | 極高 |
+
+4. 可達成範圍會從 **最低波動資產** 的等級延伸到 **最高波動資產** 的等級。
+
+**為什麼這是完整範圍。** 配置演算法以各資產波動率的加權平均來組合（未納入跨資產相關性），因此投資組合波動率會落在單一資產最低與最高波動率之間，無法低於最低波動資產，也無法高於最高波動資產。
+
+**你目前的觀察清單：** 最低波動率 = **{min_vol:.1%}**（{risk_label(min_risk)}），最高波動率 = **{max_vol:.1%}**（{risk_label(max_risk)}）。
+                """)
             )
 
         # ── Risk preference selector (only show achievable levels) ─────────────
@@ -880,11 +1135,12 @@ The achievable risk range is derived from the **annualized volatility** of the a
         default_risk_idx = achievable.index(persona_risk) if persona_risk in achievable else 0
         
         risk_pref = st.radio(
-            "Target Risk Level",
+            tr("Target Risk Level"),
             options=achievable,
             horizontal=True,
             index=default_risk_idx,
-            key="risk_pref"
+            key="risk_pref",
+            format_func=risk_label
         )
 
         target_vol = RISK_VOL_TARGET[risk_pref]
@@ -943,15 +1199,15 @@ The achievable risk range is derived from the **annualized volatility** of the a
         # ── Display ────────────────────────────────────────────────────────────
         m1, m2, m3, m4 = st.columns(4)
         m1.metric(
-            "Weighted CAGR",
+            tr("Weighted CAGR"),
             f"{port_cagr:.2%}",
             help="This is the weighted average of each asset's historical CAGR based on original currency. "
                  "It may differ from the Backtest CAGR below, which reflects actual TWD-converted portfolio "
                  "performance including currency fluctuation effects over the selected backtest period."
         )
-        m2.metric("Portfolio Volatility", f"{port_vol:.1%}", delta=f"Target: {target_vol:.0%}")
-        m3.metric("Weighted Max Drawdown", f"{port_dd:.2%}")
-        m4.metric("Weighted Sharpe", f"{port_sharpe:.2f}")
+        m2.metric(tr("Portfolio Volatility"), f"{port_vol:.1%}", delta=tr(f"Target: {target_vol:.0%}", f"目標：{target_vol:.0%}"))
+        m3.metric(tr("Weighted Max Drawdown"), f"{port_dd:.2%}")
+        m4.metric(tr("Weighted Sharpe"), f"{port_sharpe:.2f}")
 
         alloc_df['weight_pct'] = (alloc_df['weight'] * 100).round(1)
 
@@ -1012,7 +1268,7 @@ The achievable risk range is derived from the **annualized volatility** of the a
                     'tv_url': f"https://www.tradingview.com/symbols/{tv_ticker}/",
                 })
         treemap_data = json.dumps(treemap_data_list)
-        st.markdown("### Portfolio Composition")
+        st.markdown(f"### {tr('Portfolio Composition')}")
         st.markdown(
             f"""
             <div style="padding:10px 16px; margin:6px 0 14px 0; border-radius:6px;
@@ -1223,13 +1479,13 @@ st.divider()
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("<div id='backtest' style='padding-top: 70px; margin-top: -70px; pointer-events: none;'></div>", unsafe_allow_html=True)
-st.title("Backtest & Pain Index")
-st.caption("How would your portfolio have performed historically — and could you have endured the downturns?")
+st.title(tr("Backtest & Pain Index"))
+st.caption(tr("How would your portfolio have performed historically — and could you have endured the downturns?"))
 
 if not st.session_state.get('portfolio_confirmed', False):
-    st.info("ℹ️ Confirm your portfolio in **Correlation Analysis** above to unlock this section.")
+    st.info("ℹ️ " + tr("Confirm your portfolio in **Correlation Analysis** above to unlock this section."))
 elif 'allocation' not in st.session_state or not st.session_state['allocation']:
-    st.info("Complete the Risk Allocation section first.")
+    st.info(tr("Complete the Risk Allocation section first."))
 else:
     # ── Advanced Settings ────────────────────────────────────────────
     # Set defaults first
@@ -1241,17 +1497,17 @@ else:
             'end': date.today(),
         }
 
-    with st.expander("⚙️ Advanced Settings", expanded=False):
+    with st.expander("⚙️ " + tr("Advanced Settings"), expanded=False):
         row1_col1, row1_col2 = st.columns(2)
         with row1_col1:
-            initial_bt = st.number_input("Initial Investment (NT$)", min_value=0, value=st.session_state['bt_params'].get('initial', 300000), step=10000, key="bt_initial")
+            initial_bt = st.number_input(tr("Initial Investment (NT$)"), min_value=0, value=st.session_state['bt_params'].get('initial', 300000), step=10000, key="bt_initial")
         with row1_col2:
-            monthly_bt = st.number_input("Monthly Contribution (NT$)", min_value=0, value=st.session_state['bt_params'].get('monthly', 15000), step=1000, key="bt_monthly")
+            monthly_bt = st.number_input(tr("Monthly Contribution (NT$)"), min_value=0, value=st.session_state['bt_params'].get('monthly', 15000), step=1000, key="bt_monthly")
         row2_col1, row2_col2 = st.columns(2)
         with row2_col1:
-            start_bt = st.date_input("Start Date", value=st.session_state['bt_params'].get('start', date(2010, 1, 1)), key="bt_start")
+            start_bt = st.date_input(tr("Start Date"), value=st.session_state['bt_params'].get('start', date(2010, 1, 1)), key="bt_start")
         with row2_col2:
-            end_bt = st.date_input("End Date", value=st.session_state['bt_params'].get('end', date.today()), key="bt_end")
+            end_bt = st.date_input(tr("End Date"), value=st.session_state['bt_params'].get('end', date.today()), key="bt_end")
 
         st.session_state['bt_params'] = {
             'initial': initial_bt,
@@ -1266,7 +1522,7 @@ else:
     end_bt = st.session_state['bt_params']['end']
 
     # ── Run backtest automatically ─────────────────────────────────────────────
-    with st.spinner("Running backtest..."):
+    with st.spinner(tr("Running backtest...")):
         try:
             result_df = run_backtest(
                 start_date=str(start_bt),
@@ -1292,9 +1548,9 @@ else:
             disp_gain, _ = convert_display(gain, display_usd, fx_rate)
 
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Final Value", f"{cs}{disp_final:,.0f}")
-            m2.metric("Total Invested", f"{cs}{disp_inv:,.0f}")
-            m3.metric("Total Return", f"{total_ret:.1f}%")
+            m1.metric(tr("Final Value"), f"{cs}{disp_final:,.0f}")
+            m2.metric(tr("Total Invested"), f"{cs}{disp_inv:,.0f}")
+            m3.metric(tr("Total Return"), f"{total_ret:.1f}%")
             m4.metric(
                 "CAGR",
                 f"{cagr_bt:.1%}",
@@ -1329,35 +1585,39 @@ else:
                         annotation_font_color="#b71c1c",
                     )
 
-            st.subheader("Portfolio Value Over Time")
+            st.subheader(tr("Portfolio Value Over Time"))
             line_fig = go.Figure()
             chart_divisor = fx_rate if display_usd else 1.0
             chart_cs = "$" if display_usd else "NT$"
             line_fig.add_trace(go.Scatter(
                 x=result_df['date'], y=result_df['portfolio_value'] / chart_divisor,
-                mode='lines', name='Portfolio Value',
+                mode='lines', name=tr('Portfolio Value'),
                 line=dict(color='#2196F3', width=2)
             ))
             line_fig.add_trace(go.Scatter(
                 x=result_df['date'], y=result_df['total_invested'] / chart_divisor,
-                mode='lines', name='Total Invested',
+                mode='lines', name=tr('Total Invested'),
                 line=dict(color='#9E9E9E', width=1.5, dash='dash')
             ))
             if not dd_events_df.empty:
                 _add_drawdown_shading(line_fig, dd_events_df)
             line_fig.update_layout(
                 height=320, margin=dict(t=20, b=20, l=20, r=20),
-                yaxis_title=f"Value ({chart_cs})",
+                yaxis_title=tr(f"Value ({chart_cs})", f"價值 ({chart_cs})"),
                 plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                 legend=dict(orientation="h", yanchor="bottom", y=1.02)
             )
-            st.plotly_chart(line_fig, width="stretch")
+            st.plotly_chart(line_fig, use_container_width=True)
             total_gain = final_val - total_inv
-            insight1 = (
+            insight1 = tr(
+                (
                 f"Starting with {cs}{disp_inv:,.0f}, "
                 f"your portfolio would have grown to {cs}{disp_final:,.0f} — "
                 f"a gain of {cs}{disp_gain:,.0f} "
                 f"({total_ret:.1f}%) over the period, equivalent to a {cagr_bt:.1%} annualized return."
+                ),
+                f"從 {cs}{disp_inv:,.0f} 開始，你的投資組合會成長到 {cs}{disp_final:,.0f}，"
+                f"期間增加 {cs}{disp_gain:,.0f}（{total_ret:.1f}%），約等於 {cagr_bt:.1%} 的年化報酬率。"
             )
             st.markdown(
                 f'<div style="background-color:#e8f4f8; padding:12px 16px; border-radius:8px; '
@@ -1365,13 +1625,13 @@ else:
                 unsafe_allow_html=True
             )
 
-            st.subheader("Max Drawdown Over Time (Pain Index)")
+            st.subheader(tr("Max Drawdown Over Time (Pain Index)"))
             rolling_max = result_df['portfolio_value'].cummax()
             drawdown = (result_df['portfolio_value'] - rolling_max) / rolling_max * 100
             dd_fig = go.Figure()
             dd_fig.add_trace(go.Scatter(
                 x=result_df['date'], y=drawdown,
-                mode='lines', name='Drawdown',
+                mode='lines', name=tr('Drawdown'),
                 fill='tozeroy',
                 line=dict(color='#F44336', width=1.5)
             ))
@@ -1379,12 +1639,15 @@ else:
                 _add_drawdown_shading(dd_fig, dd_events_df)
             dd_fig.update_layout(
                 height=260, margin=dict(t=20, b=20, l=20, r=20),
-                yaxis_title="Drawdown (%)",
+                yaxis_title=tr("Drawdown (%)"),
                 plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(dd_fig, width="stretch")
+            st.plotly_chart(dd_fig, use_container_width=True)
             max_dd_val = float(drawdown.min())
             st.session_state['backtest_max_drawdown'] = max_dd_val / 100.0
-            insight2 = f"The worst drawdown during this period was {max_dd_val:.1f}%. This is the pain a buy-and-hold investor would have had to endure without selling — the key behavioral challenge of passive investing."
+            insight2 = tr(
+                f"The worst drawdown during this period was {max_dd_val:.1f}%. This is the pain a buy-and-hold investor would have had to endure without selling — the key behavioral challenge of passive investing.",
+                f"這段期間最嚴重的回撤為 {max_dd_val:.1f}%。這就是買進持有投資人必須承受且不能賣出的痛苦，也是被動投資最大的行為挑戰。"
+            )
             st.markdown(
                 f'<div style="background-color:#fdf0f0; padding:12px 16px; border-radius:8px; '
                 f'border-left:4px solid #F44336; font-size:14px; color:#1a1a1a;">{insight2}</div>',
@@ -1393,7 +1656,7 @@ else:
 
             # ── Top-5 drawdowns table (collapsible) ───────────────────────────
             if not dd_events_df.empty:
-                with st.expander("📉 View Top 5 Drawdown Episodes"):
+                with st.expander("📉 " + tr("View Top 5 Drawdown Episodes")):
                     st.caption(
                         "The five most severe independent drawdowns during this backtest, "
                         "ranked by depth. Shaded bands on the charts above correspond to "
@@ -1405,7 +1668,7 @@ else:
                     dd_table['Peak'] = pd.to_datetime(dd_table['peak_date']).dt.strftime('%Y-%m-%d')
                     dd_table['Trough'] = pd.to_datetime(dd_table['trough_date']).dt.strftime('%Y-%m-%d')
                     dd_table['Recovery'] = dd_table['recovery_date'].apply(
-                        lambda d: pd.to_datetime(d).strftime('%Y-%m-%d') if pd.notna(d) else 'Ongoing'
+                        lambda d: pd.to_datetime(d).strftime('%Y-%m-%d') if pd.notna(d) else tr('Ongoing')
                     )
                     dd_table['Drawdown'] = (dd_table['drawdown_pct'] * 100).round(2).astype(str) + '%'
 
@@ -1419,19 +1682,21 @@ else:
                         return f"{n}d"
                     dd_table['Fall Time'] = dd_table['duration_days'].apply(_fmt_days)
                     dd_table['Recovery Time'] = dd_table['recovery_days'].apply(
-                        lambda n: _fmt_days(n) if pd.notna(n) else 'Ongoing'
+                        lambda n: _fmt_days(n) if pd.notna(n) else tr('Ongoing')
                     )
                     dd_table['Historical Context'] = dd_table['event_label']
 
                     display_cols = ['Rank', 'Peak', 'Trough', 'Recovery',
                                     'Drawdown', 'Fall Time', 'Recovery Time', 'Historical Context']
+                    dd_display = dd_table[display_cols].copy()
+                    dd_display.columns = [tr(c) for c in display_cols]
                     st.dataframe(
-                        dd_table[display_cols],
+                        dd_display,
                         width="stretch",
                         hide_index=True,
                     )
 
-            st.subheader("Annual Returns")
+            st.subheader(tr("Annual Returns"))
             result_df['year'] = pd.to_datetime(result_df['date']).dt.year
             annual = result_df.groupby('year').apply(
                 lambda x: (x['portfolio_value'].iloc[-1] / x['portfolio_value'].iloc[0] - 1) * 100
@@ -1448,13 +1713,16 @@ else:
             ))
             bar_fig.update_layout(
                 height=280, margin=dict(t=20, b=20, l=20, r=20),
-                yaxis_title="Return (%)",
+                yaxis_title=tr("Return (%)"),
                 plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(bar_fig, width="stretch")
+            st.plotly_chart(bar_fig, use_container_width=True)
             neg_years = (annual['annual_return'] < 0).sum()
             best_year = annual.loc[annual['annual_return'].idxmax()]
             worst_year_row = annual.loc[annual['annual_return'].idxmin()]
-            insight3 = f"Out of {len(annual)} years, {neg_years} year(s) were negative. Best year: {int(best_year['year'])} (+{best_year['annual_return']:.1f}%). Worst year: {int(worst_year_row['year'])} ({worst_year_row['annual_return']:.1f}%)."
+            insight3 = tr(
+                f"Out of {len(annual)} years, {neg_years} year(s) were negative. Best year: {int(best_year['year'])} (+{best_year['annual_return']:.1f}%). Worst year: {int(worst_year_row['year'])} ({worst_year_row['annual_return']:.1f}%).",
+                f"在 {len(annual)} 年中，有 {neg_years} 年為負報酬。最佳年度：{int(best_year['year'])}（+{best_year['annual_return']:.1f}%）。最差年度：{int(worst_year_row['year'])}（{worst_year_row['annual_return']:.1f}%）。"
+            )
             st.markdown(
                 f'<div style="background-color:#f0f7f0; padding:12px 16px; border-radius:8px; '
                 f'border-left:4px solid #4CAF50; font-size:14px; color:#1a1a1a;">{insight3}</div>',
@@ -1462,7 +1730,7 @@ else:
             )
 
         except Exception as e:
-            st.error(f"Backtest failed: {e}")
+            st.error(tr(f"Backtest failed: {e}", f"回測失敗：{e}"))
 
 st.divider()
 
@@ -1471,18 +1739,18 @@ st.divider()
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("<div id='fire-calculator' style='padding-top: 70px; margin-top: -70px; pointer-events: none;'></div>", unsafe_allow_html=True)
-st.title("FIRE Calculator")
-st.caption("Based on your allocation's historical CAGR, estimate when you can reach financial independence.")
+st.title(tr("FIRE Calculator"))
+st.caption(tr("Based on your allocation's historical CAGR, estimate when you can reach financial independence."))
 
 if not st.session_state.get('portfolio_confirmed', False):
-    st.info("ℹ️ Confirm your portfolio in **Correlation Analysis** above to unlock this section.")
+    st.info("ℹ️ " + tr("Confirm your portfolio in **Correlation Analysis** above to unlock this section."))
     st.divider()
     # Render Summary section's locked stub then halt; avoids leaving the page with
     # an unrendered FIRE body and a missing Summary anchor in the sidebar.
     st.markdown("<div id='summary' style='padding-top: 70px; margin-top: -70px; pointer-events: none;'></div>",
                 unsafe_allow_html=True)
-    st.title("Summary")
-    st.info("ℹ️ Confirm your portfolio in **Correlation Analysis** above to unlock this section.")
+    st.title(tr("Summary"))
+    st.info("ℹ️ " + tr("Confirm your portfolio in **Correlation Analysis** above to unlock this section."))
     st.stop()
 
 portfolio_cagr = st.session_state.get('backtest_cagr', st.session_state.get('allocation_cagr', None))
@@ -1490,9 +1758,11 @@ bt_params = st.session_state.get('bt_params', {})
 risk_from_allocation = st.session_state.get('risk_pref', 'Medium')
 
 if st.session_state.get('backtest_cagr'):
-    st.success(f"Using backtest CAGR: **{portfolio_cagr:.2%}** (from your Backtest results)")
+    st.success(tr(f"Using backtest CAGR: **{portfolio_cagr:.2%}** (from your Backtest results)",
+                  f"使用回測 CAGR：**{portfolio_cagr:.2%}**（來自你的回測結果）"))
 elif portfolio_cagr:
-    st.success(f"Using portfolio weighted CAGR: **{portfolio_cagr:.2%}** (from your Risk Allocation)")
+    st.success(tr(f"Using portfolio weighted CAGR: **{portfolio_cagr:.2%}** (from your Risk Allocation)",
+                  f"使用投資組合加權 CAGR：**{portfolio_cagr:.2%}**（來自風險配置）"))
 
 # ── Advanced Settings ──────────────────────────────────────────────────────────
 # The FIRE target is now DERIVED from (Annual Expenses ÷ Withdrawal Rate) rather
@@ -1512,14 +1782,14 @@ risk_level_fire = risk_from_allocation if risk_from_allocation in ["Low", "Mediu
 inflation_rate = float(round(default_inflation, 3))
 inflation_rate_pct = round(default_inflation * 100, 2)
 
-with st.expander("⚙️ Advanced Settings", expanded=False):
-    st.markdown("Adjust the parameters below. Risk Level is carried over from your Risk Allocation.")
+with st.expander("⚙️ " + tr("Advanced Settings"), expanded=False):
+    st.markdown(tr("Adjust the parameters below. Risk Level is carried over from your Risk Allocation."))
 
     # Row 1 — FIRE math: Annual Expenses ÷ Withdrawal Rate = Implied Target
     fire_r1c1, fire_r1c2, fire_r1c3 = st.columns(3)
     with fire_r1c1:
         annual_expenses = st.number_input(
-            "Annual Expenses (NT$)",
+            tr("Annual Expenses (NT$)"),
             min_value=100000, max_value=50000000,
             value=st.session_state.get('fire_annual_expenses', 1200000), step=10000, key="fire_annual_expenses",
             help="How much you expect to spend per year in retirement (in TWD). "
@@ -1527,7 +1797,7 @@ with st.expander("⚙️ Advanced Settings", expanded=False):
         )
     with fire_r1c2:
         withdrawal_rate_pct = st.number_input(
-            "Withdrawal Rate (%)",
+            tr("Withdrawal Rate (%)"),
             min_value=1.0, max_value=10.0,
             value=4.0, step=0.1, key="fire_withdrawal_rate",
             help="The fraction of the portfolio withdrawn in year 1. "
@@ -1536,9 +1806,9 @@ with st.expander("⚙️ Advanced Settings", expanded=False):
         withdrawal_rate = withdrawal_rate_pct / 100
     with fire_r1c3:
         target_amount = int(annual_expenses / withdrawal_rate) if withdrawal_rate > 0 else 0
-        st.markdown("**Implied FIRE Target**")
+        st.markdown(f"**{tr('Implied FIRE Target')}**")
         st.markdown(f"NT$ {target_amount:,.0f}")
-        st.caption("= Expenses ÷ Withdrawal Rate")
+        st.caption(tr("= Expenses ÷ Withdrawal Rate"))
 
     # Keep downstream readers (Summary section, etc.) working without having to
     # know about the new expenses/rate inputs. The old fire_target widget key is
@@ -1549,46 +1819,46 @@ with st.expander("⚙️ Advanced Settings", expanded=False):
     fire_r2c1, fire_r2c2, fire_r2c3 = st.columns(3)
     with fire_r2c1:
         initial_capital = st.number_input(
-            "Current Savings (NT$)",
+            tr("Current Savings (NT$)"),
             min_value=0, value=int(bt_params.get('initial', 300000)),
             step=10000, key="fire_capital"
         )
-        st.caption("Carried over from Backtest & Pain Index")
+        st.caption(tr("Carried over from Backtest & Pain Index", "沿用回測與痛苦指數的設定"))
     with fire_r2c2:
         monthly_contribution = st.number_input(
-            "Monthly Contribution (NT$)",
+            tr("Monthly Contribution (NT$)"),
             min_value=0, value=int(bt_params.get('monthly', 15000)),
             step=1000, key="fire_monthly"
         )
-        st.caption("Carried over from Backtest & Pain Index")
+        st.caption(tr("Carried over from Backtest & Pain Index", "沿用回測與痛苦指數的設定"))
     with fire_r2c3:
         inflation_rate_pct = st.number_input(
-            "Annual Inflation Rate (%)",
+            tr("Annual Inflation Rate (%)"),
             min_value=0.0, max_value=10.0,
             value=round(default_inflation * 100, 2),
             step=0.1, key="fire_inflation",
             help=f"Latest US CPI YoY: {default_inflation:.2%} (auto-fetched from FRED). You can override this value."
         )
         inflation_rate = inflation_rate_pct / 100
-        st.caption(f"Current US CPI YoY: {default_inflation:.2%}")
+        st.caption(tr(f"Current US CPI YoY: {default_inflation:.2%}", f"目前美國 CPI 年增率：{default_inflation:.2%}"))
 
     # Row 3 — read-only Risk Level + Currency
     fire_r3c1, fire_r3c2 = st.columns(2)
     with fire_r3c1:
-        st.markdown("**Risk Level**")
-        st.markdown(f"{risk_level_fire}")
-        st.caption("Carried over from Risk Allocation")
+        st.markdown(f"**{tr('Risk Level')}**")
+        st.markdown(f"{risk_label(risk_level_fire)}")
+        st.caption(tr("Carried over from Risk Allocation", "沿用風險配置的設定"))
     with fire_r3c2:
-        st.markdown("**Currency**")
+        st.markdown(f"**{tr('Currency')}**")
         st.markdown("NT$ (TWD)")
-        st.caption("All calculations in New Taiwan Dollar")
+        st.caption(tr("All calculations in New Taiwan Dollar"))
 
 # ── Educational note: 4% Rule / Trinity Study ─────────────────────────────────
 # Kept as a sibling expander (NOT nested inside Advanced Settings) because
 # Streamlit disallows nested expanders. Sitting right below the parameter
 # block, it's still in plain sight for users wondering where the 4% comes from.
-with st.expander("📖 About the 4% Rule (Trinity Study)"):
-    st.markdown("""
+with st.expander("📖 " + tr("About the 4% Rule (Trinity Study)")):
+    st.markdown(tr("""
 The default **4% withdrawal rate** comes from the **Trinity Study**
 (Cooley, Hubbard & Walz, 1998), which backtested US equity + bond
 portfolios from 1926–1995. Withdrawing 4% of the initial balance in
@@ -1610,10 +1880,26 @@ The shortcut form is the **Rule of 25**:
 _Reference: Cooley, P., Hubbard, C., & Walz, D. (1998).
 "Retirement Savings: Choosing a Withdrawal Rate That Is Sustainable."
 AAII Journal._
-""")
+""", """
+預設的 **4% 提領率** 來自 **Trinity Study**
+（Cooley, Hubbard & Walz, 1998）。該研究回測 1926–1995 年間的美國股票與債券投資組合，若退休第 1 年提領初始資產的 4%，之後每年依通膨調整，約有 **95% 成功率** 能支撐完整 30 年退休期間而不耗盡資產。
+
+簡化版就是 **25 倍法則**：
+
+> **FIRE 目標 ≈ 年度支出 × 25**
+
+**如何依自身情況調整提領率：**
+- **3.0 – 3.5%** — 較保守，適合 40 年以上退休期間、較低預期報酬或較高風險趨避者。
+- **4.0%** — 30 年退休期間的經典基準。
+- **4.5 – 5.0%** — 較積極，適合有其他收入來源（兼職、租金、社會保險等）可降低投資組合提領壓力的人。
+
+_參考：Cooley, P., Hubbard, C., & Walz, D. (1998).
+"Retirement Savings: Choosing a Withdrawal Rate That Is Sustainable."
+AAII Journal._
+"""))
 
 # ── Auto-run FIRE calculation ──────────────────────────────────────────────────
-with st.spinner("Calculating FIRE projection..."):
+with st.spinner(tr("Calculating FIRE projection...")):
     try:
         result = calculate_fire(
             target_amount=target_amount,
@@ -1642,51 +1928,51 @@ with st.spinner("Calculating FIRE projection..."):
 
         display_cagr = st.session_state.get('backtest_cagr', annual_cagr)
         f1, f2, f3, f4 = st.columns(4)
-        f1.metric("CAGR Used", f"{display_cagr:.2%}")
-        f2.metric("Years to FIRE (Nominal)", f"{years_to_fire} yrs" if years_to_fire else "50+ yrs")
-        f3.metric("Years to FIRE (Real)", f"{real_fire_year} yrs" if real_fire_year else "50+ yrs")
-        f4.metric("Inflation Applied", f"{inflation_rate:.1%}")
+        f1.metric(tr("CAGR Used"), f"{display_cagr:.2%}")
+        f2.metric(tr("Years to FIRE (Nominal)"), fmt_years(years_to_fire))
+        f3.metric(tr("Years to FIRE (Real)"), fmt_years(real_fire_year))
+        f4.metric(tr("Inflation Applied"), f"{inflation_rate:.1%}")
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=projection_df['year'], y=projection_df['portfolio_value'] / fire_divisor,
-            mode='lines', name='Nominal Value',
+            mode='lines', name=tr('Nominal Value'),
             line=dict(color='#2196F3', width=2)
         ))
         fig.add_trace(go.Scatter(
             x=projection_df['year'], y=projection_df['real_value'] / fire_divisor,
-            mode='lines', name='Real Value (Inflation-Adjusted)',
+            mode='lines', name=tr('Real Value (Inflation-Adjusted)'),
             line=dict(color='#FF9800', width=2, dash='dot')
         ))
         disp_target = target_amount / fire_divisor
         fig.add_hline(
             y=disp_target, line_dash="dash", line_color="#F44336",
-            annotation_text=f"Target: {fire_cs}{disp_target:,.0f}",
+            annotation_text=tr(f"Target: {fire_cs}{disp_target:,.0f}", f"目標：{fire_cs}{disp_target:,.0f}"),
             annotation_position="top left"
         )
         if years_to_fire:
             fig.add_vline(
                 x=years_to_fire, line_dash="dot", line_color="#4CAF50",
-                annotation_text=f"FIRE @ Year {years_to_fire}",
+                annotation_text=tr(f"FIRE @ Year {years_to_fire}", f"FIRE @ 第 {years_to_fire} 年"),
                 annotation_position="top right"
             )
         fig.update_layout(
-            height=400, xaxis_title="Years",
-            yaxis_title=f"Value ({fire_cs})",
+            height=400, xaxis_title=tr("Years"),
+            yaxis_title=tr(f"Value ({fire_cs})", f"價值 ({fire_cs})"),
             legend=dict(orientation="h", yanchor="bottom", y=1.02),
             plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(t=40, b=40, l=40, r=40)
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
         display_df = projection_df.copy()
         display_df['portfolio_value'] = display_df['portfolio_value'].apply(lambda x: f"{fire_cs}{x/fire_divisor:,.0f}")
         display_df['real_value'] = display_df['real_value'].apply(lambda x: f"{fire_cs}{x/fire_divisor:,.0f}")
-        display_df.columns = ['Year', 'Nominal Value', 'Real Value (Inflation-Adjusted)']
+        display_df.columns = [tr('Year', '年份'), tr('Nominal Value'), tr('Real Value (Inflation-Adjusted)')]
         st.dataframe(display_df, width="stretch", hide_index=True)
 
     except Exception as e:
-        st.error(f"Calculation failed: {e}")
+        st.error(tr(f"Calculation failed: {e}", f"計算失敗：{e}"))
 
 st.divider()
 
@@ -1695,9 +1981,10 @@ st.divider()
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("<div id='summary' style='padding-top: 70px; margin-top: -70px; pointer-events: none;'></div>", unsafe_allow_html=True)
-st.title("Summary")
-st.caption("A snapshot of your portfolio based on the selections above.")
-st.caption("📌 Backtest returns are calculated using adjusted close prices, which reflect dividend distributions and stock splits. Dividend reinvestment is implicitly assumed.")
+st.title(tr("Summary"))
+st.caption(tr("A snapshot of your portfolio based on the selections above."))
+st.caption(tr("📌 Backtest returns are calculated using adjusted close prices, which reflect dividend distributions and stock splits. Dividend reinvestment is implicitly assumed.",
+              "📌 回測報酬使用調整後收盤價計算，已反映股利分配與股票分割，並隱含假設股利再投入。"))
 
 allocation = st.session_state.get('allocation', {})
 risk_pref = st.session_state.get('risk_pref', None)
@@ -1706,7 +1993,7 @@ backtest_cagr = st.session_state.get('backtest_cagr', None)
 years_to_fire = st.session_state.get('fire_years', None)
 
 if not allocation:
-    st.info("Complete the Risk Allocation section to see your portfolio summary.")
+    st.info(tr("Complete the Risk Allocation section to see your portfolio summary."))
 else:
     # ── Pull metrics for allocated assets ─────────────────────────────────────
     alloc_df_sum = metrics_df[metrics_df['ticker'].isin(allocation.keys())].copy()
@@ -1756,40 +2043,67 @@ else:
         'DEFENSIVE': f"Defensive assets (bonds and commodities) dominate at <strong>{dominant_pct:.0f}%</strong>. This heavily dampens volatility but also caps long-term growth — suitable for investors prioritizing stability over accumulation speed.",
         'CRYPTO': f"Crypto assets represent <strong>{dominant_pct:.0f}%</strong> of your allocation. While historically high-returning, crypto introduces extreme volatility that can overwhelm the stability of other holdings.",
     }
-    insight1 = "📊 <strong>Portfolio Structure:</strong> " + cat_descriptions.get(dominant_cat, f"Your largest category is {dominant_cat} at {dominant_pct:.0f}%.")
+    if st.session_state.get('lang') == "zh-TW":
+        cat_descriptions = {
+            'TW_ETF': f"台股 ETF 佔投資組合 <strong>{dominant_pct:.0f}%</strong>，是目前最大類別。這帶來台灣股票市場的高度曝險，歷史報酬具吸引力，但也集中於單一市場並帶有地緣政治風險。",
+            'US_ETF': f"美股 ETF 佔投資組合 <strong>{dominant_pct:.0f}%</strong>，由 <strong>{top_holding[0]}</strong>（{top_holding[1]*100:.1f}%）作為核心。這是廣泛分散且經過長期驗證的被動投資方式。",
+            'DEFENSIVE': f"防禦型資產（債券與商品）佔 <strong>{dominant_pct:.0f}%</strong>。這會大幅降低波動，但也可能限制長期成長，較適合重視穩定性的投資人。",
+            'CRYPTO': f"加密貨幣佔投資組合 <strong>{dominant_pct:.0f}%</strong>。雖然歷史報酬高，但波動極端，可能壓過其他資產帶來的穩定效果。",
+        }
+        insight1 = "📊 <strong>投資組合結構：</strong> " + cat_descriptions.get(dominant_cat, f"你最大的類別是 {dominant_cat}，佔 {dominant_pct:.0f}%。")
+    else:
+        insight1 = "📊 <strong>Portfolio Structure:</strong> " + cat_descriptions.get(dominant_cat, f"Your largest category is {dominant_cat} at {dominant_pct:.0f}%.")
 
     # Insight 2: drawdown contextualized
-    insight2 = (
-        f"📉 <strong>What the Drawdown Really Means:</strong> "
-        f"A max drawdown of <strong>{worst_dd_str}</strong> means on a NT$1,000,000 portfolio, "
-        f"you would have watched NT${loss_per_million*10000:,.0f} disappear on paper — {historical_ref}. "
-        f"The hardest-hit position in your mix is <strong>{worst_asset}</strong>. "
-        f"The question is not whether you can accept this mathematically — it's whether you can hold without selling when it's happening in real time."
-    )
+    if st.session_state.get('lang') == "zh-TW":
+        insight2 = (
+            f"📉 <strong>回撤真正代表什麼：</strong> "
+            f"最大回撤 <strong>{worst_dd_str}</strong> 代表若投資組合為 NT$1,000,000，"
+            f"你會看到帳面上約 NT${loss_per_million*10000:,.0f} 蒸發。"
+            f"組合中受傷最深的位置是 <strong>{worst_asset}</strong>。"
+            f"問題不只是你能否在數學上接受，而是當它真實發生時，你能否不賣出。"
+        )
+    else:
+        insight2 = (
+            f"📉 <strong>What the Drawdown Really Means:</strong> "
+            f"A max drawdown of <strong>{worst_dd_str}</strong> means on a NT$1,000,000 portfolio, "
+            f"you would have watched NT${loss_per_million*10000:,.0f} disappear on paper — {historical_ref}. "
+            f"The hardest-hit position in your mix is <strong>{worst_asset}</strong>. "
+            f"The question is not whether you can accept this mathematically — it's whether you can hold without selling when it's happening in real time."
+        )
 
     # Insight 3: behavioral or FIRE based on risk
     if risk_pref in ["Low", "Medium"]:
         if fire_years:
             years_context = "ahead of schedule" if fire_years < 25 else "a long runway that rewards consistency over urgency"
-            insight3 = (
-                f"🎯 <strong>FIRE Reality Check:</strong> "
-                f"At this allocation's historical return rate, your target is <strong>{fire_years} years</strong> away — {years_context}. "
-                f"The compounding math works in your favor as long as you stay invested and keep contributing. "
-                f"Missing just 10 of the best market days in a decade can cut your returns in half — passive means passive."
+            insight3 = tr(
+                (
+                    f"🎯 <strong>FIRE Reality Check:</strong> "
+                    f"At this allocation's historical return rate, your target is <strong>{fire_years} years</strong> away — {years_context}. "
+                    f"The compounding math works in your favor as long as you stay invested and keep contributing. "
+                    f"Missing just 10 of the best market days in a decade can cut your returns in half — passive means passive."
+                ),
+                f"🎯 <strong>FIRE 現實檢查：</strong> 依此配置的歷史報酬率，你距離目標約 <strong>{fire_years} 年</strong>。只要持續投入並留在市場中，複利會站在你這邊。被動投資的重點就是足夠被動，不因短期波動退出。"
             )
         else:
-            insight3 = (
-                f"🎯 <strong>FIRE Reality Check:</strong> "
-                f"At this allocation's return rate, your FIRE target may take more than 50 years. "
-                f"Consider whether increasing your monthly contribution or accepting slightly more risk could meaningfully shorten that timeline."
+            insight3 = tr(
+                (
+                    f"🎯 <strong>FIRE Reality Check:</strong> "
+                    f"At this allocation's return rate, your FIRE target may take more than 50 years. "
+                    f"Consider whether increasing your monthly contribution or accepting slightly more risk could meaningfully shorten that timeline."
+                ),
+                "🎯 <strong>FIRE 現實檢查：</strong> 依此配置的報酬率，你可能需要超過 50 年才能達成 FIRE。可以評估提高每月投入，或接受稍高風險，是否能明顯縮短時間。"
             )
     else:
-        insight3 = (
-            f"⚠️ <strong>The Behavior Gap:</strong> "
-            f"Studies consistently show that most retail investors earn significantly less than the funds they invest in — "
-            f"because they buy high and sell low. With a portfolio capable of dropping <strong>{worst_dd_str}</strong>, "
-            f"the biggest risk is not market volatility itself, but your own reaction to it. "
-            f"High-risk passive investing only works if 'passive' is absolute — no panic selling, no market timing, no exceptions."
+        insight3 = tr(
+            (
+                f"⚠️ <strong>The Behavior Gap:</strong> "
+                f"Studies consistently show that most retail investors earn significantly less than the funds they invest in — "
+                f"because they buy high and sell low. With a portfolio capable of dropping <strong>{worst_dd_str}</strong>, "
+                f"the biggest risk is not market volatility itself, but your own reaction to it. "
+                f"High-risk passive investing only works if 'passive' is absolute — no panic selling, no market timing, no exceptions."
+            ),
+            f"⚠️ <strong>行為落差：</strong> 研究一再顯示，多數散戶實際賺到的報酬低於他們投資的基金，原因常是追高殺低。當投資組合可能下跌 <strong>{worst_dd_str}</strong> 時，最大的風險不是市場波動本身，而是你面對波動時的反應。高風險被動投資只有在你真的不恐慌賣出、不擇時、不破例時才有效。"
         )
 
     combined = f"""
@@ -1817,7 +2131,7 @@ else:
             total_ret_val = st.session_state.get('backtest_total_return', 0)
             risk_val = st.session_state.get('risk_pref', 'Medium')
 
-            with st.spinner("Generating AI insights..."):
+            with st.spinner(tr("Generating AI insights...")):
                 # Strip HTML tags from existing summaries for cleaner AI prompt
                 import re
                 clean_summaries = [re.sub('<[^<]+?>', '', s) for s in [insight1, insight2, insight3]]
@@ -1841,8 +2155,8 @@ else:
                 )
 
             if insight_text:
-                st.markdown("#### ✨ AI Insights")
-                st.caption("Strategic review generated by Gemini 2.5 Flash")
+                st.markdown(f"#### ✨ {tr('AI Insights')}")
+                st.caption(tr("Strategic review generated by Gemini 2.5 Flash"))
                 
                 # Escape $ to prevent LaTeX parsing issues in Streamlit markdown
                 safe_text = insight_text.replace("$", r"\$")
@@ -1857,7 +2171,7 @@ else:
                     body = safe_text.replace("🚀 **Strategic Next Steps**", "").strip()
                     st.markdown(body)
         else:
-            st.caption("✨ AI Insights will be available once the backtest calculation is complete.")
+            st.caption("✨ " + tr("AI Insights will be available once the backtest calculation is complete."))
 
     # ── Methodology caveat: fat tails (only for crypto-heavy / high-risk portfolios) ──
     crypto_weight = category_weights.get('CRYPTO', 0)
@@ -1885,7 +2199,7 @@ st.divider()
 if 'display_usd' not in st.session_state:
     st.session_state['display_usd'] = False
 
-btn_label = "🇺🇸 Switch to USD" if not st.session_state['display_usd'] else "🇹🇼 Switch to TWD"
+btn_label = f"🇺🇸 {tr('Switch to USD')}" if not st.session_state['display_usd'] else f"🇹🇼 {tr('Switch to TWD')}"
 if st.button(btn_label, type="secondary", key="currency_toggle"):
     st.session_state['display_usd'] = not st.session_state['display_usd']
     if st.session_state['display_usd']:
@@ -1904,7 +2218,9 @@ if st.button(btn_label, type="secondary", key="currency_toggle"):
 
 if st.session_state['display_usd']:
     rate = st.session_state.get('live_twd_usd', 32.0)
-    st.caption(f"Currently displaying in USD. Exchange rate: 1 USD = NT${rate:.2f} (live rate). Input fields remain in TWD.")
+    st.caption(tr(
+        f"Currently displaying in USD. Exchange rate: 1 USD = NT${rate:.2f} (live rate). Input fields remain in TWD.",
+        f"目前以 USD 顯示。匯率：1 USD = NT${rate:.2f}（即時匯率）。輸入欄位仍維持 TWD。"
+    ))
 else:
-    st.caption("Currently displaying in TWD. Input fields remain in TWD regardless of display currency.")
-
+    st.caption(tr("Currently displaying in TWD. Input fields remain in TWD regardless of display currency."))
