@@ -1,51 +1,139 @@
 # Passive Portfolio Lab
 
-A Buy-and-Hold backtesting platform for everyday investors. It explores the historical performance of passive portfolios across various risk profiles, quantifies the "pain" of drawdowns, and estimates the timeline to financial independence (FIRE).
+A Streamlit dashboard for long-term passive investors. It helps users screen ETFs and crypto assets, assemble a portfolio, inspect correlation risk, run TWD-based historical backtests, and estimate a FIRE timeline.
 
-The central question the dashboard tries to answer: **When a portfolio's backtested return looks attractive, what is the accompanying cost?**
+The core question:
+
+**If a portfolio's backtested return looks attractive, what is the risk, drawdown pain, and FIRE trade-off behind it?**
+
+The app supports both English and Traditional Chinese (`zh-TW`) from a one-click sidebar language toggle.
 
 ---
 
-The Streamlit dashboard is organized into six main modules, guiding you from quick setup to deep-dive projections.
+## Key Features
 
-### 0. Quick Start: Investor Personas
+### 1. Bilingual Dashboard
 
-Select a preset investor profile (e.g., **Young Professional**, **Pre-Retirement**, **Aggressive Growth**) to instantly populate the dashboard with expert-curated asset allocations, risk levels, and financial parameters. This bypasses the manual screening process and allows for immediate visualization and backtesting of proven strategies.
+The dashboard can switch between English and Traditional Chinese from the sidebar. The toggle updates navigation, section titles, controls, messages, chart labels, and AI insight language where applicable.
 
-### 1. Asset Screening & Watchlist
+### 2. Asset Screening
 
-Explore and filter a curated universe of assets including Taiwan ETFs (MoneyDJ), US ETFs (TradingView), Defensive assets (Gold, Bonds), and major Cryptocurrencies.
+Browse a curated universe of 35 assets:
 
-*   **AgGrid Integration**: A high-performance table interface with built-in sorting and filtering.
-*   **Multi-Market Intelligence**: Displays prices in their native currency (TWD, USD) while maintaining mathematically correct sorting based on real-time USD-equivalent value.
-*   **Advanced Risk Filters**: Filter assets by CAGR, Sharpe Ratio, or **Maximum Drawdown** (e.g., show only assets with < 20% historic DD).
-*   **Dynamic Watchlist**: Check any asset to add it to your local watchlist for downstream backtesting.
+- 12 Taiwan ETFs selected by AUM rank
+- 15 US ETFs selected by AUM rank
+- 8 major cryptocurrencies, excluding stablecoins and assets with insufficient history
 
-### 2. Correlation Analysis
+The asset pool is static and curated; no web scraping occurs at runtime.
 
-Located directly below the screening table, this module helps you avoid redundant exposure.
+The screening table uses Streamlit-AgGrid and supports:
 
-*   **Correlation Matrix**: Computes a Pearson correlation heatmap based on 3-year daily returns for all selected assets.
-*   **Redundancy Engine**: Automatically identifies pairs with high correlation (> 0.85) and suggests which asset to keep based on scale and volume, helping you build a truly diversified portfolio.
+- Search by ticker or name
+- Category filtering
+- CAGR, Sharpe, and max drawdown filters
+- Current price and volume display via Yahoo Finance v8 REST API
+- Native currency display while keeping cross-currency sorting mathematically consistent
 
-### 3. Risk Allocation & Portfolio Visualization
+### 3. Persona Quick Start
 
-Allocate your watchlist into a diversified portfolio based on four risk tiers: **Low, Medium, High, and Extreme High**.
+After browsing the asset pool, users can choose one of three preset investor personas:
 
-*   **Interactive Treemap**: Visualize weights and volatility across your portfolio.
-*   **Asset Detail Cards**: Click any asset to see deep-dive metrics (Sharpe, Volatility, Max DD) and a Radar chart comparing it to the market average.
+- Young Professional
+- Pre-Retirement
+- Aggressive Growth
 
-### 4. Backtest & FIRE Projection
+The persona buttons sit below the asset table, matching the intended flow: users first see the asset universe, then use a preset if they are not sure where to start.
 
-Simulate holding your portfolio through history and project your future.
+When a persona is applied, the app fills in the watchlist, risk level, backtest parameters, and FIRE assumptions. The correlation section remains visible as a diagnostic view, but persona portfolios are auto-confirmed and do not require the manual "Confirm Assets" step.
 
-*   **Pain Index & Drawdowns**: Beyond CAGR, we visualize "Pain" by highlighting the top 5 historic drawdown episodes, tagged with macro events (e.g., 2008 GFC, COVID-19).
-*   **FIRE Calculator**: Derives your retirement target from annual expenses and withdrawal rates. It projects years-to-FIRE using weighted historical CAGRs, with both nominal and inflation-adjusted (Real) horizons.
+### 4. Correlation Analysis
 
-### 5. Summary & AI Insights
+The correlation module computes pairwise correlation using the last 3 years of daily returns.
 
-Receive an instant, holistic review of your portfolio structure, risk trade-offs, and FIRE timeline. Powered by **Gemini 2.5 Flash**, the AI provides **Strategic Next Steps** — actionable, practical advice on how to optimize your allocation and adjust your savings rate to reach your financial goals faster.
+For manually selected portfolios, it:
 
+- Flags highly correlated asset groups
+- Suggests which redundant assets to remove
+- Allows users to ignore suggestions and keep all assets
+- Requires asset confirmation before unlocking downstream calculations
+
+For persona portfolios, it:
+
+- Shows selected asset count, overlap count, and average correlation
+- Skips the suggested-removal and confirmation workflow
+- Keeps the preset portfolio intact for the downstream calculations
+
+### 5. Risk Allocation & Portfolio Visualization
+
+The app maps selected assets to an achievable risk range based on annualized volatility, then allocates weights toward a selected target risk tier:
+
+| Risk Tier | Target Volatility |
+|---|---:|
+| Low | 12% |
+| Medium | 20% |
+| High | 35% |
+| Extreme High | 65% |
+
+The allocation section includes:
+
+- Weighted CAGR, volatility, max drawdown, and Sharpe metrics
+- Interactive Plotly treemap
+- Clickable asset detail view with metrics and radar chart
+- Links to Yahoo Finance and TradingView for individual assets
+
+### 6. Backtest & Pain Index
+
+Backtests are calculated in New Taiwan Dollar (TWD).
+
+The current backtest engine uses a combined contribution model:
+
+- Initial lump-sum investment on the first available trading day
+- Monthly contribution on the first trading day of each subsequent month
+- USD-denominated assets converted to TWD using daily historical TWD/USD exchange rates
+
+The backtest section shows:
+
+- Final value
+- Total invested
+- Total return
+- CAGR
+- Portfolio value over time
+- Max drawdown over time
+- Top 5 independent drawdown episodes with historical event context
+- Annual returns
+
+### 7. FIRE Calculator
+
+The FIRE calculator estimates financial independence based on the portfolio's historical return assumptions and user inputs.
+
+The FIRE target is derived from:
+
+```text
+Annual Expenses / Withdrawal Rate
+```
+
+The calculator includes:
+
+- Annual expenses
+- Withdrawal rate
+- Current savings
+- Monthly contribution
+- Inflation rate
+- Nominal and inflation-adjusted FIRE timelines
+
+Inflation defaults to the latest US CPI year-over-year value from FRED when `FRED_API_KEY` is configured. If FRED is unavailable, the app falls back to 2.5%.
+
+### 8. Summary & AI Insights
+
+The summary section provides a plain-English or Traditional Chinese portfolio review covering:
+
+- Portfolio structure
+- Drawdown meaning
+- FIRE timeline
+- Behavioral risk
+- Tail-risk caveats for crypto-heavy or high-risk portfolios
+
+If `GEMINI_API_KEY` is configured, Gemini 2.5 Flash generates concise strategic next steps.
 
 ---
 
@@ -53,50 +141,65 @@ Receive an instant, holistic review of your portfolio structure, risk trade-offs
 
 | Layer | Tools |
 |---|---|
-| Dashboard | Streamlit, **Streamlit-AgGrid** |
-| Visualization | Plotly (Treemap, Time Series), Chart.js (Radar) |
-| Data Processing | Pandas, NumPy, Scipy |
-| Data Collection | Yahoo Finance v8 API (Direct REST), FRED API, BeautifulSoup |
+| Dashboard | Streamlit, Streamlit-AgGrid |
+| Visualization | Plotly, Chart.js |
+| Data Processing | Pandas, NumPy |
+| Data Collection | Yahoo Finance v8 REST API, FRED API |
 | Storage | Google BigQuery |
-| AI Engine | **Google Gemini 2.5 Flash** |
+| AI | Google Gemini 2.5 Flash |
 
 ---
 
 ## Project Structure
 
-```
+```text
 passive-portfolio-lab/
 ├── dashboard/
-│   └── Passive_Portfolio_Lab.py      # Main Streamlit Dashboard
+│   └── Passive_Portfolio_Lab.py      # Main Streamlit dashboard
 ├── src/
 │   ├── data_collection/
-│   │   ├── fetch_prices.py           # Multi-market price fetching
+│   │   ├── fetch_prices.py           # Yahoo Finance REST price fetching
 │   │   └── fetch_macro.py            # FRED CPI fetching
 │   └── processing/
-│       ├── screening.py              # Asset pool & scrapers
+│       ├── screening.py              # Static asset universe
 │       ├── metrics.py                # Financial metric calculations
-│       ├── backtest.py               # Portfolio backtesting engine
-│       ├── drawdown_events.py        # Drawdown analysis & tagging
+│       ├── backtest.py               # Combined TWD backtesting engine
+│       ├── drawdown_events.py        # Drawdown episode detection and tagging
 │       └── fire_calculator.py        # FIRE projection logic
-├── requirements.txt                  # Dependency list (AgGrid included)
-└── README.md                         # Project documentation
+├── requirements.txt                  # Python dependencies
+├── .env.example                      # Environment variable template
+└── README.md
 ```
 
 ---
 
-## Methodology & Risk
+## Environment Variables
 
-**Sorting Logic**: The dashboard handles mixed currencies (TWD/USD) by calculating a USD-equivalent value for each asset based on current exchange rates. This value is used for sorting in the AgGrid interface, ensuring that a "100 USD" asset correctly ranks higher than a "150 TWD" asset, even while displaying native units.
+Create a local `.env` file using `.env.example` as a template:
 
-**Risk Tiers**:
-| Risk Tier | Target Volatility | Typical Composition |
-|---|---|---|
-| Low | 12% | Bond-heavy / Conservative |
-| Medium | 20% | Broad-market Equity |
-| High | 35% | Growth / Tech-concentrated |
-| Extreme High | 65% | High Crypto exposure |
+```env
+GOOGLE_CLOUD_PROJECT=your-project-id
+BIGQUERY_DATASET=portfolio
+GOOGLE_APPLICATION_CREDENTIALS=credentials.json
+FRED_API_KEY=your-fred-api-key
+GEMINI_API_KEY=your-gemini-api-key
+```
 
-**Limitations**: 
-*   Historical performance is not a guarantee of future results.
-*   Crypto metrics should be treated with caution due to the limited historical window and extreme volatility.
-*   The 4% withdrawal rule is a baseline; conservative investors should aim for 3-3.5%.
+Notes:
+
+- `GOOGLE_CLOUD_PROJECT`, `BIGQUERY_DATASET`, and credentials are required for BigQuery reads.
+- `FRED_API_KEY` is optional; the app falls back to 2.5% inflation if unavailable.
+- `GEMINI_API_KEY` is optional; AI insights are hidden if unavailable.
+- `APP_PASSWORD` can be configured in Streamlit secrets to enable the dashboard password gate.
+
+---
+
+## Methodology & Risk Notes
+
+- Historical performance does not guarantee future results.
+- All portfolio-level backtests are calculated in TWD to reflect the experience of a Taiwan-based investor.
+- USD-denominated assets are converted using historical TWD/USD exchange rates.
+- The correlation engine is a diversification aid, not an optimization model.
+- Risk allocation uses annualized volatility as the primary risk proxy and does not fully model covariance.
+- Crypto metrics should be interpreted cautiously because of shorter history and extreme tail risk.
+- The 4% withdrawal rule is a baseline; conservative users may prefer 3.0-3.5%.
