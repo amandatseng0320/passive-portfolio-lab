@@ -79,143 +79,6 @@ def load_prices_for_tickers(tickers: list) -> pd.DataFrame:
     df['date'] = pd.to_datetime(df['date'])
     return df
 
-def run_lumpsum(
-    prices_df: pd.DataFrame,
-    tickers_weights: dict,
-    start_date: str,
-    end_date: str,
-    initial_investment: float
-) -> pd.DataFrame:
-    """
-    Lump Sum backtest: invest everything on the first available trading day.
-    All calculations are performed in TWD.
-    USD-denominated assets are converted to TWD using daily FX rates.
-    """
-    start = pd.to_datetime(start_date)
-    end = pd.to_datetime(end_date)
-
-    df = prices_df[
-        (prices_df['date'] >= start) &
-        (prices_df['date'] <= end)
-    ].copy()
-
-    pivot = df.pivot(index='date', columns='ticker', values='close')
-    pivot = pivot.sort_index().ffill().bfill()
-
-    valid_tickers = [t for t in tickers_weights if t in pivot.columns]
-    pivot = pivot[valid_tickers]
-
-    # Convert USD assets to TWD using daily FX rates
-    usd_tickers = [t for t in valid_tickers if not t.endswith('.TW')]
-    if usd_tickers:
-        fx = load_fx_rate(start_date, end_date)
-        fx = fx.reindex(pivot.index).ffill().bfill()
-        for ticker in usd_tickers:
-            pivot[ticker] = pivot[ticker] * fx.values
-
-    total_weight = sum(tickers_weights[t] for t in valid_tickers)
-    weights = {t: tickers_weights[t] / total_weight for t in valid_tickers}
-
-    first_day = pivot.index[0]
-    shares = {}
-    for ticker in valid_tickers:
-        allocated = initial_investment * weights[ticker]
-        price_on_first_day = pivot.loc[first_day, ticker]
-        shares[ticker] = allocated / price_on_first_day
-
-    daily_values = pd.Series(0.0, index=pivot.index)
-    for ticker in valid_tickers:
-        daily_values += shares[ticker] * pivot[ticker]
-
-    result = pd.DataFrame({
-        'date': pivot.index,
-        'portfolio_value': daily_values.values,
-        'total_invested': initial_investment,
-        'total_return_pct': (daily_values.values / initial_investment - 1) * 100,
-        'strategy': 'LumpSum'
-    })
-
-    return result
-
-def run_dca(
-    prices_df: pd.DataFrame,
-    tickers_weights: dict,
-    start_date: str,
-    end_date: str,
-    monthly_amount: float
-) -> pd.DataFrame:
-    """
-    DCA backtest: invest a fixed amount on the first trading day of each month.
-    All calculations are performed in TWD.
-    USD-denominated assets are converted to TWD using daily FX rates.
-    """
-    start = pd.to_datetime(start_date)
-    end = pd.to_datetime(end_date)
-
-    df = prices_df[
-        (prices_df['date'] >= start) &
-        (prices_df['date'] <= end)
-    ].copy()
-
-    pivot = df.pivot(index='date', columns='ticker', values='close')
-    pivot = pivot.sort_index().ffill().bfill()
-
-    valid_tickers = [t for t in tickers_weights if t in pivot.columns]
-    pivot = pivot[valid_tickers]
-
-    # Convert USD assets to TWD using daily FX rates
-    usd_tickers = [t for t in valid_tickers if not t.endswith('.TW')]
-    if usd_tickers:
-        fx = load_fx_rate(start_date, end_date)
-        fx = fx.reindex(pivot.index).ffill().bfill()
-        for ticker in usd_tickers:
-            pivot[ticker] = pivot[ticker] * fx.values
-
-    total_weight = sum(tickers_weights[t] for t in valid_tickers)
-    weights = {t: tickers_weights[t] / total_weight for t in valid_tickers}
-
-    monthly_invest_dates = (
-        pivot.resample('MS').first().index
-    )
-    monthly_invest_dates = [d for d in monthly_invest_dates if d in pivot.index]
-
-    shares = {ticker: 0.0 for ticker in valid_tickers}
-    total_invested = 0.0
-    portfolio_values = []
-    total_invested_list = []
-
-    for date in pivot.index:
-        if date in monthly_invest_dates:
-            for ticker in valid_tickers:
-                allocated = monthly_amount * weights[ticker]
-                price = pivot.loc[date, ticker]
-                shares[ticker] += allocated / price
-            total_invested += monthly_amount
-
-        daily_value = sum(shares[ticker] * pivot.loc[date, ticker] for ticker in valid_tickers)
-        portfolio_values.append(daily_value)
-        total_invested_list.append(total_invested)
-
-    total_invested_arr = np.array(total_invested_list, dtype=float)
-    portfolio_values_arr = np.array(portfolio_values, dtype=float)
-
-    with np.errstate(invalid='ignore', divide='ignore'):
-        return_pct = np.where(
-            total_invested_arr > 0,
-            (portfolio_values_arr / total_invested_arr - 1) * 100,
-            0.0
-        )
-
-    result = pd.DataFrame({
-        'date': pivot.index,
-        'portfolio_value': portfolio_values_arr,
-        'total_invested': total_invested_arr,
-        'total_return_pct': return_pct,
-        'strategy': 'DCA'
-    })
-
-    return result
-
 def run_combined(
     prices_df: pd.DataFrame,
     tickers_weights: dict,
@@ -314,9 +177,6 @@ def run_backtest(
     tickers_weights: dict,
     initial_investment: float = 300000,
     monthly_contribution: float = 15000,
-    # Legacy parameters kept for backward compatibility but no longer used by UI
-    strategy: str = "Combined",
-    monthly_amount: float = 15000,
 ) -> pd.DataFrame:
     """
     Unified entry point for running a backtest. Called by the Streamlit dashboard.
@@ -340,13 +200,13 @@ def run_backtest(
     return run_combined(prices_df, tickers_weights, start_date, end_date, initial_investment, monthly_contribution)
 
 if __name__ == "__main__":
-    print("=== Test: Custom weights (SPY 50 / QQQ 30 / 0050.TW 20), DCA ===")
+    print("=== Test: Custom weights (SPY 50 / QQQ 30 / 0050.TW 20), Combined ===")
     r = run_backtest(
-        strategy="DCA",
         start_date="2020-01-01",
         end_date="2024-12-31",
         tickers_weights={"SPY": 0.5, "QQQ": 0.3, "0050.TW": 0.2},
-        monthly_amount=30000,
+        initial_investment=300000,
+        monthly_contribution=30000,
     )
     print(r.tail(5).to_string(index=False))
     print(f"\nFinal value: {r['portfolio_value'].iloc[-1]:,.0f}")
