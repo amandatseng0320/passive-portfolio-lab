@@ -1,0 +1,324 @@
+/**
+ * Passive Portfolio Lab — Design System Tokens
+ * colors_and_type.css
+ *
+ * Font stack: Streamlit default (Source Sans Pro → system-ui → sans-serif)
+ * No custom font files — all weights resolved from system / CDN.
+ */
+
+/* ─── Google Font Import (closest match to Streamlit's Source Sans Pro) ────── */
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap');
+
+:root {
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     COLOR PALETTE — Blue Scale (BLUE_6)
+     Used for treemap tiles, charts, accents; indexed by volatility tier.
+  ═══════════════════════════════════════════════════════════════════════════ */
+
+  --color-blue-100: #d2e4f5;   /* rgb(210,228,245) — lightest tile */
+  --color-blue-200: #a8cae8;   /* rgb(168,202,232) */
+  --color-blue-300: #72a8d4;   /* rgb(114,168,212) */
+  --color-blue-400: #4182b9;   /* rgb(65,130,185)  — primary brand blue */
+  --color-blue-500: #1e5a96;   /* rgb(30,90,150)   */
+  --color-blue-600: #0a326e;   /* rgb(10,50,110)   — deepest tile */
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     SEMANTIC COLORS
+  ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Brand / interactive */
+  --color-primary:          var(--color-blue-400);   /* #4182b9 — buttons, borders, accents */
+  --color-primary-dark:     var(--color-blue-500);   /* #1e5a96 */
+  --color-primary-darkest:  var(--color-blue-600);   /* #0a326e */
+
+  /* Backgrounds */
+  --color-bg-page:          #ffffff;
+  --color-bg-sidebar:       #f0f2f6;
+  --color-bg-info:          #eff5fb;   /* info/callout block BG */
+  --color-bg-suggestion:    #f6fbff;   /* suggestion card BG */
+  --color-bg-hover:         #f0f2f6;   /* nav link hover */
+
+  /* Foreground / text */
+  --color-fg-primary:       #111111;   /* headings, nav active */
+  --color-fg-secondary:     #555555;   /* nav links, captions */
+  --color-fg-on-info:       #1f3b5c;   /* text on light-blue BG */
+  --color-fg-inverse:       #ffffff;   /* text on dark-blue tiles */
+
+  /* Status */
+  --color-success:          #21a350;   /* Streamlit green (success banners) */
+  --color-warning:          #e8a000;   /* Streamlit amber */
+  --color-error:            #ff4b4b;   /* Streamlit red */
+  --color-info-border:      var(--color-blue-400);
+
+  /* Borders */
+  --color-border:           #e0e0e0;   /* Streamlit default card border */
+  --color-border-accent:    var(--color-blue-400);  /* 3–4px left-border accent */
+
+  /* Neutral grays */
+  --color-gray-50:  #fafafa;
+  --color-gray-100: #f0f2f6;
+  --color-gray-200: #e0e4eb;
+  --color-gray-300: #c8cdd6;
+  --color-gray-400: #9aa0ad;
+  --color-gray-500: #6b727e;
+  --color-gray-700: #333740;
+  --color-gray-900: #111111;
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     TYPOGRAPHY — Font Families
+  ═══════════════════════════════════════════════════════════════════════════ */
+
+  --font-sans:  'Source Sans 3', 'Source Sans Pro', system-ui, -apple-system, sans-serif;
+  --font-mono:  'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     TYPOGRAPHY — Scale
+     Mirrors Streamlit's rendered output at 16px base.
+  ═══════════════════════════════════════════════════════════════════════════ */
+
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-base: 14px;
+  --text-md:   16px;
+  --text-lg:   18px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  28px;   /* st.title */
+  --text-4xl:  36px;
+  --text-metric: 1.4rem;   /* st.metric value */
+  --text-stat:   32px;     /* large stat in asset detail overlay */
+
+  /* Weights */
+  --weight-regular: 400;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Line heights */
+  --leading-tight:  1.2;
+  --leading-normal: 1.5;
+  --leading-loose:  1.65;
+
+  /* Letter spacing */
+  --tracking-normal: 0;
+  --tracking-wide:   0.02em;
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     SPACING SCALE
+  ═══════════════════════════════════════════════════════════════════════════ */
+
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:  12px;
+  --space-4:  16px;   /* base unit */
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-7:  28px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-18: 72px;   /* section scroll offset */
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     BORDER RADIUS
+  ═══════════════════════════════════════════════════════════════════════════ */
+
+  --radius-sm:   4px;
+  --radius-md:   6px;   /* buttons, nav links, callout boxes */
+  --radius-lg:   8px;   /* detail cards, asset overlay */
+  --radius-full: 9999px;  /* pills/badges */
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     SHADOWS
+  ═══════════════════════════════════════════════════════════════════════════ */
+
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.10);
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     SEMANTIC ELEMENT STYLES (used as utility classes or CSS var references)
+  ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* h1 → st.title */
+  --h1-size:   var(--text-3xl);
+  --h1-weight: var(--weight-bold);
+  --h1-color:  var(--color-fg-primary);
+
+  /* h2 → st.header */
+  --h2-size:   var(--text-2xl);
+  --h2-weight: var(--weight-bold);
+
+  /* h3 → st.subheader */
+  --h3-size:   var(--text-xl);
+  --h3-weight: var(--weight-semibold);
+
+  /* body text */
+  --body-size:   var(--text-base);
+  --body-color:  var(--color-fg-primary);
+  --body-weight: var(--weight-regular);
+
+  /* captions */
+  --caption-size:  var(--text-sm);
+  --caption-color: var(--color-fg-secondary);
+
+  /* code */
+  --code-family: var(--font-mono);
+  --code-size:   var(--text-sm);
+  --code-bg:     var(--color-gray-100);
+  --code-color:  var(--color-primary-dark);
+
+}
+
+/* ─── Semantic element defaults ─────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-normal);
+  color: var(--color-fg-primary);
+  background: var(--color-bg-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 { font-size: var(--h1-size); font-weight: var(--h1-weight); line-height: var(--leading-tight); }
+h2 { font-size: var(--h2-size); font-weight: var(--h2-weight); line-height: var(--leading-tight); }
+h3 { font-size: var(--h3-size); font-weight: var(--h3-weight); line-height: var(--leading-tight); }
+h4 { font-size: var(--text-lg);  font-weight: var(--weight-semibold); }
+
+p  { font-size: var(--body-size); line-height: var(--leading-loose); }
+
+caption, .caption {
+  font-size: var(--caption-size);
+  color: var(--caption-color);
+}
+
+code, pre {
+  font-family: var(--code-family);
+  font-size: var(--code-size);
+  background: var(--code-bg);
+  color: var(--code-color);
+  border-radius: var(--radius-sm);
+  padding: 2px 5px;
+}
+
+/* ─── Utility classes ───────────────────────────────────────────────────── */
+
+.text-primary   { color: var(--color-primary); }
+.text-muted     { color: var(--color-fg-secondary); }
+.text-on-info   { color: var(--color-fg-on-info); }
+.bg-info        { background: var(--color-bg-info); }
+.bg-suggestion  { background: var(--color-bg-suggestion); }
+
+/* ─── Callout / Info banner (replicates Streamlit's inline HTML pattern) ── */
+
+.ppl-callout {
+  padding: 10px 16px;
+  margin: 6px 0 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-info);
+  border-left: 3px solid var(--color-primary);
+  color: var(--color-fg-on-info);
+  font-size: 14.5px;
+  line-height: var(--leading-loose);
+}
+
+.ppl-callout-warning {
+  background: #fff8f0;
+  border-left-color: var(--color-warning);
+  color: #7a4a00;
+}
+
+.ppl-callout-error {
+  background: #fff5f5;
+  border-left-color: var(--color-error);
+  color: #7a0000;
+}
+
+/* ─── Nav link ───────────────────────────────────────────────────────────── */
+
+.ppl-nav-link {
+  display: block;
+  padding: 6px 12px;
+  margin: 2px 0;
+  color: var(--color-fg-secondary);
+  text-decoration: none;
+  font-size: var(--text-base);
+  font-weight: var(--weight-regular);
+  border-radius: var(--radius-md);
+  transition: background 0.15s, color 0.15s;
+}
+.ppl-nav-link:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-fg-primary);
+}
+
+/* ─── Metric stat (large number display) ────────────────────────────────── */
+
+.ppl-metric-value {
+  font-size: var(--text-metric);
+  font-weight: var(--weight-bold);
+  color: var(--color-fg-primary);
+}
+
+.ppl-metric-label {
+  font-size: var(--text-sm);
+  color: var(--color-fg-secondary);
+}
+
+/* ─── Badge / pill ───────────────────────────────────────────────────────── */
+
+.ppl-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.ppl-badge-blue   { background: var(--color-blue-100); color: var(--color-blue-600); }
+.ppl-badge-green  { background: #d4f0e0; color: #0e5a2a; }
+.ppl-badge-amber  { background: #fef3c7; color: #7a4a00; }
+.ppl-badge-gray   { background: var(--color-gray-100); color: var(--color-gray-500); }
+
+/* ─── Button ─────────────────────────────────────────────────────────────── */
+
+.ppl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.ppl-btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.ppl-btn-primary:hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); }
+
+.ppl-btn-secondary {
+  background: transparent;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.ppl-btn-secondary:hover { background: var(--color-bg-info); }
+
+.ppl-btn-ghost {
+  background: var(--color-gray-100);
+  color: var(--color-fg-primary);
+  border-color: var(--color-border);
+}
+.ppl-btn-ghost:hover { background: var(--color-gray-200); }
