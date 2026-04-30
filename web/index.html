@@ -320,8 +320,8 @@ const Treemap = ({ items, onSelect, selectedTicker }) => {
               background:bg,
               border:isSel ? '2px solid rgba(255,255,255,0.9)' : '1px solid rgba(255,255,255,0.18)',
               boxSizing:'border-box',
-              display:'flex', flexDirection:'column', justifyContent:'flex-end',
-              padding:'5px 7px', cursor:'pointer', overflow:'hidden',
+              display:'flex', flexDirection:'column', justifyContent:'flex-start',
+              padding:'6px 8px', cursor:'pointer', overflow:'hidden',
               filter:isSel ? 'brightness(1.14)' : 'none',
               transition:'filter 0.15s, border 0.1s',
             }}>
@@ -426,12 +426,13 @@ const T = {
     corrAddFirst:'Add assets to your watchlist in Asset Screening first.',
     corrPersonaApplied:name=>`✅ Persona "${name}" applied — portfolio auto-confirmed.`,
     corrSelectedAssets:'Selected Assets', corrInWatchlist:'in watchlist',
-    corrOverlaps:'Overlaps Found', corrOverlapHint:'Consider removing duplicates',
+    corrOverlaps:'High-Corr Groups', corrOverlapHint:'Groups need review',
     corrAvgCorr:'Avg Correlation (est.)',
     corrWellDiv:'✅ Well diversified', corrSomeOverlap:'⚠️ Some overlap',
-    corrHighCorrTitle:'High-Correlation Pairs Detected',
-    corrHighCorrCaption:'These pairs are near-identical or heavily overlapping — consider keeping only one from each.',
-    corrKeepOne:'Consider keeping only one.',
+    corrHighCorrTitle:'Correlated Asset Groups',
+    corrHighCorrCaption:'The following groups are estimated to have ≥ 0.85 correlation. Select ONE from each to keep — then click Remove to clean up.',
+    corrRecommend:'Recommended:', corrSelectKeep:'Select ONE to keep:',
+    corrRec:'REC',
     confirmBtn:n=>`Confirm ${n} Assets →`,
     confirmUnlocks:'Unlocks Risk Allocation and Backtest sections',
     confirmedBanner:'✅ Portfolio confirmed! Continue to Risk Allocation.',
@@ -516,12 +517,13 @@ const T = {
     corrAddFirst:'請先在「資產篩選」中加入資產到自選清單。',
     corrPersonaApplied:name=>`✅ 已套用角色「${name}」—— 組合已自動確認。`,
     corrSelectedAssets:'已選資產數', corrInWatchlist:'在自選清單中',
-    corrOverlaps:'重疊資產', corrOverlapHint:'建議移除重複資產',
+    corrOverlaps:'高相關群組', corrOverlapHint:'需要檢視的群組',
     corrAvgCorr:'估計平均相關係數',
     corrWellDiv:'✅ 分散良好', corrSomeOverlap:'⚠️ 部分重疊',
-    corrHighCorrTitle:'偵測到高相關性配對',
-    corrHighCorrCaption:'以下配對幾乎相同或高度重疊，建議每組只保留一檔。',
-    corrKeepOne:'建議只保留其中一檔。',
+    corrHighCorrTitle:'高相關資產群組',
+    corrHighCorrCaption:'以下群組估計相關係數 ≥ 0.85。每組選擇保留一檔後，點擊移除按鈕清理重複資產。',
+    corrRecommend:'建議保留：', corrSelectKeep:'選擇保留一檔：',
+    corrRec:'建議',
     confirmBtn:n=>`確認 ${n} 個資產 →`,
     confirmUnlocks:'解鎖風險配置與回測區段',
     confirmedBanner:'✅ 組合已確認！繼續進行風險配置。',
@@ -856,73 +858,131 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
 };
 
 // ── Section: Correlation Analysis ─────────────────────────────────────────────
-const CORR_PAIRS = [
-  { a:'VOO',      b:'IVV',       en:'near-identical S&P 500 trackers',         zh:'幾乎相同的 S&P 500 追蹤型基金',    sev:'high'   },
-  { a:'VOO',      b:'SPY',       en:'near-identical S&P 500 trackers',         zh:'幾乎相同的 S&P 500 追蹤型基金',    sev:'high'   },
-  { a:'IVV',      b:'SPY',       en:'near-identical S&P 500 trackers',         zh:'幾乎相同的 S&P 500 追蹤型基金',    sev:'high'   },
-  { a:'VOO',      b:'VTI',       en:'85%+ US market overlap',                  zh:'85%+ 美國市場重疊',               sev:'medium' },
-  { a:'IVV',      b:'VTI',       en:'85%+ US market overlap',                  zh:'85%+ 美國市場重疊',               sev:'medium' },
-  { a:'SPY',      b:'VTI',       en:'85%+ US market overlap',                  zh:'85%+ 美國市場重疊',               sev:'medium' },
-  { a:'0050.TW',  b:'006208.TW', en:'near-identical Taiwan 50 trackers',       zh:'幾乎相同的台灣 50 追蹤型基金',     sev:'high'   },
-  { a:'0056.TW',  b:'00878.TW',  en:'Taiwan high-dividend ETF overlap',        zh:'台灣高股息 ETF 高度重疊',          sev:'medium' },
-  { a:'0056.TW',  b:'00919.TW',  en:'Taiwan high-dividend ETF overlap',        zh:'台灣高股息 ETF 高度重疊',          sev:'medium' },
-  { a:'00878.TW', b:'00919.TW',  en:'Taiwan high-dividend ETF overlap',        zh:'台灣高股息 ETF 高度重疊',          sev:'medium' },
-  { a:'VEA',      b:'IEFA',      en:'near-identical EAFE developed-mkt funds', zh:'幾乎相同的 EAFE 已開發市場基金',   sev:'high'   },
-  { a:'BND',      b:'AGG',       en:'near-identical US aggregate bond funds',  zh:'幾乎相同的美國綜合債券基金',       sev:'high'   },
+const CORR_GROUPS = [
+  { id:'tw_highdiv', tickers:['0056.TW','00878.TW','00919.TW','00713.TW','00929.TW'],
+    labelEn:'Taiwan High-Dividend ETFs',     labelZh:'台灣高股息 ETF',
+    recommend:'0056.TW', reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
+  { id:'tw_equity',  tickers:['0050.TW','006208.TW','0052.TW','00952.TW'],
+    labelEn:'Taiwan Equity / Tech ETFs',     labelZh:'台灣大盤 / 科技 ETF',
+    recommend:'0050.TW', reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
+  { id:'us_equity',  tickers:['VOO','IVV','SPY','VTI','VUG','QQQ'],
+    labelEn:'US Equity ETFs',                labelZh:'美國股票 ETF',
+    recommend:'VOO',     reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
+  { id:'intl',       tickers:['VEA','IEFA','VXUS','IEMG'],
+    labelEn:'International Equity ETFs',     labelZh:'國際股票 ETF',
+    recommend:'VEA',     reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
+  { id:'bond',       tickers:['BND','AGG'],
+    labelEn:'US Aggregate Bond ETFs',        labelZh:'美國綜合債券 ETF',
+    recommend:'BND',     reasonEn:'highest AUM',          reasonZh:'最高 AUM' },
 ];
 
-const CorrelationSection = ({ t, lang, watchlist, confirmed, setConfirmed, persona }) => {
+const CorrelationSection = ({ t, lang, watchlist, setWatchlist, confirmed, setConfirmed, persona }) => {
+  const zh = lang === 'zh';
+
+  const [keepers, setKeepers] = useState(() => {
+    const k = {};
+    CORR_GROUPS.forEach(g => { k[g.id] = g.recommend; });
+    return k;
+  });
+
   if (!watchlist.length) return (
     <div>
       <SectionTitle icon="🔗" title={t.corrTitle} caption={t.corrCaption} />
       <InfoBanner>{t.corrAddFirst}</InfoBanner>
     </div>
   );
+
   const assetObjs    = watchlist.map(tk => PPL_ASSETS.find(a => a.ticker===tk)).filter(Boolean);
   const hasCrypto    = assetObjs.some(a => a.category==='CRYPTO');
   const hasUS        = assetObjs.some(a => a.category==='US_ETF');
   const hasTW        = assetObjs.some(a => a.category==='TW_ETF');
   const diversity    = [hasCrypto,hasUS,hasTW].filter(Boolean).length;
   const avgCorr      = Math.max(0.05, 0.75 - diversity*0.12 - watchlist.length*0.01).toFixed(2);
-  const sp500Like    = ['VOO','VTI','IVV','SPY'];
-  const overlaps     = watchlist.filter(tk => sp500Like.includes(tk) && watchlist.some(tk2 => tk2!==tk && sp500Like.includes(tk2)));
   const wellDiv      = +avgCorr < 0.5;
   const catLabel     = { TW_ETF:t.catTW, US_ETF:t.catUS, CRYPTO:t.catCrypto };
-  const zh           = lang === 'zh';
-  const highCorrPairs = CORR_PAIRS.filter(p => watchlist.includes(p.a) && watchlist.includes(p.b));
+
+  const activeGroups = CORR_GROUPS.map(g => ({
+    ...g,
+    present: g.tickers.filter(tk => watchlist.includes(tk)),
+  })).filter(g => g.present.length >= 2);
+
+  const removeOthers = (group) => {
+    const keeper = (keepers[group.id] && group.present.includes(keepers[group.id]))
+      ? keepers[group.id]
+      : (group.present.includes(group.recommend) ? group.recommend : group.present[0]);
+    const toRemove = group.present.filter(tk => tk !== keeper);
+    setConfirmed(false);
+    setWatchlist(w => w.filter(tk => !toRemove.includes(tk)));
+  };
 
   return (
     <div>
       <SectionTitle icon="🔗" title={t.corrTitle} caption={t.corrCaption} />
       {persona && <InfoBanner type="success">{t.corrPersonaApplied(persona)}</InfoBanner>}
+
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
         <MetricCard label={t.corrSelectedAssets} value={watchlist.length} sub={t.corrInWatchlist} />
-        <MetricCard label={t.corrOverlaps} value={overlaps.length}
-          delta={overlaps.length>0?t.corrOverlapHint:null} deltaPositive={false} />
+        <MetricCard label={t.corrOverlaps} value={activeGroups.length}
+          delta={activeGroups.length>0?t.corrOverlapHint:null} deltaPositive={false} />
         <MetricCard label={t.corrAvgCorr} value={avgCorr}
           delta={wellDiv?t.corrWellDiv:t.corrSomeOverlap} deltaPositive={wellDiv} />
       </div>
 
-      {highCorrPairs.length > 0 && (
-        <div style={{ background:'#fff8f0', border:'1px solid #e8a000', borderRadius:10, padding:'16px 20px', marginBottom:24 }}>
-          <div style={{ fontWeight:700, fontSize:14, color:'#7a4a00', marginBottom:6 }}>⚠️ {t.corrHighCorrTitle}</div>
-          <div style={{ fontSize:13, color:'#7a4a00', marginBottom:12, lineHeight:1.6 }}>{t.corrHighCorrCaption}</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {highCorrPairs.map((p, i) => (
-              <div key={i} style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(255,255,255,0.7)', borderRadius:8, padding:'8px 12px', flexWrap:'wrap' }}>
-                <span style={{ fontFamily:'monospace', fontWeight:700, color:'#0d1f3c', fontSize:13 }}>{p.a}</span>
-                <span style={{ color:'#aaa', fontSize:12 }}>+</span>
-                <span style={{ fontFamily:'monospace', fontWeight:700, color:'#0d1f3c', fontSize:13 }}>{p.b}</span>
-                <span style={{ color:'#888', fontSize:12, flex:1 }}>— {zh ? p.zh : p.en}</span>
-                <span style={{ fontSize:11, fontWeight:600, color: p.sev==='high'?'#c0392b':'#a05000',
-                  background: p.sev==='high'?'rgba(229,62,62,0.10)':'rgba(214,105,0,0.12)',
-                  padding:'2px 8px', borderRadius:9999 }}>
-                  {p.sev === 'high' ? (zh?'🔴 近乎相同':'🔴 Near-identical') : (zh?'🟡 高度重疊':'🟡 High overlap')}
-                </span>
-              </div>
-            ))}
+      {activeGroups.length > 0 && (
+        <div style={{ marginBottom:24 }}>
+          <div style={{ fontWeight:700, fontSize:15, color:'#0d1f3c', marginBottom:4 }}>
+            ⚠️ {t.corrHighCorrTitle}
           </div>
-          <div style={{ fontSize:12, color:'#a05000', marginTop:10 }}>💡 {t.corrKeepOne}</div>
+          <div style={{ fontSize:13, color:'#6b727e', marginBottom:14, lineHeight:1.6 }}>
+            {t.corrHighCorrCaption}
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {activeGroups.map(group => {
+              const keeper = (keepers[group.id] && group.present.includes(keepers[group.id]))
+                ? keepers[group.id]
+                : (group.present.includes(group.recommend) ? group.recommend : group.present[0]);
+              const toRemove = group.present.filter(tk => tk !== keeper);
+              return (
+                <div key={group.id} style={{ background:'#fff', border:'1px solid #e8edf3', borderLeft:'4px solid #e8a000', borderRadius:8, padding:'16px 20px', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10, flexWrap:'wrap' }}>
+                    <span style={{ fontWeight:700, fontSize:13, color:'#0d1f3c' }}>
+                      {zh ? group.labelZh : group.labelEn}
+                    </span>
+                    <span style={{ fontSize:11, color:'#888' }}>
+                      ({zh ? '估計相關係數 ≥ 0.85' : 'est. correlation ≥ 0.85'})
+                    </span>
+                    <span style={{ marginLeft:'auto', fontSize:12, color:'#555' }}>
+                      <strong>{t.corrRecommend}</strong>{' '}
+                      <code style={{ fontFamily:'monospace', fontWeight:700, color:'#0d1f3c' }}>{group.recommend}</code>
+                      {' '}— {zh ? group.reasonZh : group.reasonEn}
+                    </span>
+                  </div>
+                  <div style={{ fontSize:12, color:'#555', marginBottom:8 }}>{t.corrSelectKeep}</div>
+                  <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginBottom:14 }}>
+                    {group.present.map(tk => (
+                      <label key={tk} style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
+                        <input type="radio" name={`grp-${group.id}`} value={tk}
+                          checked={keeper === tk}
+                          onChange={() => setKeepers(k => ({ ...k, [group.id]: tk }))}
+                          style={{ cursor:'pointer', accentColor:'#4182b9' }} />
+                        <span style={{ fontFamily:'monospace', fontWeight:700, fontSize:13, color:'#0d1f3c' }}>{tk}</span>
+                        {tk === group.recommend && (
+                          <span style={{ fontSize:10, fontWeight:700, color:'#21a350', background:'#d4f0e0', padding:'1px 6px', borderRadius:9999 }}>
+                            {t.corrRec}
+                          </span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                  {toRemove.length > 0 && (
+                    <Btn small variant="danger" onClick={() => removeOthers(group)}>
+                      {zh ? `移除 ${toRemove.join('、')} →` : `Remove ${toRemove.join(', ')} →`}
+                    </Btn>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -935,6 +995,7 @@ const CorrelationSection = ({ t, lang, watchlist, confirmed, setConfirmed, perso
           </div>
         ))}
       </div>
+
       {!confirmed ? (
         <div style={{ display:'flex', alignItems:'center', gap:16 }}>
           <Btn onClick={() => setConfirmed(true)}>{t.confirmBtn(watchlist.length)}</Btn>
