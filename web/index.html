@@ -244,26 +244,51 @@ const ChartBar = ({ labels, data, height=220 }) => {
   return <div style={{ height, position:'relative' }}><canvas ref={ref} /></div>;
 };
 
-// ── Treemap — binary-split recursive layout, no gaps ─────────────────────────
+// ── Treemap — squarified layout (more square tiles) ──────────────────────────
+function _tmWorstRatio(row, edge) {
+  if (!row.length) return Infinity;
+  const rowArea = row.reduce((s, n) => s + n.area, 0);
+  const strip   = rowArea / edge;
+  let worst = 0;
+  for (const n of row) {
+    const other = n.area / strip;
+    const r = Math.max(strip / other, other / strip);
+    if (r > worst) worst = r;
+  }
+  return worst;
+}
+
+function _tmLayoutStrip(row, x, y, w, h, result) {
+  const rowArea = row.reduce((s, n) => s + n.area, 0);
+  let pos = (w >= h) ? x : y;
+  for (const n of row) {
+    const frac = n.area / rowArea;
+    if (w >= h) { result.push({ ...n, x: pos, y, w: frac * w, h }); pos += frac * w; }
+    else         { result.push({ ...n, x, y: pos, w, h: frac * h }); pos += frac * h; }
+  }
+}
+
 function treemapLayout(items, x, y, w, h) {
   if (!items.length) return [];
-  if (items.length === 1) return [{ ...items[0], x, y, w, h }];
+  const total  = items.reduce((s, i) => s + i.weight, 0);
+  const nodes  = items.map(i => ({ ...i, area: (i.weight / total) * w * h }));
+  const result = [];
+  let cx = x, cy = y, cw = w, ch = h, row = [];
 
-  const total = items.reduce((s, i) => s + i.weight, 0);
-  let cum = 0, splitIdx = 1;
-  for (let i = 0; i < items.length - 1; i++) {
-    cum += items[i].weight;
-    splitIdx = i + 1;
-    if (cum >= total / 2) break;
+  for (const node of nodes) {
+    const edge    = Math.min(cw, ch);
+    const testRow = [...row, node];
+    if (row.length === 0 || _tmWorstRatio(testRow, edge) <= _tmWorstRatio(row, edge)) {
+      row.push(node);
+    } else {
+      const rowArea = row.reduce((s, n) => s + n.area, 0);
+      if (cw >= ch) { const rw = rowArea / ch; _tmLayoutStrip(row, cx, cy, rw, ch, result); cx += rw; cw -= rw; }
+      else           { const rh = rowArea / cw; _tmLayoutStrip(row, cx, cy, cw, rh, result); cy += rh; ch -= rh; }
+      row = [node];
+    }
   }
-  const frac = items.slice(0, splitIdx).reduce((s, i) => s + i.weight, 0) / total;
-  const [la, rb] = w >= h
-    ? [{ x, y, w: w*frac, h }, { x: x+w*frac, y, w: w*(1-frac), h }]
-    : [{ x, y, w, h: h*frac }, { x, y: y+h*frac, w, h: h*(1-frac) }];
-  return [
-    ...treemapLayout(items.slice(0, splitIdx), la.x, la.y, la.w, la.h),
-    ...treemapLayout(items.slice(splitIdx), rb.x, rb.y, rb.w, rb.h),
-  ];
+  if (row.length) _tmLayoutStrip(row, cx, cy, cw, ch, result);
+  return result;
 }
 
 const Treemap = ({ items, onSelect, selectedTicker }) => {
@@ -392,6 +417,7 @@ const T = {
     personaPrompt:'💡 Not sure where to start? Try a preset investor persona:',
     applyPersona:'Apply Persona',
     reviewPortfolio:n=>`Review Portfolio (${n} assets) →`,
+    selectAll:'Select All', deselectAll:'Deselect All',
     colTicker:'Ticker', colName:'Name', colCategory:'Category', colSubcategory:'Subcategory',
     colCagr:'CAGR', colVol:'Volatility', colMaxDD:'Max DD', colSharpe:'Sharpe', colAum:'AUM / Mkt Cap',
     catAll:'All', catTW:'TW ETF', catUS:'US ETF', catCrypto:'Crypto',
@@ -403,6 +429,9 @@ const T = {
     corrOverlaps:'Overlaps Found', corrOverlapHint:'Consider removing duplicates',
     corrAvgCorr:'Avg Correlation (est.)',
     corrWellDiv:'✅ Well diversified', corrSomeOverlap:'⚠️ Some overlap',
+    corrHighCorrTitle:'High-Correlation Pairs Detected',
+    corrHighCorrCaption:'These pairs are near-identical or heavily overlapping — consider keeping only one from each.',
+    corrKeepOne:'Consider keeping only one.',
     confirmBtn:n=>`Confirm ${n} Assets →`,
     confirmUnlocks:'Unlocks Risk Allocation and Backtest sections',
     confirmedBanner:'✅ Portfolio confirmed! Continue to Risk Allocation.',
@@ -478,6 +507,7 @@ const T = {
     personaPrompt:'💡 不知道從哪開始？試試預設投資人角色：',
     applyPersona:'套用角色',
     reviewPortfolio:n=>`檢視組合（${n} 個資產）→`,
+    selectAll:'全選', deselectAll:'取消全選',
     colTicker:'代碼', colName:'名稱', colCategory:'類別', colSubcategory:'子類別',
     colCagr:'CAGR', colVol:'波動率', colMaxDD:'最大回撤', colSharpe:'Sharpe', colAum:'AUM / 市值',
     catAll:'全部', catTW:'台股 ETF', catUS:'美股 ETF', catCrypto:'加密貨幣',
@@ -489,6 +519,9 @@ const T = {
     corrOverlaps:'重疊資產', corrOverlapHint:'建議移除重複資產',
     corrAvgCorr:'估計平均相關係數',
     corrWellDiv:'✅ 分散良好', corrSomeOverlap:'⚠️ 部分重疊',
+    corrHighCorrTitle:'偵測到高相關性配對',
+    corrHighCorrCaption:'以下配對幾乎相同或高度重疊，建議每組只保留一檔。',
+    corrKeepOne:'建議只保留其中一檔。',
     confirmBtn:n=>`確認 ${n} 個資產 →`,
     confirmUnlocks:'解鎖風險配置與回測區段',
     confirmedBanner:'✅ 組合已確認！繼續進行風險配置。',
@@ -639,13 +672,29 @@ const IntroSection = ({ t }) => (
 const CATEGORIES = ['All','TW_ETF','US_ETF','CRYPTO'];
 const CAT_BADGE  = { TW_ETF:'blue', US_ETF:'navy', CRYPTO:'amber' };
 const PER_PAGE   = 8;
+const SORT_COLS  = [
+  { label:'',       key:null },
+  { label:'ticker', key:'ticker' },
+  { label:'name',   key:'name'   },
+  { label:'cat',    key:null     },
+  { label:'sub',    key:null     },
+  { label:'cagr',   key:'cagr'   },
+  { label:'vol',    key:'vol'    },
+  { label:'maxDD',  key:'maxDD'  },
+  { label:'sharpe', key:'sharpe' },
+  { label:'aum',    key:null     },
+];
 
-const AssetScreening = ({ t, watchlist, setWatchlist, setConfirmed, setPersona, onReviewPortfolio }) => {
-  const [search, setSearch]   = useState('');
-  const [cat, setCat]         = useState('All');
+const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPersona, onReviewPortfolio }) => {
+  const [search,  setSearch]  = useState('');
+  const [cat,     setCat]     = useState('All');
   const [cagrMin, setCagrMin] = useState(0);
-  const [page, setPage]       = useState(0);
+  const [page,    setPage]    = useState(0);
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
   const catLabel = { All:t.catAll, TW_ETF:t.catTW, US_ETF:t.catUS, CRYPTO:t.catCrypto };
+
+  const colLabels = ['', t.colTicker, t.colName, t.colCategory, t.colSubcategory, t.colCagr, t.colVol, t.colMaxDD, t.colSharpe, t.colAum];
 
   const filtered = useMemo(() => PPL_ASSETS.filter(a => {
     if (cat !== 'All' && a.category !== cat) return false;
@@ -657,17 +706,44 @@ const AssetScreening = ({ t, watchlist, setWatchlist, setConfirmed, setPersona, 
     return true;
   }), [cat, cagrMin, search]);
 
-  const pages   = Math.ceil(filtered.length / PER_PAGE);
-  const visible = filtered.slice(page * PER_PAGE, (page+1) * PER_PAGE);
+  const sortedFiltered = useMemo(() => {
+    if (!sortKey) return filtered;
+    return [...filtered].sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey];
+      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === 'asc' ? av - bv : bv - av;
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  const pages   = Math.ceil(sortedFiltered.length / PER_PAGE);
+  const visible = sortedFiltered.slice(page * PER_PAGE, (page+1) * PER_PAGE);
 
   const toggle = useCallback((ticker) => {
     setConfirmed(false); setPersona(null);
     setWatchlist(w => w.includes(ticker) ? w.filter(x => x !== ticker) : [...w, ticker]);
   }, [setConfirmed, setPersona, setWatchlist]);
 
+  const selectAll = useCallback(() => {
+    setConfirmed(false); setPersona(null);
+    setWatchlist(w => { const s = new Set(w); filtered.forEach(a => s.add(a.ticker)); return Array.from(s); });
+  }, [filtered, setConfirmed, setPersona, setWatchlist]);
+
+  const deselectAll = useCallback(() => {
+    setConfirmed(false); setPersona(null);
+    const tks = new Set(filtered.map(a => a.ticker));
+    setWatchlist(w => w.filter(tk => !tks.has(tk)));
+  }, [filtered, setConfirmed, setPersona, setWatchlist]);
+
   const applyPersona = (name) => {
     const p = PPL_PERSONAS[name];
     setWatchlist(p.watchlist); setPersona(name); setConfirmed(true);
+  };
+
+  const onSortCol = (key) => {
+    if (!key) return;
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('desc'); }
+    setPage(0);
   };
 
   return (
@@ -689,6 +765,8 @@ const AssetScreening = ({ t, watchlist, setWatchlist, setConfirmed, setPersona, 
           style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', background:'#fff', cursor:'pointer' }}>
           {[0,5,10,15,20,30].map(v => <option key={v} value={v}>{t.cagrFilter} {v}%</option>)}
         </select>
+        <Btn small variant="ghost" onClick={selectAll}>{t.selectAll}</Btn>
+        <Btn small variant="ghost" onClick={deselectAll}>{t.deselectAll}</Btn>
         <div style={{ marginLeft:'auto', fontSize:13, color:'#888' }}>{t.selectedCount(watchlist.length, filtered.length)}</div>
       </div>
 
@@ -696,9 +774,19 @@ const AssetScreening = ({ t, watchlist, setWatchlist, setConfirmed, setPersona, 
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
           <thead>
             <tr style={{ background:'#f7f9fc', borderBottom:'2px solid #e8edf3' }}>
-              {['',t.colTicker,t.colName,t.colCategory,t.colSubcategory,t.colCagr,t.colVol,t.colMaxDD,t.colSharpe,t.colAum].map(h => (
-                <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontWeight:600, color:'#555', fontSize:11, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{h}</th>
-              ))}
+              {SORT_COLS.map((col, i) => {
+                const label = colLabels[i];
+                const isActive = col.key !== null && sortKey === col.key;
+                return (
+                  <th key={i} onClick={() => onSortCol(col.key)}
+                    style={{ padding:'10px 12px', textAlign:'left', fontWeight:600, color:isActive?'#1e5a96':'#555',
+                      fontSize:11, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap',
+                      cursor:col.key?'pointer':'default', userSelect:'none' }}>
+                    {label}
+                    {col.key && <span style={{ marginLeft:4, color:isActive?'#4182b9':'#ccc' }}>{isActive?(sortDir==='asc'?'▲':'▼'):'↕'}</span>}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -750,7 +838,7 @@ const AssetScreening = ({ t, watchlist, setWatchlist, setConfirmed, setPersona, 
               onMouseLeave={e => e.currentTarget.style.boxShadow='none'}>
               <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c', marginBottom:4 }}>{name}</div>
               <div style={{ fontSize:12, color:'#6b727e', marginBottom:10, lineHeight:1.55 }}>
-                {typeof p.description==='object' ? (p.description.zh||p.description.en) : p.description}
+                {typeof p.description==='object' ? (p.description[lang] || p.description.en) : p.description}
               </div>
               <Btn small onClick={e => { e.stopPropagation(); applyPersona(name); }}>{t.applyPersona}</Btn>
             </div>
@@ -768,23 +856,40 @@ const AssetScreening = ({ t, watchlist, setWatchlist, setConfirmed, setPersona, 
 };
 
 // ── Section: Correlation Analysis ─────────────────────────────────────────────
-const CorrelationSection = ({ t, watchlist, confirmed, setConfirmed, persona }) => {
+const CORR_PAIRS = [
+  { a:'VOO',      b:'IVV',       en:'near-identical S&P 500 trackers',         zh:'幾乎相同的 S&P 500 追蹤型基金',    sev:'high'   },
+  { a:'VOO',      b:'SPY',       en:'near-identical S&P 500 trackers',         zh:'幾乎相同的 S&P 500 追蹤型基金',    sev:'high'   },
+  { a:'IVV',      b:'SPY',       en:'near-identical S&P 500 trackers',         zh:'幾乎相同的 S&P 500 追蹤型基金',    sev:'high'   },
+  { a:'VOO',      b:'VTI',       en:'85%+ US market overlap',                  zh:'85%+ 美國市場重疊',               sev:'medium' },
+  { a:'IVV',      b:'VTI',       en:'85%+ US market overlap',                  zh:'85%+ 美國市場重疊',               sev:'medium' },
+  { a:'SPY',      b:'VTI',       en:'85%+ US market overlap',                  zh:'85%+ 美國市場重疊',               sev:'medium' },
+  { a:'0050.TW',  b:'006208.TW', en:'near-identical Taiwan 50 trackers',       zh:'幾乎相同的台灣 50 追蹤型基金',     sev:'high'   },
+  { a:'0056.TW',  b:'00878.TW',  en:'Taiwan high-dividend ETF overlap',        zh:'台灣高股息 ETF 高度重疊',          sev:'medium' },
+  { a:'0056.TW',  b:'00919.TW',  en:'Taiwan high-dividend ETF overlap',        zh:'台灣高股息 ETF 高度重疊',          sev:'medium' },
+  { a:'00878.TW', b:'00919.TW',  en:'Taiwan high-dividend ETF overlap',        zh:'台灣高股息 ETF 高度重疊',          sev:'medium' },
+  { a:'VEA',      b:'IEFA',      en:'near-identical EAFE developed-mkt funds', zh:'幾乎相同的 EAFE 已開發市場基金',   sev:'high'   },
+  { a:'BND',      b:'AGG',       en:'near-identical US aggregate bond funds',  zh:'幾乎相同的美國綜合債券基金',       sev:'high'   },
+];
+
+const CorrelationSection = ({ t, lang, watchlist, confirmed, setConfirmed, persona }) => {
   if (!watchlist.length) return (
     <div>
       <SectionTitle icon="🔗" title={t.corrTitle} caption={t.corrCaption} />
       <InfoBanner>{t.corrAddFirst}</InfoBanner>
     </div>
   );
-  const assetObjs = watchlist.map(tk => PPL_ASSETS.find(a => a.ticker===tk)).filter(Boolean);
-  const hasCrypto = assetObjs.some(a => a.category==='CRYPTO');
-  const hasUS     = assetObjs.some(a => a.category==='US_ETF');
-  const hasTW     = assetObjs.some(a => a.category==='TW_ETF');
-  const diversity = [hasCrypto,hasUS,hasTW].filter(Boolean).length;
-  const avgCorr   = Math.max(0.05, 0.75 - diversity*0.12 - watchlist.length*0.01).toFixed(2);
-  const sp500Like = ['VOO','VTI','IVV','SPY'];
-  const overlaps  = watchlist.filter(tk => sp500Like.includes(tk) && watchlist.some(tk2 => tk2!==tk && sp500Like.includes(tk2)));
-  const wellDiv   = +avgCorr < 0.5;
-  const catLabel  = { TW_ETF:t.catTW, US_ETF:t.catUS, CRYPTO:t.catCrypto };
+  const assetObjs    = watchlist.map(tk => PPL_ASSETS.find(a => a.ticker===tk)).filter(Boolean);
+  const hasCrypto    = assetObjs.some(a => a.category==='CRYPTO');
+  const hasUS        = assetObjs.some(a => a.category==='US_ETF');
+  const hasTW        = assetObjs.some(a => a.category==='TW_ETF');
+  const diversity    = [hasCrypto,hasUS,hasTW].filter(Boolean).length;
+  const avgCorr      = Math.max(0.05, 0.75 - diversity*0.12 - watchlist.length*0.01).toFixed(2);
+  const sp500Like    = ['VOO','VTI','IVV','SPY'];
+  const overlaps     = watchlist.filter(tk => sp500Like.includes(tk) && watchlist.some(tk2 => tk2!==tk && sp500Like.includes(tk2)));
+  const wellDiv      = +avgCorr < 0.5;
+  const catLabel     = { TW_ETF:t.catTW, US_ETF:t.catUS, CRYPTO:t.catCrypto };
+  const zh           = lang === 'zh';
+  const highCorrPairs = CORR_PAIRS.filter(p => watchlist.includes(p.a) && watchlist.includes(p.b));
 
   return (
     <div>
@@ -797,6 +902,30 @@ const CorrelationSection = ({ t, watchlist, confirmed, setConfirmed, persona }) 
         <MetricCard label={t.corrAvgCorr} value={avgCorr}
           delta={wellDiv?t.corrWellDiv:t.corrSomeOverlap} deltaPositive={wellDiv} />
       </div>
+
+      {highCorrPairs.length > 0 && (
+        <div style={{ background:'#fff8f0', border:'1px solid #e8a000', borderRadius:10, padding:'16px 20px', marginBottom:24 }}>
+          <div style={{ fontWeight:700, fontSize:14, color:'#7a4a00', marginBottom:6 }}>⚠️ {t.corrHighCorrTitle}</div>
+          <div style={{ fontSize:13, color:'#7a4a00', marginBottom:12, lineHeight:1.6 }}>{t.corrHighCorrCaption}</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {highCorrPairs.map((p, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(255,255,255,0.7)', borderRadius:8, padding:'8px 12px', flexWrap:'wrap' }}>
+                <span style={{ fontFamily:'monospace', fontWeight:700, color:'#0d1f3c', fontSize:13 }}>{p.a}</span>
+                <span style={{ color:'#aaa', fontSize:12 }}>+</span>
+                <span style={{ fontFamily:'monospace', fontWeight:700, color:'#0d1f3c', fontSize:13 }}>{p.b}</span>
+                <span style={{ color:'#888', fontSize:12, flex:1 }}>— {zh ? p.zh : p.en}</span>
+                <span style={{ fontSize:11, fontWeight:600, color: p.sev==='high'?'#c0392b':'#a05000',
+                  background: p.sev==='high'?'rgba(229,62,62,0.10)':'rgba(214,105,0,0.12)',
+                  padding:'2px 8px', borderRadius:9999 }}>
+                  {p.sev === 'high' ? (zh?'🔴 近乎相同':'🔴 Near-identical') : (zh?'🟡 高度重疊':'🟡 High overlap')}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize:12, color:'#a05000', marginTop:10 }}>💡 {t.corrKeepOne}</div>
+        </div>
+      )}
+
       <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:24 }}>
         {assetObjs.map(a => (
           <div key={a.ticker} style={{ background:'#eff5fb', border:'1px solid #a8cae8', borderRadius:8, padding:'6px 12px', fontSize:13 }}>
@@ -899,20 +1028,6 @@ const RiskAllocation = ({ t, watchlist, confirmed, riskLevel, setRiskLevel, allo
         </div>
       )}
 
-      <div style={{ marginTop:16, display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:8 }}>
-        {[...allItems].sort((a,b) => b.weight-a.weight).map(item => (
-          <div key={item.ticker}
-            onClick={() => setSelectedTicker(item.ticker===selectedTicker?null:item.ticker)}
-            style={{ background: item.ticker===selectedTicker?'#eff5fb':'#f7f9fc', borderRadius:8, padding:'10px 12px',
-              border:`1px solid ${item.ticker===selectedTicker?'#a8cae8':'#e8edf3'}`, cursor:'pointer', transition:'all 0.12s' }}>
-            <div style={{ fontFamily:'monospace', fontWeight:700, color:'#0d1f3c', fontSize:13 }}>{item.ticker}</div>
-            <div style={{ fontSize:11, color:'#888', marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-              {item.name?.split(' ').slice(0,3).join(' ')}
-            </div>
-            <div style={{ fontSize:20, fontWeight:700, color:'#4182b9', marginTop:5 }}>{(item.weight*100).toFixed(1)}%</div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };
@@ -1179,7 +1294,7 @@ const SummarySection = ({ t, lang, watchlist, allocation, riskLevel, btCagr, con
 };
 
 // ── Main App — single-page scrollable layout ──────────────────────────────────
-const SECTION_STYLE = { padding:'44px 48px', maxWidth:1060 };
+const SECTION_STYLE = { padding:'44px 48px' };
 const DIVIDER       = { borderTop:'2px solid #f0f2f6' };
 
 const App = () => {
@@ -1245,7 +1360,7 @@ const App = () => {
         <div style={DIVIDER} />
         <div id="section-screening"   style={SECTION_STYLE}><AssetScreening     {...sectionProps} onReviewPortfolio={() => scrollTo('correlation')} /></div>
         <div style={DIVIDER} />
-        <div id="section-correlation" style={SECTION_STYLE}><CorrelationSection {...sectionProps} /></div>
+        <div id="section-correlation" style={SECTION_STYLE}><CorrelationSection {...sectionProps} lang={lang} /></div>
         <div style={DIVIDER} />
         <div id="section-allocation"  style={SECTION_STYLE}><RiskAllocation     {...sectionProps} /></div>
         <div style={DIVIDER} />
