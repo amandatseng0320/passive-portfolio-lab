@@ -586,6 +586,23 @@ const NAV_ITEMS = [
   { id:'summary',     icon:'📋' },
 ];
 
+// ── App Header ────────────────────────────────────────────────────────────────
+const AppHeader = ({ t }) => (
+  <div style={{
+    background:'linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%)',
+    padding:'22px 48px', display:'flex', alignItems:'center', gap:20,
+    borderBottom:'1px solid rgba(255,255,255,0.08)',
+    boxShadow:'0 2px 12px rgba(0,0,0,0.15)',
+  }}>
+    <div>
+      <div style={{ fontSize:11, fontWeight:700, color:'#72a8d4', letterSpacing:'0.16em', textTransform:'uppercase', marginBottom:3 }}>{t.appTitle}</div>
+      <div style={{ fontSize:30, fontWeight:700, color:'#fff', lineHeight:1.1, letterSpacing:'-0.01em' }}>{t.appSub}</div>
+    </div>
+    <div style={{ width:1, height:40, background:'rgba(255,255,255,0.18)', flexShrink:0 }} />
+    <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)', lineHeight:1.6 }}>{t.appTagline}</div>
+  </div>
+);
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 const Sidebar = ({ active, onNav, lang, setLang, t, confirmed }) => {
   const lockedSet = useMemo(() => {
@@ -601,7 +618,7 @@ const Sidebar = ({ active, onNav, lang, setLang, t, confirmed }) => {
       <div style={{ padding:'26px 20px 18px', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ fontSize:10, fontWeight:700, color:'#72a8d4', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:3 }}>{t.appTitle}</div>
         <div style={{ fontSize:22, fontWeight:700, color:'#fff', lineHeight:1.1 }}>{t.appSub}</div>
-        <div style={{ fontSize:11, color:'rgba(255,255,255,0.35)', marginTop:5 }}>{t.appTagline}</div>
+        <div style={{ fontSize:11, color:'rgba(255,255,255,0.55)', marginTop:5 }}>{t.appTagline}</div>
       </div>
 
       <div style={{ padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', gap:4 }}>
@@ -612,7 +629,7 @@ const Sidebar = ({ active, onNav, lang, setLang, t, confirmed }) => {
               flex:1, padding:'5px 0', borderRadius:6, border:'none', cursor:'pointer',
               fontSize:12, fontWeight:600, fontFamily:'inherit',
               background:isActive?'#4182b9':'rgba(255,255,255,0.08)',
-              color:isActive?'#fff':'rgba(255,255,255,0.45)', transition:'all 0.15s' }}>
+              color:isActive?'#fff':'rgba(255,255,255,0.65)', transition:'all 0.15s' }}>
               {label}
             </button>
           );
@@ -631,7 +648,7 @@ const Sidebar = ({ active, onNav, lang, setLang, t, confirmed }) => {
                 border:'none', cursor:'pointer',
                 background:isActive?'rgba(65,130,185,0.25)':'transparent',
                 borderLeft:isActive?'3px solid #4182b9':'3px solid transparent',
-                color:locked?'rgba(255,255,255,0.30)':(isActive?'#a8cae8':'rgba(255,255,255,0.55)'),
+                color:locked?'rgba(255,255,255,0.50)':(isActive?'#a8cae8':'rgba(255,255,255,0.85)'),
                 fontWeight:isActive?600:400, fontSize:13,
                 fontFamily:'inherit', transition:'all 0.15s' }}>
               <span style={{ fontSize:14 }}>{n.icon}</span>
@@ -642,7 +659,7 @@ const Sidebar = ({ active, onNav, lang, setLang, t, confirmed }) => {
         })}
       </nav>
 
-      <div style={{ padding:'12px 20px', borderTop:'1px solid rgba(255,255,255,0.08)', fontSize:11, color:'rgba(255,255,255,0.22)', lineHeight:1.5 }}>
+      <div style={{ padding:'12px 20px', borderTop:'1px solid rgba(255,255,255,0.08)', fontSize:11, color:'rgba(255,255,255,0.42)', lineHeight:1.5 }}>
         {t.disclaimer}
       </div>
     </div>
@@ -1417,6 +1434,7 @@ const App = () => {
     <div style={{ display:'flex', minHeight:'100vh', fontFamily:"'Source Sans 3',system-ui,sans-serif", background:'#f7f9fc' }}>
       <Sidebar active={activeNav} onNav={scrollTo} lang={lang} setLang={setLang} t={t} confirmed={confirmed} />
       <main ref={mainRef} style={{ flex:1, overflowY:'auto', minWidth:0 }}>
+        <AppHeader t={t} />
         <div id="section-intro"       style={SECTION_STYLE}><IntroSection       {...sectionProps} /></div>
         <div style={DIVIDER} />
         <div id="section-screening"   style={SECTION_STYLE}><AssetScreening     {...sectionProps} onReviewPortfolio={() => scrollTo('correlation')} /></div>
