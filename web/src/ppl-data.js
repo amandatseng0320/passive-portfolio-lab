@@ -164,9 +164,9 @@ function generateBacktest(allocation, initial = 300000, monthly = 15000) {
 
   const finalVal  = portVals[portVals.length - 1];
   const totalInv  = invested[invested.length - 1];
-  const years     = labels.length / 12;
-  const cagr      = years > 0 && totalInv > 0 ? (Math.pow(finalVal / totalInv, 1 / years) - 1) : 0;
   const maxDD     = Math.min(...drawdowns);
+  // Return theoretical weighted CAGR (not simulation-noise CAGR) for reliable FIRE projections
+  const cagr      = wCagr;
 
   return { labels, portVals, invested, drawdowns, annualReturns, finalVal, totalInv, cagr, maxDD };
 }
