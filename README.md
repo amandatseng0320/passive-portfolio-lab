@@ -5,6 +5,11 @@ Passive Portfolio Lab is a bilingual toolkit for long-term passive investors. It
 - **Streamlit Dashboard**: interactive research app with BigQuery reads, live data helpers, and optional Gemini insights.
 - **GitHub Web**: static GitHub Pages app with BigQuery-exported asset metrics and daily TWD price history.
 
+## Live Apps
+
+- **Streamlit Dashboard**: https://passive-portfolio-lab-new.streamlit.app/
+- **GitHub Web**: https://amandatseng0320.github.io/passive-portfolio-lab/
+
 The core question:
 
 **If a portfolio's backtested return looks attractive, what is the risk, drawdown pain, and FIRE trade-off behind it?**
