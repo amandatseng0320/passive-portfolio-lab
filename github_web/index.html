@@ -51,7 +51,12 @@
   <div id="loading">Loading Passive Portfolio Lab…</div>
   <div id="root"></div>
 
-  <script>Chart.register(ChartAnnotation);</script>
+  <script>
+    const annotationPlugin = window.ChartAnnotation || window['chartjs-plugin-annotation'];
+    if (window.Chart && annotationPlugin) {
+      Chart.register(annotationPlugin);
+    }
+  </script>
   <script src="src/ppl-data.js"></script>
 
   <script type="text/babel">
@@ -113,6 +118,20 @@ const InfoBanner = ({ children, type = 'info' }) => {
   );
 };
 
+const displayFxRate = () => (typeof PPL_FX_RATE !== 'undefined' && PPL_FX_RATE) ? PPL_FX_RATE : 32.5;
+const convertDisplayMoney = (value, displayCurrency) => displayCurrency === 'USD' ? value / displayFxRate() : value;
+const formatMoney = (value, displayCurrency = 'TWD', compact = false) => {
+  const converted = convertDisplayMoney(value, displayCurrency);
+  const symbol = displayCurrency === 'USD' ? '$' : 'NT$';
+  if (compact) {
+    const abs = Math.abs(converted);
+    if (abs >= 1e9) return symbol + (converted / 1e9).toFixed(1) + 'B';
+    if (abs >= 1e6) return symbol + (converted / 1e6).toFixed(1) + 'M';
+    if (abs >= 1e3) return symbol + (converted / 1e3).toFixed(0) + 'K';
+  }
+  return symbol + Math.round(converted).toLocaleString();
+};
+
 const Btn = ({ children, onClick, variant = 'primary', disabled = false, small = false }) => {
   const variants = {
     primary:   { bg:'#4182b9', color:'#fff',   border:'#4182b9',  hbg:'#1e5a96', hborder:'#1e5a96' },
@@ -137,6 +156,23 @@ const Btn = ({ children, onClick, variant = 'primary', disabled = false, small =
     </button>
   );
 };
+
+const CurrencyToggle = ({ t, displayCurrency, setDisplayCurrency, compact = false }) => (
+  <div style={{ display:'flex', alignItems:'center', gap:compact?6:10, flexWrap:'wrap' }}>
+    {!compact && <div style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.55)', textTransform:'uppercase', letterSpacing:'0.08em' }}>{t.currencyLabel}</div>}
+    <div style={{ display:'inline-flex', border:'1px solid rgba(255,255,255,0.22)', borderRadius:8, overflow:'hidden', background:'rgba(255,255,255,0.08)' }}>
+      {['TWD','USD'].map(cur => (
+        <button key={cur} onClick={() => setDisplayCurrency(cur)}
+          style={{ padding:compact?'5px 10px':'7px 13px', border:'none', cursor:'pointer',
+            background:displayCurrency===cur?'#fff':'transparent',
+            color:displayCurrency===cur?'#0d1f3c':'rgba(255,255,255,0.78)',
+            fontSize:12, fontWeight:700, fontFamily:'inherit' }}>
+          {cur}
+        </button>
+      ))}
+    </div>
+  </div>
+);
 
 const ChartLine = ({ labels, datasets, height=260, yFmt, events=[], extraInfo=[], hLines=[], lang='en' }) => {
   const ref = React.useRef();
@@ -213,7 +249,7 @@ const ChartLine = ({ labels, datasets, height=260, yFmt, events=[], extraInfo=[]
     });
     return () => { if (chartRef.current) chartRef.current.destroy(); };
   }, [JSON.stringify(labels),JSON.stringify(datasets),JSON.stringify(events),
-      JSON.stringify(hLines),JSON.stringify(extraInfo),lang]);
+      JSON.stringify(hLines),JSON.stringify(extraInfo),lang,yFmt]);
 
   return <div style={{ height, position:'relative' }}><canvas ref={ref} /></div>;
 };
@@ -397,6 +433,10 @@ const T = {
     appTitle:'Passive Portfolio', appSub:'Lab',
     appTagline:'Data-driven passive investing',
     disclaimer:'Data for illustration only. Not financial advice.',
+    currencyLabel:'Display Currency',
+    currencyDisplayNote:'Display only. Inputs and calculations remain in TWD.',
+    btSourceHistory:'Using true daily historical prices synced from BigQuery.',
+    btSourceProjection:'Historical price data is not loaded yet, so this view is temporarily using a metric-based projection.',
     nav:{ intro:'Introduction', screening:'Asset Screening', correlation:'Correlation Analysis',
       allocation:'Risk Allocation', backtest:'Backtest & Pain Index', fire:'FIRE Calculator', summary:'Summary' },
 
@@ -405,12 +445,32 @@ const T = {
     introQuoteAuthor:'— Benjamin Graham',
     introBanner:'All portfolio calculations are performed in <strong>New Taiwan Dollar (TWD)</strong>. USD-denominated assets are converted using historical exchange rates — currency fluctuations are factored into returns. Enter all input amounts in <strong>TWD</strong>.',
     introFeatures:[
-      { icon:'🔍', title:'Asset Screening', desc:'35-asset curated universe: 12 TW ETFs, 15 US ETFs, 8 crypto — with CAGR, volatility, drawdown, and AUM metrics.' },
+      { icon:'🔍', title:'Asset Screening', desc:'37-asset curated universe: 14 TW ETFs, 15 US ETFs, 8 crypto — with CAGR, volatility, drawdown, and AUM metrics.' },
       { icon:'⚖️', title:'Risk Allocation', desc:'Auto-allocate weights to match your target risk tier (Low → Extreme High) using annualized volatility as the primary proxy.' },
-      { icon:'📈', title:'Backtest & Pain Index', desc:'See how your TWD-denominated portfolio would have performed historically — including drawdown episodes you would need to endure.' },
+      { icon:'📈', title:'Backtest & Pain Index', desc:'Run TWD-based historical backtests using BigQuery-synced daily prices, including drawdown episodes you would need to endure.' },
       { icon:'🔥', title:'FIRE Calculator', desc:"Estimate your financial independence timeline based on your portfolio's historical CAGR, savings rate, and spending assumptions." },
     ],
+    introPhiloTitle:'Why Passive Investing?',
+    introPhiloBody:[
+      'Passive investing is built on a simple observation: over the long run, most active fund managers fail to beat a low-cost index fund after fees. Rather than trying to pick winners or time the market, passive investors hold the whole market — and let compounding do the work.',
+      'This tool is built on that philosophy. Every metric, every preset, and every calculation is designed to help you build a broadly diversified, low-cost, long-horizon portfolio — and to understand the tradeoffs you\'re making along the way.',
+      'We don\'t tell you what to buy. We give you the data to make that decision yourself.',
+    ],
+    introHowTitle:'How to Use This Tool',
+    introHowSteps:[
+      { step:1, title:'Asset Screening',       desc:'Browse a curated list of passive ETFs across Taiwan, US, international, and bond markets. Filter by category, sort by any column, and check the assets you want to include. Start broad; you can narrow later.' },
+      { step:2, title:'Correlation Analysis',  desc:'See which of your selected ETFs move together. Highly correlated assets add duplication without diversification benefit. Use the group recommendations to keep one representative per cluster and remove the rest.' },
+      { step:3, title:'Risk Allocation',       desc:'Assign portfolio weights to each asset you kept. The total must sum to 100%. Use the presets as a starting point, or enter weights manually to reflect your own risk tolerance.' },
+      { step:4, title:'Backtest',              desc:'Run a TWD-based historical backtest on your weighted portfolio. Review annualized return, volatility, max drawdown, and Sharpe ratio. Adjust weights in Step 3 and re-run as many times as you like.' },
+      { step:5, title:'FIRE Calculator',       desc:'Enter your current savings, monthly contribution, expected retirement age, and spending target. The calculator estimates whether your portfolio is on track to support financial independence.' },
+      { step:6, title:'Summary',               desc:'Review your final portfolio at a glance — asset list, weights, key metrics, and FIRE readiness. You can screenshot or print this page as a personal reference.' },
+    ],
 
+    screeningCriteriaTitle:'How assets were selected',
+    screeningCriteriaBody:[
+      'Assets in this universe were selected based on four criteria: (1) passive, index-tracking strategy — no actively managed funds; (2) sufficient historical data for meaningful backtesting (generally 5+ years); (3) minimum AUM or market cap for liquidity; (4) broad coverage across asset classes — Taiwan equities, US equities, international equities, bonds, and crypto.',
+      '00646.TW and 00955.TWO are personal additions by the portfolio owner. 00955.TWO has limited history since 2023 — treat its metrics as indicative estimates only.',
+    ],
     screeningTitle:'Asset Screening', screeningCaption:'Filter and sort assets from the pool below. Click a row to add or remove from your watchlist.',
     searchPlaceholder:'Search ticker or name…', cagrFilter:'CAGR ≥',
     selectedCount:(n,total)=>`${n} selected · ${total} shown`,
@@ -446,10 +506,10 @@ const T = {
     detailWeight:'Weight', detailClose:'Close',
 
     btTitle:'Backtest & Pain Index',
-    btCaption:'How would your portfolio have performed historically — and could you have endured the downturns?',
+    btCaption:'How would your TWD-based portfolio have behaved historically — and could you endure the downturns?',
     btLocked:'Complete Risk Allocation above to unlock this section.',
     btInitial:'Initial Investment (NT$)', btMonthly:'Monthly Contribution (NT$)',
-    btPortValue:'Portfolio Value Over Time (TWD)',
+    btPortValue:'Portfolio Value Over Time',
     btHoverHint:'Hover for details · Shaded = major drawdown events',
     btPainIndex:'Max Drawdown — Pain Index',
     btWorst:'Worst:', btDashHint:'Dashed lines = −10%, −20%, −30% reference',
@@ -488,6 +548,10 @@ const T = {
     appTitle:'被動投資組合', appSub:'實驗室',
     appTagline:'資料驅動的被動投資工具',
     disclaimer:'資料僅供說明，非投資建議。',
+    currencyLabel:'顯示幣別',
+    currencyDisplayNote:'僅切換顯示。輸入與底層計算皆維持 TWD。',
+    btSourceHistory:'使用 BigQuery 同步的真實每日歷史價格。',
+    btSourceProjection:'尚未載入歷史價格資料，因此暫時使用指標推估。',
     nav:{ intro:'介紹', screening:'資產篩選', correlation:'相關性分析',
       allocation:'風險配置', backtest:'回測與痛苦指數', fire:'財務自由試算', summary:'總結' },
 
@@ -496,12 +560,32 @@ const T = {
     introQuoteAuthor:'— 班傑明．葛拉漢',
     introBanner:'所有投資組合計算均以<strong>新台幣（TWD）</strong>為單位。美元計價資產依歷史匯率換算，匯率波動已納入報酬計算。所有輸入金額請以<strong>台幣</strong>填寫。',
     introFeatures:[
-      { icon:'🔍', title:'資產篩選', desc:'35 個精選資產：12 檔台股 ETF、15 檔美股 ETF、8 個加密貨幣，附 CAGR、波動率、最大回撤與 AUM 指標。' },
+      { icon:'🔍', title:'資產篩選', desc:'37 個精選資產：14 檔台股 ETF、15 檔美股 ETF、8 個加密貨幣，附 CAGR、波動率、最大回撤與 AUM 指標。' },
       { icon:'⚖️', title:'風險配置', desc:'依目標風險等級（低→極高）自動分配權重，以年化波動率為主要代理指標。' },
-      { icon:'📈', title:'回測與痛苦指數', desc:'模擬台幣計價組合的歷史表現，呈現需要忍受的回撤幅度與時間。' },
+      { icon:'📈', title:'回測與痛苦指數', desc:'使用 BigQuery 同步的每日價格進行台幣計價歷史回測，呈現需要忍受的回撤幅度與時間。' },
       { icon:'🔥', title:'財務自由試算', desc:'根據組合的歷史 CAGR、儲蓄率與支出假設，推估達到財務自由的時間軸。' },
     ],
+    introPhiloTitle:'為什麼選擇被動投資？',
+    introPhiloBody:[
+      '被動投資源自一個簡單的觀察：長期下來，絕大多數主動管理基金在扣除費用後，表現不如低成本指數型基金。被動投資者不試圖選股或擇時，而是持有整個市場，讓複利自然累積。',
+      '本工具以這個理念為基礎。所有指標、預設配置與計算，都是為了幫助你建立一個廣泛分散、低成本、以長期持有為核心的投資組合，並讓你清楚理解每個決策背後的取捨。',
+      '我們不告訴你買什麼，我們提供數據，讓你自己做出判斷。',
+    ],
+    introHowTitle:'如何使用本工具',
+    introHowSteps:[
+      { step:1, title:'資產篩選',     desc:'從台灣、美國、國際及債券市場的精選被動 ETF 清單中挑選標的。可依分類篩選、依任一欄位排序，勾選你想納入的資產。初期可以選廣一點，後續再縮減。' },
+      { step:2, title:'相關性分析',   desc:'查看你所選的 ETF 之間的連動性。高度相關的資產重複配置，卻沒有分散效果。利用本工具提供的分組建議，每個高相關群組保留一個代表標的即可。' },
+      { step:3, title:'風險配置',     desc:'為每個留下的資產設定投資比例，合計須達 100%。可從預設的風格配置出發，再依自身風險承受度手動調整。' },
+      { step:4, title:'回測分析',     desc:'對你的加權組合進行歷史模擬回測，查看年化報酬、波動率、最大回撤與 Sharpe 比率。可隨時回到第三步調整比例後重新回測。' },
+      { step:5, title:'FIRE 計算機',  desc:'輸入現有存款、每月定期投入金額、預計退休年齡與退休後支出目標，計算機將估算你的投資組合是否有機會達成財務獨立。' },
+      { step:6, title:'總覽摘要',     desc:'一頁總覽你的最終投資組合：標的清單、配置比例、關鍵績效指標與 FIRE 達成狀況，可截圖或列印作為個人參考。' },
+    ],
 
+    screeningCriteriaTitle:'資產是如何挑選的',
+    screeningCriteriaBody:[
+      '本資產池依以下四項標準篩選：（1）被動式指數追蹤策略，不含主動管理基金；（2）具備足夠的歷史資料供回測分析（一般 5 年以上）；（3）達一定 AUM 或市值規模以確保流動性；（4）涵蓋台股、美股、國際股票、債券與加密貨幣等多元資產類別。',
+      '00646.TW 與 00955.TWO 為持有人私人加入。00955.TWO 自 2023 年起才有資料，相關指標僅為估算值，請審慎參考。',
+    ],
     screeningTitle:'資產篩選', screeningCaption:'從資產池中篩選並排序。點擊列即可加入或移出自選清單。',
     searchPlaceholder:'搜尋代碼或名稱…', cagrFilter:'CAGR ≥',
     selectedCount:(n,total)=>`已選 ${n} 個 · 顯示 ${total} 筆`,
@@ -540,7 +624,7 @@ const T = {
     btCaption:'組合的歷史表現如何？你能承受那些回撤嗎？',
     btLocked:'請先完成「風險配置」以解鎖此區段。',
     btInitial:'初始投入金額（NT$）', btMonthly:'每月定期投入（NT$）',
-    btPortValue:'組合價值走勢（TWD）',
+    btPortValue:'組合價值走勢',
     btHoverHint:'懸停查看詳情 · 陰影區域 = 重大回撤事件',
     btPainIndex:'最大回撤 — 痛苦指數',
     btWorst:'最差：', btDashHint:'虛線 = −10%、−20%、−30% 參考線',
@@ -587,7 +671,7 @@ const NAV_ITEMS = [
 ];
 
 // ── App Header ────────────────────────────────────────────────────────────────
-const AppHeader = ({ t }) => (
+const AppHeader = ({ t, displayCurrency, setDisplayCurrency }) => (
   <div style={{
     background:'linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%)',
     padding:'22px 48px', display:'flex', alignItems:'center', gap:20,
@@ -600,6 +684,9 @@ const AppHeader = ({ t }) => (
     </div>
     <div style={{ width:1, height:40, background:'rgba(255,255,255,0.18)', flexShrink:0 }} />
     <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)', lineHeight:1.6 }}>{t.appTagline}</div>
+    <div style={{ marginLeft:'auto' }}>
+      <CurrencyToggle t={t} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} />
+    </div>
   </div>
 );
 
@@ -666,6 +753,30 @@ const Sidebar = ({ active, onNav, lang, setLang, t, confirmed }) => {
   );
 };
 
+// ── Accordion ─────────────────────────────────────────────────────────────────
+const Accordion = ({ title, children }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div style={{ border:'1px solid #dde4ed', borderRadius:10, marginBottom:14, overflow:'hidden' }}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center',
+        padding:'13px 18px', background: open ? '#eff5fb' : '#f7f9fc',
+        border:'none', cursor:'pointer', textAlign:'left',
+        fontSize:14, fontWeight:700, color:'#0d1f3c',
+      }}>
+        <span>{title}</span>
+        <span style={{ fontSize:18, color:'#4182b9', display:'inline-block',
+          transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform 0.2s' }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ padding:'18px 20px', background:'#fff', borderTop:'1px solid #dde4ed' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Section: Introduction ─────────────────────────────────────────────────────
 const IntroSection = ({ t }) => (
   <div>
@@ -683,6 +794,23 @@ const IntroSection = ({ t }) => (
         </div>
       ))}
     </div>
+    <Accordion title={t.introPhiloTitle}>
+      {t.introPhiloBody.map((p, i) => (
+        <p key={i} style={{ fontSize:14, color:'#2d3e52', lineHeight:1.8, marginBottom: i < t.introPhiloBody.length - 1 ? 14 : 0 }}>{p}</p>
+      ))}
+    </Accordion>
+    <Accordion title={t.introHowTitle}>
+      {t.introHowSteps.map(s => (
+        <div key={s.step} style={{ display:'flex', gap:14, marginBottom:14, alignItems:'flex-start' }}>
+          <div style={{ flexShrink:0, width:26, height:26, borderRadius:'50%', background:'#1a3a6b',
+            color:'#fff', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center' }}>{s.step}</div>
+          <div>
+            <div style={{ fontWeight:700, fontSize:13, color:'#0d1f3c', marginBottom:3 }}>{s.title}</div>
+            <div style={{ fontSize:13, color:'#6b727e', lineHeight:1.65 }}>{s.desc}</div>
+          </div>
+        </div>
+      ))}
+    </Accordion>
     <InfoBanner><span dangerouslySetInnerHTML={{ __html:t.introBanner }} /></InfoBanner>
   </div>
 );
@@ -708,7 +836,6 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
   const [search,  setSearch]  = useState('');
   const [cat,     setCat]     = useState('All');
   const [cagrMin, setCagrMin] = useState(0);
-  const [page,    setPage]    = useState(0);
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
   const catLabel = { All:t.catAll, TW_ETF:t.catTW, US_ETF:t.catUS, CRYPTO:t.catCrypto };
@@ -720,7 +847,8 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
     if (a.cagr < cagrMin) return false;
     if (search) {
       const q = search.toLowerCase();
-      if (!a.ticker.toLowerCase().includes(q) && !a.name.toLowerCase().includes(q)) return false;
+      const displayName = (lang === 'zh' && a.nameZh) ? a.nameZh : a.name;
+      if (!a.ticker.toLowerCase().includes(q) && !a.name.toLowerCase().includes(q) && !displayName.toLowerCase().includes(q)) return false;
     }
     return true;
   }), [cat, cagrMin, search]);
@@ -733,9 +861,6 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
       return sortDir === 'asc' ? av - bv : bv - av;
     });
   }, [filtered, sortKey, sortDir]);
-
-  const pages   = Math.ceil(sortedFiltered.length / PER_PAGE);
-  const visible = sortedFiltered.slice(page * PER_PAGE, (page+1) * PER_PAGE);
 
   const toggle = useCallback((ticker) => {
     setConfirmed(false); setPersona(null);
@@ -762,25 +887,29 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
     if (!key) return;
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('desc'); }
-    setPage(0);
   };
 
   return (
     <div>
       <SectionTitle icon="🔍" title={t.screeningTitle} caption={t.screeningCaption} />
+      <Accordion title={t.screeningCriteriaTitle}>
+        {t.screeningCriteriaBody.map((p, i) => (
+          <p key={i} style={{ fontSize:14, color:'#2d3e52', lineHeight:1.8, marginBottom: i < t.screeningCriteriaBody.length - 1 ? 14 : 0 }}>{p}</p>
+        ))}
+      </Accordion>
 
       <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
+        <input value={search} onChange={e => { setSearch(e.target.value); }}
           placeholder={t.searchPlaceholder}
           style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', width:195, outline:'none' }} />
         {CATEGORIES.map(c => (
-          <button key={c} onClick={() => { setCat(c); setPage(0); }}
+          <button key={c} onClick={() => { setCat(c); }}
             style={{ padding:'6px 13px', borderRadius:6, border:'1px solid', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.12s',
               borderColor:cat===c?'#4182b9':'#d0d7e2', background:cat===c?'#4182b9':'#fff', color:cat===c?'#fff':'#555' }}>
             {catLabel[c]}
           </button>
         ))}
-        <select value={cagrMin} onChange={e => { setCagrMin(+e.target.value); setPage(0); }}
+        <select value={cagrMin} onChange={e => { setCagrMin(+e.target.value); }}
           style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', background:'#fff', cursor:'pointer' }}>
           {[0,5,10,15,20,30].map(v => <option key={v} value={v}>{t.cagrFilter} {v}%</option>)}
         </select>
@@ -790,6 +919,7 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
       </div>
 
       <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,0.05)', marginBottom:14 }}>
+        <div style={{ overflowY:'auto', maxHeight:420 }}>
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
           <thead>
             <tr style={{ background:'#f7f9fc', borderBottom:'2px solid #e8edf3' }}>
@@ -800,7 +930,8 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
                   <th key={i} onClick={() => onSortCol(col.key)}
                     style={{ padding:'10px 12px', textAlign:'left', fontWeight:600, color:isActive?'#1e5a96':'#555',
                       fontSize:11, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap',
-                      cursor:col.key?'pointer':'default', userSelect:'none' }}>
+                      cursor:col.key?'pointer':'default', userSelect:'none',
+                      position:'sticky', top:0, background:'#f7f9fc', zIndex:1 }}>
                     {label}
                     {col.key && <span style={{ marginLeft:4, color:isActive?'#4182b9':'#ccc' }}>{isActive?(sortDir==='asc'?'▲':'▼'):'↕'}</span>}
                   </th>
@@ -809,7 +940,7 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
             </tr>
           </thead>
           <tbody>
-            {visible.map((a, i) => {
+            {sortedFiltered.map((a, i) => {
               const inW = watchlist.includes(a.ticker);
               return (
                 <tr key={a.ticker} onClick={() => toggle(a.ticker)}
@@ -820,7 +951,7 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
                     </div>
                   </td>
                   <td style={{ padding:'10px 12px', fontWeight:700, color:'#0d1f3c', fontFamily:'monospace', fontSize:12 }}>{a.ticker}</td>
-                  <td style={{ padding:'10px 12px', color:'#333', maxWidth:180 }}>{a.name}</td>
+                  <td style={{ padding:'10px 12px', color:'#333', maxWidth:180 }}>{(lang === 'zh' && a.nameZh) ? a.nameZh : a.name}</td>
                   <td style={{ padding:'10px 12px' }}><Badge label={catLabel[a.category]} variant={CAT_BADGE[a.category]} /></td>
                   <td style={{ padding:'10px 12px', color:'#555', fontSize:12 }}>{a.subcategory}</td>
                   <td style={{ padding:'10px 12px', fontWeight:600, color:a.cagr>=10?'#1e5a96':'#333' }}>{a.cagr.toFixed(1)}%</td>
@@ -833,17 +964,7 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
             })}
           </tbody>
         </table>
-        {pages > 1 && (
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:5, padding:'10px', borderTop:'1px solid #f0f2f6' }}>
-            {Array.from({ length:pages }, (_,i) => (
-              <button key={i} onClick={() => setPage(i)}
-                style={{ width:28, height:28, borderRadius:6, border:'1px solid', cursor:'pointer', fontFamily:'inherit', fontSize:13,
-                  borderColor:page===i?'#4182b9':'#d0d7e2', background:page===i?'#4182b9':'#fff', color:page===i?'#fff':'#555' }}>
-                {i+1}
-              </button>
-            ))}
-          </div>
-        )}
+        </div>
       </div>
 
       <div style={{ background:'#f7f9fc', border:'1px solid #e8edf3', borderRadius:10, padding:'16px 18px', marginBottom:16 }}>
@@ -882,10 +1003,10 @@ const CORR_GROUPS = [
   { id:'tw_equity',  tickers:['0050.TW','006208.TW','0052.TW','00952.TW'],
     labelEn:'Taiwan Equity / Tech ETFs',     labelZh:'台灣大盤 / 科技 ETF',
     recommend:'0050.TW', reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
-  { id:'us_equity',  tickers:['VOO','IVV','SPY','VTI','VUG','QQQ'],
+  { id:'us_equity',  tickers:['VOO','IVV','SPY','VTI','VUG','00646.TW'],
     labelEn:'US Equity ETFs',                labelZh:'美國股票 ETF',
     recommend:'VOO',     reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
-  { id:'intl',       tickers:['VEA','IEFA','VXUS','IEMG'],
+  { id:'intl',       tickers:['VEA','IEFA','VXUS','IEMG','00955.TWO'],
     labelEn:'International Equity ETFs',     labelZh:'國際股票 ETF',
     recommend:'VEA',     reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
   { id:'bond',       tickers:['BND','AGG'],
@@ -906,6 +1027,13 @@ const CorrelationSection = ({ t, lang, watchlist, setWatchlist, confirmed, setCo
     <div>
       <SectionTitle icon="🔗" title={t.corrTitle} caption={t.corrCaption} />
       <InfoBanner>{t.corrAddFirst}</InfoBanner>
+    </div>
+  );
+
+  if (persona) return (
+    <div>
+      <SectionTitle icon="🔗" title={t.corrTitle} caption={t.corrCaption} />
+      <InfoBanner type="success">{t.corrPersonaApplied(persona)}</InfoBanner>
     </div>
   );
 
@@ -1124,12 +1252,25 @@ const EV_CHIP = {
   purple: { bg:'rgba(107,57,196,0.12)', color:'#6b39c4' },
 };
 
-const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, monthly, setMonthly }) => {
+function clampEventsToLabels(events, labels) {
+  if (!labels.length) return [];
+  const first = labels[0];
+  const last = labels[labels.length - 1];
+  return events
+    .filter(ev => ev.xMax >= first && ev.xMin <= last)
+    .map(ev => {
+      const minTarget = ev.xMin < first ? first : ev.xMin;
+      const maxTarget = ev.xMax > last ? last : ev.xMax;
+      const xMin = labels.find(label => label >= minTarget);
+      const xMax = [...labels].reverse().find(label => label <= maxTarget);
+      return xMin && xMax && xMin <= xMax ? { ...ev, xMin, xMax } : null;
+    })
+    .filter(Boolean);
+}
+
+const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, monthly, setMonthly, backtestResult, displayCurrency }) => {
   const [timeRange, setTimeRange] = useState('all');
-  const bt = useMemo(() => {
-    if (!confirmed || !Object.keys(allocation).length) return null;
-    return generateBacktest(allocation, initial, monthly);
-  }, [allocation, confirmed, initial, monthly]);
+  const bt = backtestResult;
 
   if (!confirmed || !Object.keys(allocation).length) return (
     <div>
@@ -1138,8 +1279,8 @@ const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, 
     </div>
   );
 
-  const fmtNT      = v => 'NT$'+Math.round(v).toLocaleString();
-  const fmtNTShort = v => 'NT$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K');
+  const fmtMoneyFull = v => formatMoney(v, displayCurrency, false);
+  const fmtMoneyShort = v => formatMoney(v, displayCurrency, true);
   const rangeFrom  = TIME_RANGES.find(r => r.key===timeRange)?.from || '2010-01';
   const startIdx   = bt.labels.findIndex(l => l>=rangeFrom);
   const sl         = Math.max(0, startIdx);
@@ -1147,11 +1288,15 @@ const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, 
   const portVals   = bt.portVals.slice(sl);
   const invested   = bt.invested.slice(sl);
   const drawdowns  = bt.drawdowns.slice(sl);
-  const visEv      = DRAWDOWN_EVENTS.filter(ev => ev.xMax>=rangeFrom);
+  const visEv      = clampEventsToLabels(DRAWDOWN_EVENTS, labels);
+  const periodSub  = bt.startDate && bt.endDate ? `${bt.startDate} – ${bt.endDate}` : t.btSince;
 
   return (
     <div>
       <SectionTitle icon="📈" title={t.btTitle} caption={t.btCaption} />
+      <InfoBanner type={bt.source === 'history' ? 'success' : 'warning'}>
+        {bt.source === 'history' ? t.btSourceHistory : t.btSourceProjection} {t.currencyDisplayNote}
+      </InfoBanner>
       <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap', alignItems:'flex-end' }}>
         {[[t.btInitial,initial,setInitial],[t.btMonthly,monthly,setMonthly]].map(([label,val,setter]) => (
           <div key={label}>
@@ -1171,11 +1316,11 @@ const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, 
         </div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
-        <MetricCard label={t.btFinalVal}    value={fmtNT(bt.finalVal)} />
-        <MetricCard label={t.btTotalInv}    value={fmtNT(bt.totalInv)} />
+        <MetricCard label={t.btFinalVal}    value={fmtMoneyFull(bt.finalVal)} />
+        <MetricCard label={t.btTotalInv}    value={fmtMoneyFull(bt.totalInv)} />
         <MetricCard label={t.btTotalReturn} value={((bt.finalVal/bt.totalInv-1)*100).toFixed(1)+'%'}
-          delta={'+'+fmtNT(bt.finalVal-bt.totalInv)} deltaPositive />
-        <MetricCard label={t.btCagr} value={(bt.cagr*100).toFixed(2)+'%'} sub={t.btSince} />
+          delta={(bt.finalVal>=bt.totalInv?'+':'')+fmtMoneyFull(bt.finalVal-bt.totalInv)} deltaPositive={bt.finalVal>=bt.totalInv} />
+        <MetricCard label={t.btCagr} value={(bt.cagr*100).toFixed(2)+'%'} sub={periodSub} />
       </div>
       <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'20px 20px 16px', marginBottom:14, boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
@@ -1194,7 +1339,7 @@ const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, 
             );
           })}
         </div>
-        <ChartLine labels={labels} height={300} yFmt={fmtNTShort} events={visEv} extraInfo={drawdowns} lang={lang}
+        <ChartLine labels={labels} height={300} yFmt={fmtMoneyShort} events={visEv} extraInfo={drawdowns} lang={lang}
           datasets={[
             { label:lang==='zh'?'組合價值':'Portfolio Value', data:portVals, borderColor:'#4182b9', backgroundColor:'rgba(65,130,185,0.07)', borderWidth:2, pointRadius:0, fill:true, tension:0.35 },
             { label:lang==='zh'?'累計投入':'Total Invested',  data:invested, borderColor:'#a8cae8', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[5,4], tension:0.35 },
@@ -1250,7 +1395,7 @@ const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, 
 };
 
 // ── Section: FIRE Calculator ──────────────────────────────────────────────────
-const FireSection = ({ t, confirmed, btCagr }) => {
+const FireSection = ({ t, confirmed, btCagr, displayCurrency }) => {
   const defaultCagr = btCagr ? (btCagr*100).toFixed(1) : '8.0';
   const [expenses,  setExpenses]  = useState(720000);
   const [savings,   setSavings]   = useState(500000);
@@ -1266,7 +1411,7 @@ const FireSection = ({ t, confirmed, btCagr }) => {
     annualExpenses:expenses, withdrawalRate:withdraw/100, inflation:inflation/100,
   }), [cagrInput, savings, contrib, expenses, withdraw, inflation]);
 
-  const fmtNT = v => v>=1e6?'NT$'+(v/1e6).toFixed(1)+'M':'NT$'+Math.round(v).toLocaleString();
+  const fmtDisplay = v => formatMoney(v, displayCurrency, true);
 
   if (!confirmed) return (
     <div>
@@ -1300,7 +1445,7 @@ const FireSection = ({ t, confirmed, btCagr }) => {
         </div>
         <div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
-            <MetricCard label={t.fireTarget}    value={fmtNT(fire.target)} sub={`NT$${expenses.toLocaleString()} ÷ ${withdraw}%`} />
+            <MetricCard label={t.fireTarget}    value={fmtDisplay(fire.target)} sub={`${formatMoney(expenses, displayCurrency)} ÷ ${withdraw}%`} />
             <MetricCard label={t.fireYearsNom}  value={fire.yearsNominal!=null?fire.yearsNominal+' yrs':t.fireYrsPlus} />
             <MetricCard label={t.fireYearsReal} value={fire.yearsReal!=null?fire.yearsReal+' yrs':t.fireYrsPlus} />
             <MetricCard label={t.fireCagrUsed}  value={parseFloat(cagrInput).toFixed(1)+'%'}
@@ -1309,7 +1454,7 @@ const FireSection = ({ t, confirmed, btCagr }) => {
           <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'16px 20px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
             <div style={{ fontWeight:600, fontSize:14, color:'#0d1f3c', marginBottom:14 }}>{t.fireProjection}</div>
             <ChartLine labels={fire.labels}
-              yFmt={v=>v>=1e6?'NT$'+(v/1e6).toFixed(1)+'M':'NT$'+(v/1e3).toFixed(0)+'K'}
+              yFmt={v=>formatMoney(v, displayCurrency, true)}
               datasets={[
                 { label:t.fireNominal,    data:fire.nomVals,  borderColor:'#4182b9', backgroundColor:'rgba(65,130,185,0.10)', borderWidth:2, pointRadius:0, fill:true, tension:0.4 },
                 { label:t.fireReal,       data:fire.realVals, borderColor:'#72a8d4', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[5,4], tension:0.4 },
@@ -1385,20 +1530,17 @@ const App = () => {
   const [allocation, setAllocation] = useState({});
   const [initial,    setInitial]    = useState(300000);
   const [monthly,    setMonthly]    = useState(15000);
+  const [displayCurrency, setDisplayCurrency] = useState('TWD');
 
   const mainRef = useRef();
   const t = T[lang] || T.en;
 
-  // Weighted CAGR from asset data — reliable for FIRE projections
-  const btCagr = useMemo(() => {
+  const backtestResult = useMemo(() => {
     if (!confirmed || !Object.keys(allocation).length) return null;
-    let wc = 0;
-    Object.entries(allocation).forEach(([tk,w]) => {
-      const a = PPL_ASSETS.find(x => x.ticker===tk);
-      if (a) wc += w * a.cagr / 100;
-    });
-    return wc;
-  }, [allocation, confirmed]);
+    return generateBacktest(allocation, initial, monthly);
+  }, [allocation, confirmed, initial, monthly]);
+
+  const btCagr = backtestResult?.cagr ?? null;
 
   const scrollTo = useCallback((id) => {
     const el   = document.getElementById('section-'+id);
@@ -1427,14 +1569,15 @@ const App = () => {
   const sectionProps = {
     t, lang, watchlist, setWatchlist, confirmed, setConfirmed,
     persona, setPersona, riskLevel, setRiskLevel,
-    allocation, setAllocation, initial, setInitial, monthly, setMonthly, btCagr,
+    allocation, setAllocation, initial, setInitial, monthly, setMonthly,
+    btCagr, backtestResult, displayCurrency, setDisplayCurrency,
   };
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', fontFamily:"'Source Sans 3',system-ui,sans-serif", background:'#f7f9fc' }}>
       <Sidebar active={activeNav} onNav={scrollTo} lang={lang} setLang={setLang} t={t} confirmed={confirmed} />
       <main ref={mainRef} style={{ flex:1, overflowY:'auto', minWidth:0 }}>
-        <AppHeader t={t} />
+        <AppHeader t={t} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} />
         <div id="section-intro"       style={SECTION_STYLE}><IntroSection       {...sectionProps} /></div>
         <div style={DIVIDER} />
         <div id="section-screening"   style={SECTION_STYLE}><AssetScreening     {...sectionProps} onReviewPortfolio={() => scrollTo('correlation')} /></div>

@@ -4,8 +4,8 @@ Asset pool for Passive Portfolio Lab.
 
 Asset Pool Overview
 -------------------
-This pool contains 35 assets across three categories:
-  - Taiwan ETF  (TW_ETF)   : 12 funds, selected by AUM rank among Taiwan ETFs (source: Yahoo TW, 2026/04/27)
+This pool contains 37 assets across three categories:
+  - Taiwan ETF  (TW_ETF)   : 14 funds, selected by AUM rank among Taiwan ETFs; includes 00646.TW and 00955.TWO as owner additions (source: Yahoo TW, 2026/04/27)
   - US ETF      (US_ETF)   : 15 funds, selected by AUM rank among US ETFs (source: TipRanks / InvestLane, 2026/03–04)
   - Crypto      (CRYPTO)   :  8 coins, top 10 by market cap excluding stablecoins and assets with insufficient history (source: CoinMarketCap, 2026/04)
 
@@ -144,6 +144,24 @@ ASSET_POOL: list[AssetInfo] = [
         "aum_rank": 14,
         "aum_note": "approx. TWD 60.0B",
         "description": "Top 50 companies in Taiwan's AI supply chain; high-purity AI theme with monthly distributions.",
+    },
+    {
+        "ticker": "00646.TW",
+        "name": "Yuanta S&P 500 ETF",
+        "category": "TW_ETF",
+        "subcategory": "S&P 500 Exposure",
+        "aum_rank": 99,
+        "aum_note": "approx. TWD 25.0B",
+        "description": "Tracks the S&P 500 index in TWD; provides US large-cap exposure without currency conversion. Owner addition.",
+    },
+    {
+        "ticker": "00955.TWO",
+        "name": "CTBC Japan Sogo Shosha ETF",
+        "category": "TW_ETF",
+        "subcategory": "Japan Sogo Shosha",
+        "aum_rank": 99,
+        "aum_note": "approx. TWD 5.0B",
+        "description": "Tracks Japan's five major trading conglomerates (sogo shosha). Limited history since 2023 — metrics are indicative. Owner addition.",
     },
 
     # ── US ETFs (ranked by AUM, data as of 2026/03–04) ───────────────────────
