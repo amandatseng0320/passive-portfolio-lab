@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Passive Portfolio Lab</title>
+
+  <link rel="stylesheet" href="src/colors_and_type.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet" />
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root {
+      height: 100%;
+      font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif;
+      background: #f7f9fc; color: #111;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #c8cdd6; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9aa0ad; }
+    #root { display: flex; }
+    main  { flex: 1; overflow-y: auto; min-width: 0; }
+    tbody tr:hover { background: #f0f6ff !important; }
+    input:focus, select:focus {
+      outline: none; border-color: #4182b9 !important;
+      box-shadow: 0 0 0 3px rgba(65,130,185,0.12);
+    }
+    nav::-webkit-scrollbar { width: 4px; }
+    nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+    nav button { user-select: none; }
+    #loading {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #0d1f3c; color: #a8cae8;
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      font-size: 14px; letter-spacing: 0.06em; z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">Loading Passive Portfolio Lab…</div>
+  <div id="root"></div>
+
+  <script>
+    const annotationPlugin = window.ChartAnnotation || window['chartjs-plugin-annotation'];
+    if (window.Chart && annotationPlugin) {
+      Chart.register(annotationPlugin);
+    }
+  </script>
+  <script src="src/ppl-data.js"></script>
+
+  <script type="text/babel">
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const Badge = ({ label, variant = 'blue' }) => {
+  const colors = {
+    blue:  ['#d2e4f5','#0a326e'], green: ['#d4f0e0','#0e5a2a'],
+    amber: ['#fef3c7','#7a4a00'], gray:  ['#f0f2f6','#555'],
+    red:   ['#fff5f5','#c0392b'], navy:  ['#0a326e','#fff'],
+  };
+  const [bg, color] = colors[variant] || colors.gray;
+  return (
+    <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:9999,
+      fontSize:11, fontWeight:700, letterSpacing:'0.04em',
+      textTransform:'uppercase', background:bg, color }}>
+      {label}
+    </span>
+  );
+};
+
+const MetricCard = ({ label, value, delta, deltaPositive, sub }) => (
+  <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10,
+    padding:'16px 20px', minWidth:0, boxShadow:'0 1px 3px rgba(0,0,0,0.06)' }}>
+    <div style={{ fontSize:11, color:'#6b727e', fontWeight:700, textTransform:'uppercase',
+      letterSpacing:'0.06em', marginBottom:6 }}>{label}</div>
+    <div style={{ fontSize:'1.5rem', fontWeight:700, color:'#111', lineHeight:1.15 }}>{value}</div>
+    {delta && <div style={{ fontSize:12, color:deltaPositive?'#21a350':'#e53e3e', marginTop:5, fontWeight:600 }}>{delta}</div>}
+    {sub && <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{sub}</div>}
+  </div>
+);
+
+const SectionTitle = ({ icon, title, caption }) => (
+  <div style={{ marginBottom:28 }}>
+    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
+      {icon && <span style={{ fontSize:22 }}>{icon}</span>}
+      <h2 style={{ margin:0, fontSize:26, fontWeight:700, color:'#0d1f3c', lineHeight:1.2 }}>{title}</h2>
+    </div>
+    {caption && <p style={{ margin:0, fontSize:14, color:'#6b727e', paddingLeft:icon?32:0, lineHeight:1.6 }}>{caption}</p>}
+    <div style={{ height:3, width:48, background:'#4182b9', borderRadius:9999, marginTop:10, marginLeft:icon?32:0 }} />
+  </div>
+);
+
+const InfoBanner = ({ children, type = 'info' }) => {
+  const styles = {
+    info:    { bg:'#eff5fb', border:'#4182b9', color:'#1f3b5c' },
+    success: { bg:'#f0faf4', border:'#21a350', color:'#0e5a2a' },
+    warning: { bg:'#fff8f0', border:'#e8a000', color:'#7a4a00' },
+    error:   { bg:'#fff5f5', border:'#e53e3e', color:'#7a0000' },
+  };
+  const s = styles[type] || styles.info;
+  return (
+    <div style={{ background:s.bg, borderLeft:`3px solid ${s.border}`, color:s.color,
+      borderRadius:6, padding:'10px 16px', fontSize:14, lineHeight:1.65, marginBottom:20 }}>
+      {children}
+    </div>
+  );
+};
+
+const displayFxRate = () => (typeof PPL_FX_RATE !== 'undefined' && PPL_FX_RATE) ? PPL_FX_RATE : 32.5;
+const convertDisplayMoney = (value, displayCurrency) => displayCurrency === 'USD' ? value / displayFxRate() : value;
+const formatMoney = (value, displayCurrency = 'TWD', compact = false) => {
+  const converted = convertDisplayMoney(value, displayCurrency);
+  const symbol = displayCurrency === 'USD' ? '$' : 'NT$';
+  if (compact) {
+    const abs = Math.abs(converted);
+    if (abs >= 1e9) return symbol + (converted / 1e9).toFixed(1) + 'B';
+    if (abs >= 1e6) return symbol + (converted / 1e6).toFixed(1) + 'M';
+    if (abs >= 1e3) return symbol + (converted / 1e3).toFixed(0) + 'K';
+  }
+  return symbol + Math.round(converted).toLocaleString();
+};
+
+const Btn = ({ children, onClick, variant = 'primary', disabled = false, small = false }) => {
+  const variants = {
+    primary:   { bg:'#4182b9', color:'#fff',   border:'#4182b9',  hbg:'#1e5a96', hborder:'#1e5a96' },
+    secondary: { bg:'transparent', color:'#4182b9', border:'#4182b9', hbg:'#eff5fb', hborder:'#4182b9' },
+    ghost:     { bg:'#f0f2f6', color:'#333',   border:'#e0e4eb',  hbg:'#e0e4eb', hborder:'#c8cdd6' },
+    danger:    { bg:'#e53e3e', color:'#fff',   border:'#e53e3e',  hbg:'#c0392b', hborder:'#c0392b' },
+  };
+  const v = variants[variant] || variants.primary;
+  const [hover, setHover] = React.useState(false);
+  return (
+    <button onClick={onClick} disabled={disabled}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6,
+        padding:small?'5px 12px':'8px 18px', borderRadius:6,
+        fontSize:small?13:14, fontWeight:600,
+        cursor:disabled?'not-allowed':'pointer',
+        border:`1px solid ${disabled?'#d0d7e2':(hover?v.hborder:v.border)}`,
+        background:disabled?'#f0f2f6':(hover?v.hbg:v.bg),
+        color:disabled?'#aaa':v.color,
+        transition:'all 0.15s', fontFamily:'inherit' }}>
+      {children}
+    </button>
+  );
+};
+
+const CurrencyToggle = ({ t, displayCurrency, setDisplayCurrency, compact = false }) => (
+  <div style={{ display:'flex', alignItems:'center', gap:compact?6:10, flexWrap:'wrap' }}>
+    {!compact && <div style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.55)', textTransform:'uppercase', letterSpacing:'0.08em' }}>{t.currencyLabel}</div>}
+    <div style={{ display:'inline-flex', border:'1px solid rgba(255,255,255,0.22)', borderRadius:8, overflow:'hidden', background:'rgba(255,255,255,0.08)' }}>
+      {['TWD','USD'].map(cur => (
+        <button key={cur} onClick={() => setDisplayCurrency(cur)}
+          style={{ padding:compact?'5px 10px':'7px 13px', border:'none', cursor:'pointer',
+            background:displayCurrency===cur?'#fff':'transparent',
+            color:displayCurrency===cur?'#0d1f3c':'rgba(255,255,255,0.78)',
+            fontSize:12, fontWeight:700, fontFamily:'inherit' }}>
+          {cur}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+const ChartLine = ({ labels, datasets, height=260, yFmt, events=[], extraInfo=[], hLines=[], lang='en' }) => {
+  const ref = React.useRef();
+  const chartRef = React.useRef();
+
+  React.useEffect(() => {
+    if (!ref.current) return;
+    if (chartRef.current) chartRef.current.destroy();
+
+    const EV_COLORS = {
+      red:    { bg:'rgba(229,62,62,0.09)',  border:'rgba(229,62,62,0.30)',  text:'#c53030' },
+      orange: { bg:'rgba(214,105,0,0.09)',  border:'rgba(214,105,0,0.30)',  text:'#a05000' },
+      purple: { bg:'rgba(107,57,196,0.09)', border:'rgba(107,57,196,0.30)', text:'#6b39c4' },
+    };
+    const annotations = {};
+
+    events.forEach((ev, i) => {
+      const ec = EV_COLORS[ev.color] || EV_COLORS.red;
+      const evLabel = lang==='zh' ? (ev.labelZh||ev.label) : ev.label;
+      annotations[`evBox${i}`] = { type:'box', xMin:ev.xMin, xMax:ev.xMax,
+        backgroundColor:ec.bg, borderColor:ec.border, borderWidth:1 };
+      annotations[`evLine${i}`] = { type:'line', xMin:ev.xMin, xMax:ev.xMin,
+        borderColor:ec.border, borderWidth:1.5, borderDash:[3,3],
+        label:{ display:true, content:evLabel, position:'start', color:ec.text,
+          backgroundColor:'rgba(255,255,255,0.90)',
+          font:{size:10,weight:'600'}, padding:{x:5,y:3}, borderRadius:4, yAdjust:6, xAdjust:4 } };
+    });
+
+    hLines.forEach((hl, i) => {
+      annotations[`hLine${i}`] = { type:'line', yMin:hl.value, yMax:hl.value,
+        borderColor:hl.color||'rgba(150,150,150,0.35)', borderWidth:1, borderDash:[5,4],
+        label:{ display:true, content:hl.label, position:'100%',
+          color:hl.color||'#999', backgroundColor:'transparent',
+          font:{size:10,weight:'600'}, xAdjust:-4 } };
+    });
+
+    chartRef.current = new Chart(ref.current, {
+      type:'line', data:{ labels, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:400},
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{ position:'top', labels:{boxWidth:10,font:{size:12},usePointStyle:true,pointStyleWidth:10} },
+          tooltip:{
+            backgroundColor:'#0d1f3c', titleColor:'#a8cae8', bodyColor:'#d2e4f5',
+            borderColor:'#1e5a96', borderWidth:1, padding:{x:14,y:12}, cornerRadius:8,
+            titleFont:{size:12,weight:'700'}, bodyFont:{size:12},
+            callbacks:{
+              title:items=>'📅 '+items[0].label,
+              label:ctx=>{
+                const v=ctx.parsed.y;
+                const fmt=yFmt?yFmt(v,ctx.dataset.label):v.toLocaleString();
+                return `  ${ctx.dataset.label}: ${fmt}`;
+              },
+              afterBody:items=>{
+                const idx=items[0].dataIndex;
+                if (extraInfo.length && extraInfo[idx]!==undefined) {
+                  const dd=extraInfo[idx];
+                  const bar=dd<-30?'🔴':dd<-15?'🟡':'🟢';
+                  return ['',`  ${bar} Drawdown: ${dd.toFixed(1)}%`];
+                }
+                return [];
+              },
+            },
+          },
+          annotation:{annotations},
+        },
+        scales:{
+          x:{ grid:{display:false}, ticks:{maxTicksLimit:10,font:{size:11},color:'#888'} },
+          y:{ grid:{color:'#f0f2f6'}, ticks:{font:{size:11},color:'#888',
+            callback:v=>yFmt?yFmt(v):v.toLocaleString()} },
+        },
+      },
+    });
+    return () => { if (chartRef.current) chartRef.current.destroy(); };
+  }, [JSON.stringify(labels),JSON.stringify(datasets),JSON.stringify(events),
+      JSON.stringify(hLines),JSON.stringify(extraInfo),lang,yFmt]);
+
+  return <div style={{ height, position:'relative' }}><canvas ref={ref} /></div>;
+};
+
+const ChartBar = ({ labels, data, height=220 }) => {
+  const ref = React.useRef();
+  const chartRef = React.useRef();
+  React.useEffect(() => {
+    if (!ref.current) return;
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new Chart(ref.current, {
+      type:'bar',
+      data:{ labels, datasets:[{ data, backgroundColor:data.map(v=>v>=0?'#4182b9':'#e53e3e'), borderRadius:3, borderSkipped:false }] },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:400},
+        plugins:{ legend:{display:false},
+          tooltip:{ backgroundColor:'#0d1f3c', titleColor:'#a8cae8', bodyColor:'#d2e4f5',
+            borderColor:'#1e5a96', borderWidth:1, cornerRadius:8,
+            callbacks:{label:ctx=>`  Return: ${ctx.parsed.y.toFixed(1)}%`} } },
+        scales:{
+          x:{grid:{display:false},ticks:{font:{size:11},color:'#888'}},
+          y:{grid:{color:'#f0f2f6'},ticks:{font:{size:11},color:'#888',callback:v=>v+'%'}},
+        },
+      },
+    });
+    return () => { if (chartRef.current) chartRef.current.destroy(); };
+  }, [JSON.stringify(labels),JSON.stringify(data)]);
+  return <div style={{ height, position:'relative' }}><canvas ref={ref} /></div>;
+};
+
+// ── Treemap — squarified layout (more square tiles) ──────────────────────────
+function _tmWorstRatio(row, edge) {
+  if (!row.length) return Infinity;
+  const rowArea = row.reduce((s, n) => s + n.area, 0);
+  const strip   = rowArea / edge;
+  let worst = 0;
+  for (const n of row) {
+    const other = n.area / strip;
+    const r = Math.max(strip / other, other / strip);
+    if (r > worst) worst = r;
+  }
+  return worst;
+}
+
+function _tmLayoutStrip(row, x, y, w, h, result) {
+  const rowArea = row.reduce((s, n) => s + n.area, 0);
+  let pos = (w >= h) ? x : y;
+  for (const n of row) {
+    const frac = n.area / rowArea;
+    if (w >= h) { result.push({ ...n, x: pos, y, w: frac * w, h }); pos += frac * w; }
+    else         { result.push({ ...n, x, y: pos, w, h: frac * h }); pos += frac * h; }
+  }
+}
+
+function treemapLayout(items, x, y, w, h) {
+  if (!items.length) return [];
+  const total  = items.reduce((s, i) => s + i.weight, 0);
+  const nodes  = items.map(i => ({ ...i, area: (i.weight / total) * w * h }));
+  const result = [];
+  let cx = x, cy = y, cw = w, ch = h, row = [];
+
+  for (const node of nodes) {
+    const edge    = Math.min(cw, ch);
+    const testRow = [...row, node];
+    if (row.length === 0 || _tmWorstRatio(testRow, edge) <= _tmWorstRatio(row, edge)) {
+      row.push(node);
+    } else {
+      const rowArea = row.reduce((s, n) => s + n.area, 0);
+      if (cw >= ch) { const rw = rowArea / ch; _tmLayoutStrip(row, cx, cy, rw, ch, result); cx += rw; cw -= rw; }
+      else           { const rh = rowArea / cw; _tmLayoutStrip(row, cx, cy, cw, rh, result); cy += rh; ch -= rh; }
+      row = [node];
+    }
+  }
+  if (row.length) _tmLayoutStrip(row, cx, cy, cw, ch, result);
+  return result;
+}
+
+const Treemap = ({ items, onSelect, selectedTicker }) => {
+  if (!items || !items.length) return null;
+  const sorted = [...items].sort((a, b) => b.weight - a.weight);
+  const tiles  = treemapLayout(sorted, 0, 0, 1, 1);
+
+  return (
+    <div style={{ position:'relative', height:280, borderRadius:10, overflow:'hidden' }}>
+      {tiles.map(tile => {
+        const colorIdx = Math.min(Math.max(Math.floor(tile.volTier ?? 2), 0), 5);
+        const bg  = PPL_BLUE6[colorIdx];
+        const light = colorIdx <= 1;
+        const tc  = light ? '#0a326e' : '#fff';
+        const stc = light ? '#1e5a96' : 'rgba(255,255,255,0.75)';
+        const isSel  = selectedTicker === tile.ticker;
+        const pct    = (tile.weight * 100).toFixed(1);
+        const showLabel = tile.w > 0.07;
+        const showPct   = tile.w > 0.10 && tile.h > 0.18;
+
+        return (
+          <div key={tile.ticker}
+            onClick={() => onSelect(isSel ? null : tile.ticker)}
+            title={`${tile.ticker} — ${tile.name}  |  ${pct}%  CAGR ${tile.cagr?.toFixed(1)}%  Vol ${tile.vol?.toFixed(1)}%`}
+            style={{
+              position:'absolute',
+              left:`${tile.x*100}%`, top:`${tile.y*100}%`,
+              width:`${tile.w*100}%`, height:`${tile.h*100}%`,
+              background:bg,
+              border:isSel ? '2px solid rgba(255,255,255,0.9)' : '1px solid rgba(255,255,255,0.18)',
+              boxSizing:'border-box',
+              display:'flex', flexDirection:'column', justifyContent:'flex-start',
+              padding:'6px 8px', cursor:'pointer', overflow:'hidden',
+              filter:isSel ? 'brightness(1.14)' : 'none',
+              transition:'filter 0.15s, border 0.1s',
+            }}>
+            {showLabel && <div style={{ fontSize:12, fontWeight:700, color:tc, lineHeight:1.2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{tile.ticker}</div>}
+            {showPct   && <div style={{ fontSize:11, color:stc }}>{pct}%</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN APPLICATION
+// ─────────────────────────────────────────────────────────────────────────────
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+// ── AI insights (rule-based, no API key needed) ───────────────────────────────
+function generatePortfolioInsights(allocation, riskLevel, btCagr, lang) {
+  const allItems = Object.entries(allocation).map(([tk, w]) => {
+    const a = PPL_ASSETS.find(x => x.ticker === tk);
+    return a ? { ticker:tk, weight:w, ...a } : null;
+  }).filter(Boolean).sort((a, b) => b.weight - a.weight);
+  if (!allItems.length) return [];
+
+  const wMaxDD   = allItems.reduce((s, i) => s + i.weight * (i.maxDD || 0), 0);
+  const cryptoW  = allItems.filter(i => i.category === 'CRYPTO').reduce((s, i) => s + i.weight, 0);
+  const bondCats = ['US Total Bond','Intermediate US Treasury','Bond'];
+  const bondW    = allItems.filter(i => bondCats.includes(i.subcategory)).reduce((s, i) => s + i.weight, 0);
+  const top      = allItems[0];
+  const cagrPct  = btCagr ? (btCagr * 100).toFixed(1) : '—';
+  const zh = lang === 'zh';
+  const ins = [];
+
+  if (top && top.weight > 0.30) {
+    ins.push(zh
+      ? `📊 ${top.ticker} 佔比達 ${(top.weight*100).toFixed(0)}%，集中度偏高。建議加入 1–2 個低相關資產，將最大單一持倉壓低至 30% 以內，降低個別資產風險對整體的衝擊。`
+      : `📊 ${top.ticker} is ${(top.weight*100).toFixed(0)}% of the portfolio — high concentration. Adding 1–2 low-correlation assets to keep the largest single position below 30% would reduce idiosyncratic risk.`);
+  }
+
+  if (cryptoW > 0.20) {
+    ins.push(zh
+      ? `⚠️ 加密貨幣合計佔 ${(cryptoW*100).toFixed(0)}%，極端行情下可能數週內跌超 50%。請確認即使帳面虧損過半，你在財務和心理上仍能持有而不被迫賣出。`
+      : `⚠️ Crypto totals ${(cryptoW*100).toFixed(0)}% — in extreme events it can drop 50%+ within weeks. Confirm you can hold without being forced to sell even if paper losses exceed half your crypto value.`);
+  } else if (cryptoW > 0) {
+    ins.push(zh
+      ? `✅ 加密貨幣佔比 ${(cryptoW*100).toFixed(0)}%，屬合理的衛星倉位：有助提升長期 CAGR，同時將極端風險侷限在組合的一小部分。建議設下再平衡上限（如 15%），避免牛市中佔比過度膨脹。`
+      : `✅ Crypto at ${(cryptoW*100).toFixed(0)}% is a reasonable satellite — boosts long-term CAGR while capping extreme risk. Set a rebalancing ceiling (e.g. 15%) so bull-run drift doesn't let it dominate.`);
+  }
+
+  if (bondW > 0.25) {
+    ins.push(zh
+      ? `🛡️ 債券配比 ${(bondW*100).toFixed(0)}%，有效緩衝市場震盪，但會壓低長期報酬。以加權 CAGR ${cagrPct}% 計算，扣除通膨後的實質報酬可能低於預期——若距退休尚遠，建議定期檢視是否可降低債券比重。`
+      : `🛡️ Bond weight at ${(bondW*100).toFixed(0)}% absorbs volatility effectively but compresses long-term returns. At a ${cagrPct}% weighted CAGR, real returns after inflation may be modest. If retirement is distant, review whether reducing bond weight is appropriate.`);
+  }
+
+  if (Math.abs(wMaxDD) > 35) {
+    ins.push(zh
+      ? `📉 加權最大回撤估計 ~${Math.abs(wMaxDD).toFixed(0)}%。建議現在就寫下「無論跌多深都不賣」的書面承諾，並設好再平衡提醒——研究顯示，在市場恐慌時提前做好計畫的投資人，長期報酬顯著優於臨場決策者。`
+      : `📉 Estimated max drawdown ~${Math.abs(wMaxDD).toFixed(0)}%. Write a "no-sell" commitment now and set rebalance reminders. Research shows investors with pre-committed plans significantly outperform those who decide in the moment of panic.`);
+  }
+
+  ins.push(zh
+    ? `🔄 建議每季執行再平衡：當任一持倉偏離目標比例超過 5% 時，賣出超配資產、買進低配資產。這樣能系統性地做到「高賣低買」，並長期維持與你風險承受度一致的曝險結構。`
+    : `🔄 Rebalance quarterly: when any holding drifts more than 5% from target, sell the over-weight and buy the under-weight. This enforces systematic buy-low-sell-high and keeps risk exposure aligned with your tolerance over time.`);
+
+  return ins.slice(0, 4);
+}
+
+// ── i18n ──────────────────────────────────────────────────────────────────────
+const T = {
+  en: {
+    appTitle:'Passive Portfolio', appSub:'Lab',
+    appTagline:'Data-driven passive investing',
+    disclaimer:'Data for illustration only. Not financial advice.',
+    currencyLabel:'Display Currency',
+    currencyDisplayNote:'Display only. Inputs and calculations remain in TWD.',
+    btSourceHistory:'Using true daily historical prices synced from BigQuery.',
+    btSourceProjection:'Historical price data is not loaded yet, so this view is temporarily using a metric-based projection.',
+    nav:{ intro:'Introduction', screening:'Asset Screening', correlation:'Correlation Analysis',
+      allocation:'Risk Allocation', backtest:'Backtest & Pain Index', fire:'FIRE Calculator', summary:'Summary' },
+
+    introTitle:'Introduction', introCaption:'A data-driven toolkit for long-term passive investors',
+    introQuote:'"The stock market is a device for transferring money from the impatient to the patient."',
+    introQuoteAuthor:'— Benjamin Graham',
+    introBanner:'All portfolio calculations are performed in <strong>New Taiwan Dollar (TWD)</strong>. USD-denominated assets are converted using historical exchange rates — currency fluctuations are factored into returns. Enter all input amounts in <strong>TWD</strong>.',
+    introFeatures:[
+      { icon:'🔍', title:'Asset Screening', desc:'37-asset curated universe: 14 TW ETFs, 15 US ETFs, 8 crypto — with CAGR, volatility, drawdown, and AUM metrics.' },
+      { icon:'⚖️', title:'Risk Allocation', desc:'Auto-allocate weights to match your target risk tier (Low → Extreme High) using annualized volatility as the primary proxy.' },
+      { icon:'📈', title:'Backtest & Pain Index', desc:'Run TWD-based historical backtests using BigQuery-synced daily prices, including drawdown episodes you would need to endure.' },
+      { icon:'🔥', title:'FIRE Calculator', desc:"Estimate your financial independence timeline based on your portfolio's historical CAGR, savings rate, and spending assumptions." },
+    ],
+    introPhiloTitle:'Why Passive Investing?',
+    introPhiloBody:[
+      'Passive investing is built on a simple observation: over the long run, most active fund managers fail to beat a low-cost index fund after fees. Rather than trying to pick winners or time the market, passive investors hold the whole market — and let compounding do the work.',
+      'This tool is built on that philosophy. Every metric, every preset, and every calculation is designed to help you build a broadly diversified, low-cost, long-horizon portfolio — and to understand the tradeoffs you\'re making along the way.',
+      'We don\'t tell you what to buy. We give you the data to make that decision yourself.',
+    ],
+    introHowTitle:'How to Use This Tool',
+    introHowSteps:[
+      { step:1, title:'Asset Screening',       desc:'Browse a curated list of passive ETFs across Taiwan, US, international, and bond markets. Filter by category, sort by any column, and check the assets you want to include. Start broad; you can narrow later.' },
+      { step:2, title:'Correlation Analysis',  desc:'See which of your selected ETFs move together. Highly correlated assets add duplication without diversification benefit. Use the group recommendations to keep one representative per cluster and remove the rest.' },
+      { step:3, title:'Risk Allocation',       desc:'Assign portfolio weights to each asset you kept. The total must sum to 100%. Use the presets as a starting point, or enter weights manually to reflect your own risk tolerance.' },
+      { step:4, title:'Backtest',              desc:'Run a TWD-based historical backtest on your weighted portfolio. Review annualized return, volatility, max drawdown, and Sharpe ratio. Adjust weights in Step 3 and re-run as many times as you like.' },
+      { step:5, title:'FIRE Calculator',       desc:'Enter your current savings, monthly contribution, expected retirement age, and spending target. The calculator estimates whether your portfolio is on track to support financial independence.' },
+      { step:6, title:'Summary',               desc:'Review your final portfolio at a glance — asset list, weights, key metrics, and FIRE readiness. You can screenshot or print this page as a personal reference.' },
+    ],
+
+    screeningCriteriaTitle:'How assets were selected',
+    screeningCriteriaBody:[
+      'Assets in this universe were selected based on four criteria: (1) passive, index-tracking strategy — no actively managed funds; (2) sufficient historical data for meaningful backtesting (generally 5+ years); (3) minimum AUM or market cap for liquidity; (4) broad coverage across asset classes — Taiwan equities, US equities, international equities, bonds, and crypto.',
+      '00646.TW and 00955.TWO are personal additions by the portfolio owner. 00955.TWO has limited history since 2023 — treat its metrics as indicative estimates only.',
+    ],
+    screeningTitle:'Asset Screening', screeningCaption:'Filter and sort assets from the pool below. Click a row to add or remove from your watchlist.',
+    searchPlaceholder:'Search ticker or name…', cagrFilter:'CAGR ≥',
+    selectedCount:(n,total)=>`${n} selected · ${total} shown`,
+    personaPrompt:'💡 Not sure where to start? Try a preset investor persona:',
+    applyPersona:'Apply Persona',
+    reviewPortfolio:n=>`Review Portfolio (${n} assets) →`,
+    selectAll:'Select All', deselectAll:'Deselect All',
+    colTicker:'Ticker', colName:'Name', colCategory:'Category', colSubcategory:'Subcategory',
+    colCagr:'CAGR', colVol:'Volatility', colMaxDD:'Max DD', colSharpe:'Sharpe', colAum:'AUM / Mkt Cap',
+    catAll:'All', catTW:'TW ETF', catUS:'US ETF', catCrypto:'Crypto',
+
+    corrTitle:'Correlation Analysis', corrCaption:'Confirm your portfolio is genuinely diversified before running risk and FIRE calculations.',
+    corrAddFirst:'Add assets to your watchlist in Asset Screening first.',
+    corrPersonaApplied:name=>`✅ Persona "${name}" applied — portfolio auto-confirmed.`,
+    corrSelectedAssets:'Selected Assets', corrInWatchlist:'in watchlist',
+    corrOverlaps:'High-Corr Groups', corrOverlapHint:'Groups need review',
+    corrAvgCorr:'Avg Correlation (est.)',
+    corrWellDiv:'✅ Well diversified', corrSomeOverlap:'⚠️ Some overlap',
+    corrHighCorrTitle:'Correlated Asset Groups',
+    corrHighCorrCaption:'The following groups are estimated to have ≥ 0.85 correlation. Select ONE from each to keep — then click Remove to clean up.',
+    corrRecommend:'Recommended:', corrSelectKeep:'Select ONE to keep:',
+    corrRec:'REC',
+    confirmBtn:n=>`Confirm ${n} Assets →`,
+    confirmUnlocks:'Unlocks Risk Allocation and Backtest sections',
+    confirmedBanner:'✅ Portfolio confirmed! Continue to Risk Allocation.',
+
+    allocTitle:'Risk Allocation', allocCaption:'Auto-allocate weights based on your target risk level using annualized volatility.',
+    allocLocked:'Confirm your portfolio in Correlation Analysis above to unlock this section.',
+    allocComposition:'Portfolio Composition', allocClickHint:'Click a tile to see asset details',
+    wCagr:'Weighted CAGR', portVol:'Portfolio Volatility',
+    wMaxDD:'Weighted Max DD', wSharpe:'Weighted Sharpe',
+    target:'Target:', riskLow:'Low', riskMed:'Medium', riskHigh:'High', riskXH:'Extreme High',
+    detailWeight:'Weight', detailClose:'Close',
+
+    btTitle:'Backtest & Pain Index',
+    btCaption:'How would your TWD-based portfolio have behaved historically — and could you endure the downturns?',
+    btLocked:'Complete Risk Allocation above to unlock this section.',
+    btInitial:'Initial Investment (NT$)', btMonthly:'Monthly Contribution (NT$)',
+    btPortValue:'Portfolio Value Over Time',
+    btHoverHint:'Hover for details · Shaded = major drawdown events',
+    btPainIndex:'Max Drawdown — Pain Index',
+    btWorst:'Worst:', btDashHint:'Dashed lines = −10%, −20%, −30% reference',
+    btAnnualReturns:'Annual Returns', btTopEpisodes:'Top Drawdown Episodes',
+    btPeakDD:'Peak Drawdown', btRecovery:'Recovery',
+    btFinalVal:'Final Value', btTotalInv:'Total Invested',
+    btTotalReturn:'Total Return', btCagr:'CAGR (TWD)', btSince:'Jan 2010 – Apr 2025',
+    btEpisodes:[
+      { label:'COVID Crash',        period:'Feb–Apr 2020',  recovery:'7 months'  },
+      { label:'2022 Bear Market',   period:'Jan–Oct 2022',  recovery:'14 months' },
+      { label:'Rate Hike Sell-off', period:'Oct–Dec 2018',  recovery:'6 months'  },
+    ],
+
+    fireTitle:'FIRE Calculator', fireCaption:'Estimate when you can reach financial independence.',
+    fireLocked:'Complete the Risk Allocation section first.',
+    fireParams:'Parameters',
+    fireAnnualExp:'Annual Expenses (NT$)', fireCurrentSav:'Current Savings (NT$)',
+    fireMonthlyContrib:'Monthly Contribution (NT$)',
+    fireCagr:'CAGR (%)', fireWithdraw:'Withdrawal Rate (%)', fireInflation:'Inflation (%)',
+    fireTarget:'FIRE Target', fireYearsNom:'Years to FIRE (Nominal)',
+    fireYearsReal:'Years to FIRE (Real)', fireCagrUsed:'CAGR Used',
+    fireCagrFrom:'from portfolio', fireCagrManual:'manual',
+    fireProjection:'Portfolio Growth Projection',
+    fireNominal:'Nominal Value', fireReal:'Real Value (Inflation-adj.)', fireTargetLine:'FIRE Target',
+    fireYrsPlus:'50+ yrs',
+
+    summaryTitle:'Summary', summaryCaption:'A snapshot of your portfolio based on the selections above.',
+    summaryLocked:'Complete the Risk Allocation section to see your portfolio summary.',
+    summaryStructure:'Portfolio Structure',
+    summaryRisk:'Risk Level:', summaryAssets:'Assets:', summaryTop:'Top Holdings:', summaryCagr:'Historical CAGR (TWD):',
+    summaryNote:'📌 <strong>Note:</strong> All backtests are simulated in TWD with monthly contributions. Historical performance does not guarantee future results. Crypto metrics should be interpreted with caution due to shorter history and extreme tail risk.',
+    summaryAI:'AI Insights', summaryAITagline:'Auto-generated portfolio analysis',
+  },
+
+  zh: {
+    appTitle:'被動投資組合', appSub:'實驗室',
+    appTagline:'資料驅動的被動投資工具',
+    disclaimer:'資料僅供說明，非投資建議。',
+    currencyLabel:'顯示幣別',
+    currencyDisplayNote:'僅切換顯示。輸入與底層計算皆維持 TWD。',
+    btSourceHistory:'使用 BigQuery 同步的真實每日歷史價格。',
+    btSourceProjection:'尚未載入歷史價格資料，因此暫時使用指標推估。',
+    nav:{ intro:'介紹', screening:'資產篩選', correlation:'相關性分析',
+      allocation:'風險配置', backtest:'回測與痛苦指數', fire:'財務自由試算', summary:'總結' },
+
+    introTitle:'介紹', introCaption:'為長期被動投資者打造的資料化工具箱',
+    introQuote:'「股市是將金錢從急躁者轉移到耐心者的裝置。」',
+    introQuoteAuthor:'— 班傑明．葛拉漢',
+    introBanner:'所有投資組合計算均以<strong>新台幣（TWD）</strong>為單位。美元計價資產依歷史匯率換算，匯率波動已納入報酬計算。所有輸入金額請以<strong>台幣</strong>填寫。',
+    introFeatures:[
+      { icon:'🔍', title:'資產篩選', desc:'37 個精選資產：14 檔台股 ETF、15 檔美股 ETF、8 個加密貨幣，附 CAGR、波動率、最大回撤與 AUM 指標。' },
+      { icon:'⚖️', title:'風險配置', desc:'依目標風險等級（低→極高）自動分配權重，以年化波動率為主要代理指標。' },
+      { icon:'📈', title:'回測與痛苦指數', desc:'使用 BigQuery 同步的每日價格進行台幣計價歷史回測，呈現需要忍受的回撤幅度與時間。' },
+      { icon:'🔥', title:'財務自由試算', desc:'根據組合的歷史 CAGR、儲蓄率與支出假設，推估達到財務自由的時間軸。' },
+    ],
+    introPhiloTitle:'為什麼選擇被動投資？',
+    introPhiloBody:[
+      '被動投資源自一個簡單的觀察：長期下來，絕大多數主動管理基金在扣除費用後，表現不如低成本指數型基金。被動投資者不試圖選股或擇時，而是持有整個市場，讓複利自然累積。',
+      '本工具以這個理念為基礎。所有指標、預設配置與計算，都是為了幫助你建立一個廣泛分散、低成本、以長期持有為核心的投資組合，並讓你清楚理解每個決策背後的取捨。',
+      '我們不告訴你買什麼，我們提供數據，讓你自己做出判斷。',
+    ],
+    introHowTitle:'如何使用本工具',
+    introHowSteps:[
+      { step:1, title:'資產篩選',     desc:'從台灣、美國、國際及債券市場的精選被動 ETF 清單中挑選標的。可依分類篩選、依任一欄位排序，勾選你想納入的資產。初期可以選廣一點，後續再縮減。' },
+      { step:2, title:'相關性分析',   desc:'查看你所選的 ETF 之間的連動性。高度相關的資產重複配置，卻沒有分散效果。利用本工具提供的分組建議，每個高相關群組保留一個代表標的即可。' },
+      { step:3, title:'風險配置',     desc:'為每個留下的資產設定投資比例，合計須達 100%。可從預設的風格配置出發，再依自身風險承受度手動調整。' },
+      { step:4, title:'回測分析',     desc:'對你的加權組合進行歷史模擬回測，查看年化報酬、波動率、最大回撤與 Sharpe 比率。可隨時回到第三步調整比例後重新回測。' },
+      { step:5, title:'FIRE 計算機',  desc:'輸入現有存款、每月定期投入金額、預計退休年齡與退休後支出目標，計算機將估算你的投資組合是否有機會達成財務獨立。' },
+      { step:6, title:'總覽摘要',     desc:'一頁總覽你的最終投資組合：標的清單、配置比例、關鍵績效指標與 FIRE 達成狀況，可截圖或列印作為個人參考。' },
+    ],
+
+    screeningCriteriaTitle:'資產是如何挑選的',
+    screeningCriteriaBody:[
+      '本資產池依以下四項標準篩選：（1）被動式指數追蹤策略，不含主動管理基金；（2）具備足夠的歷史資料供回測分析（一般 5 年以上）；（3）達一定 AUM 或市值規模以確保流動性；（4）涵蓋台股、美股、國際股票、債券與加密貨幣等多元資產類別。',
+      '00646.TW 與 00955.TWO 為持有人私人加入。00955.TWO 自 2023 年起才有資料，相關指標僅為估算值，請審慎參考。',
+    ],
+    screeningTitle:'資產篩選', screeningCaption:'從資產池中篩選並排序。點擊列即可加入或移出自選清單。',
+    searchPlaceholder:'搜尋代碼或名稱…', cagrFilter:'CAGR ≥',
+    selectedCount:(n,total)=>`已選 ${n} 個 · 顯示 ${total} 筆`,
+    personaPrompt:'💡 不知道從哪開始？試試預設投資人角色：',
+    applyPersona:'套用角色',
+    reviewPortfolio:n=>`檢視組合（${n} 個資產）→`,
+    selectAll:'全選', deselectAll:'取消全選',
+    colTicker:'代碼', colName:'名稱', colCategory:'類別', colSubcategory:'子類別',
+    colCagr:'CAGR', colVol:'波動率', colMaxDD:'最大回撤', colSharpe:'Sharpe', colAum:'AUM / 市值',
+    catAll:'全部', catTW:'台股 ETF', catUS:'美股 ETF', catCrypto:'加密貨幣',
+
+    corrTitle:'相關性分析', corrCaption:'在進行風險與財務自由試算前，確認組合是否真正分散。',
+    corrAddFirst:'請先在「資產篩選」中加入資產到自選清單。',
+    corrPersonaApplied:name=>`✅ 已套用角色「${name}」—— 組合已自動確認。`,
+    corrSelectedAssets:'已選資產數', corrInWatchlist:'在自選清單中',
+    corrOverlaps:'高相關群組', corrOverlapHint:'需要檢視的群組',
+    corrAvgCorr:'估計平均相關係數',
+    corrWellDiv:'✅ 分散良好', corrSomeOverlap:'⚠️ 部分重疊',
+    corrHighCorrTitle:'高相關資產群組',
+    corrHighCorrCaption:'以下群組估計相關係數 ≥ 0.85。每組選擇保留一檔後，點擊移除按鈕清理重複資產。',
+    corrRecommend:'建議保留：', corrSelectKeep:'選擇保留一檔：',
+    corrRec:'建議',
+    confirmBtn:n=>`確認 ${n} 個資產 →`,
+    confirmUnlocks:'解鎖風險配置與回測區段',
+    confirmedBanner:'✅ 組合已確認！繼續進行風險配置。',
+
+    allocTitle:'風險配置', allocCaption:'以年化波動率為基礎，依目標風險等級自動分配權重。',
+    allocLocked:'請先在「相關性分析」中確認組合以解鎖此區段。',
+    allocComposition:'組合配置', allocClickHint:'點擊方塊查看資產詳情',
+    wCagr:'加權 CAGR', portVol:'組合波動率',
+    wMaxDD:'加權最大回撤', wSharpe:'加權 Sharpe',
+    target:'目標：', riskLow:'低', riskMed:'中', riskHigh:'高', riskXH:'極高',
+    detailWeight:'配比', detailClose:'關閉',
+
+    btTitle:'回測與痛苦指數',
+    btCaption:'組合的歷史表現如何？你能承受那些回撤嗎？',
+    btLocked:'請先完成「風險配置」以解鎖此區段。',
+    btInitial:'初始投入金額（NT$）', btMonthly:'每月定期投入（NT$）',
+    btPortValue:'組合價值走勢',
+    btHoverHint:'懸停查看詳情 · 陰影區域 = 重大回撤事件',
+    btPainIndex:'最大回撤 — 痛苦指數',
+    btWorst:'最差：', btDashHint:'虛線 = −10%、−20%、−30% 參考線',
+    btAnnualReturns:'年度報酬', btTopEpisodes:'主要回撤事件',
+    btPeakDD:'最大回撤幅度', btRecovery:'恢復時間',
+    btFinalVal:'最終價值', btTotalInv:'累計投入',
+    btTotalReturn:'總報酬', btCagr:'CAGR（TWD）', btSince:'2010年1月 – 2025年4月',
+    btEpisodes:[
+      { label:'COVID 崩盤',   period:'2020年2–4月',   recovery:'7 個月'  },
+      { label:'2022 年熊市',  period:'2022年1–10月',  recovery:'14 個月' },
+      { label:'升息賣壓',     period:'2018年10–12月', recovery:'6 個月'  },
+    ],
+
+    fireTitle:'財務自由試算', fireCaption:'推估達到財務自由的時間軸。',
+    fireLocked:'請先完成「風險配置」區段。',
+    fireParams:'參數設定',
+    fireAnnualExp:'年度支出（NT$）', fireCurrentSav:'目前存款（NT$）',
+    fireMonthlyContrib:'每月定期投入（NT$）',
+    fireCagr:'CAGR (%)', fireWithdraw:'提領率 (%)', fireInflation:'通膨率 (%)',
+    fireTarget:'FIRE 目標資產', fireYearsNom:'達到 FIRE 年數（名目）',
+    fireYearsReal:'達到 FIRE 年數（實質）', fireCagrUsed:'使用 CAGR',
+    fireCagrFrom:'來自組合', fireCagrManual:'手動輸入',
+    fireProjection:'資產成長預測',
+    fireNominal:'名目價值', fireReal:'實質價值（通膨調整後）', fireTargetLine:'FIRE 目標',
+    fireYrsPlus:'50年以上',
+
+    summaryTitle:'總結', summaryCaption:'根據以上設定的組合快照。',
+    summaryLocked:'請先完成「風險配置」以查看組合總結。',
+    summaryStructure:'組合結構',
+    summaryRisk:'風險等級：', summaryAssets:'資產數：', summaryTop:'主要持倉：', summaryCagr:'歷史 CAGR（TWD）：',
+    summaryNote:'📌 <strong>注意：</strong>所有回測均以台幣計算並含每月定期投入。歷史績效不保證未來結果。加密貨幣指標因歷史較短且尾部風險極大，解讀時請特別謹慎。',
+    summaryAI:'AI 洞察', summaryAITagline:'根據你的配置自動生成的投資組合分析',
+  },
+};
+
+const NAV_ITEMS = [
+  { id:'intro',       icon:'📖' },
+  { id:'screening',   icon:'🔍' },
+  { id:'correlation', icon:'🔗' },
+  { id:'allocation',  icon:'⚖️'  },
+  { id:'backtest',    icon:'📈' },
+  { id:'fire',        icon:'🔥' },
+  { id:'summary',     icon:'📋' },
+];
+
+// ── App Header ────────────────────────────────────────────────────────────────
+const AppHeader = ({ t, displayCurrency, setDisplayCurrency }) => (
+  <div style={{
+    background:'linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%)',
+    padding:'22px 48px', display:'flex', alignItems:'center', gap:20,
+    borderBottom:'1px solid rgba(255,255,255,0.08)',
+    boxShadow:'0 2px 12px rgba(0,0,0,0.15)',
+  }}>
+    <div>
+      <div style={{ fontSize:11, fontWeight:700, color:'#72a8d4', letterSpacing:'0.16em', textTransform:'uppercase', marginBottom:3 }}>{t.appTitle}</div>
+      <div style={{ fontSize:30, fontWeight:700, color:'#fff', lineHeight:1.1, letterSpacing:'-0.01em' }}>{t.appSub}</div>
+    </div>
+    <div style={{ width:1, height:40, background:'rgba(255,255,255,0.18)', flexShrink:0 }} />
+    <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)', lineHeight:1.6 }}>{t.appTagline}</div>
+    <div style={{ marginLeft:'auto' }}>
+      <CurrencyToggle t={t} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} />
+    </div>
+  </div>
+);
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+const Sidebar = ({ active, onNav, lang, setLang, t, confirmed }) => {
+  const lockedSet = useMemo(() => {
+    const s = new Set(['correlation','allocation','backtest','fire','summary']);
+    if (confirmed) s.clear();
+    return s;
+  }, [confirmed]);
+
+  return (
+    <div style={{ width:230, minWidth:230, background:'#0d1f3c', height:'100vh',
+      position:'sticky', top:0, display:'flex', flexDirection:'column',
+      overflow:'hidden', flexShrink:0 }}>
+      <div style={{ padding:'26px 20px 18px', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ fontSize:10, fontWeight:700, color:'#72a8d4', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:3 }}>{t.appTitle}</div>
+        <div style={{ fontSize:22, fontWeight:700, color:'#fff', lineHeight:1.1 }}>{t.appSub}</div>
+        <div style={{ fontSize:11, color:'rgba(255,255,255,0.55)', marginTop:5 }}>{t.appTagline}</div>
+      </div>
+
+      <div style={{ padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', gap:4 }}>
+        {[['EN','en'],['中文','zh']].map(([label, code]) => {
+          const isActive = lang === code;
+          return (
+            <button key={code} onClick={() => setLang(code)} style={{
+              flex:1, padding:'5px 0', borderRadius:6, border:'none', cursor:'pointer',
+              fontSize:12, fontWeight:600, fontFamily:'inherit',
+              background:isActive?'#4182b9':'rgba(255,255,255,0.08)',
+              color:isActive?'#fff':'rgba(255,255,255,0.65)', transition:'all 0.15s' }}>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <nav style={{ flex:1, padding:'10px 10px', overflowY:'auto' }}>
+        {NAV_ITEMS.map(n => {
+          const isActive = active === n.id;
+          const locked   = lockedSet.has(n.id);
+          return (
+            <button key={n.id} onClick={() => onNav(n.id)}
+              style={{
+                display:'flex', alignItems:'center', gap:10, padding:'9px 10px',
+                borderRadius:8, marginBottom:2, width:'100%', textAlign:'left',
+                border:'none', cursor:'pointer',
+                background:isActive?'rgba(65,130,185,0.25)':'transparent',
+                borderLeft:isActive?'3px solid #4182b9':'3px solid transparent',
+                color:locked?'rgba(255,255,255,0.50)':(isActive?'#a8cae8':'rgba(255,255,255,0.85)'),
+                fontWeight:isActive?600:400, fontSize:13,
+                fontFamily:'inherit', transition:'all 0.15s' }}>
+              <span style={{ fontSize:14 }}>{n.icon}</span>
+              <span style={{ flex:1 }}>{t.nav[n.id]}</span>
+              {locked && <span style={{ fontSize:10, opacity:0.6 }}>🔒</span>}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div style={{ padding:'12px 20px', borderTop:'1px solid rgba(255,255,255,0.08)', fontSize:11, color:'rgba(255,255,255,0.42)', lineHeight:1.5 }}>
+        {t.disclaimer}
+      </div>
+    </div>
+  );
+};
+
+// ── Accordion ─────────────────────────────────────────────────────────────────
+const Accordion = ({ title, children }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div style={{ border:'1px solid #dde4ed', borderRadius:10, marginBottom:14, overflow:'hidden' }}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center',
+        padding:'13px 18px', background: open ? '#eff5fb' : '#f7f9fc',
+        border:'none', cursor:'pointer', textAlign:'left',
+        fontSize:14, fontWeight:700, color:'#0d1f3c',
+      }}>
+        <span>{title}</span>
+        <span style={{ fontSize:18, color:'#4182b9', display:'inline-block',
+          transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform 0.2s' }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ padding:'18px 20px', background:'#fff', borderTop:'1px solid #dde4ed' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Section: Introduction ─────────────────────────────────────────────────────
+const IntroSection = ({ t }) => (
+  <div>
+    <SectionTitle icon="📖" title={t.introTitle} caption={t.introCaption} />
+    <div style={{ background:'#eff5fb', borderRadius:10, padding:'18px 22px', marginBottom:24, borderLeft:'4px solid #4182b9' }}>
+      <div style={{ fontSize:15, color:'#1f3b5c', lineHeight:1.75, fontStyle:'italic' }}>{t.introQuote}</div>
+      <div style={{ fontSize:12, color:'#4182b9', fontWeight:700, marginTop:8 }}>{t.introQuoteAuthor}</div>
+    </div>
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:14, marginBottom:24 }}>
+      {t.introFeatures.map(f => (
+        <div key={f.title} style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'18px 20px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize:22, marginBottom:8 }}>{f.icon}</div>
+          <div style={{ fontWeight:700, fontSize:15, color:'#0d1f3c', marginBottom:6 }}>{f.title}</div>
+          <div style={{ fontSize:13, color:'#6b727e', lineHeight:1.65 }}>{f.desc}</div>
+        </div>
+      ))}
+    </div>
+    <Accordion title={t.introPhiloTitle}>
+      {t.introPhiloBody.map((p, i) => (
+        <p key={i} style={{ fontSize:14, color:'#2d3e52', lineHeight:1.8, marginBottom: i < t.introPhiloBody.length - 1 ? 14 : 0 }}>{p}</p>
+      ))}
+    </Accordion>
+    <Accordion title={t.introHowTitle}>
+      {t.introHowSteps.map(s => (
+        <div key={s.step} style={{ display:'flex', gap:14, marginBottom:14, alignItems:'flex-start' }}>
+          <div style={{ flexShrink:0, width:26, height:26, borderRadius:'50%', background:'#1a3a6b',
+            color:'#fff', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center' }}>{s.step}</div>
+          <div>
+            <div style={{ fontWeight:700, fontSize:13, color:'#0d1f3c', marginBottom:3 }}>{s.title}</div>
+            <div style={{ fontSize:13, color:'#6b727e', lineHeight:1.65 }}>{s.desc}</div>
+          </div>
+        </div>
+      ))}
+    </Accordion>
+    <InfoBanner><span dangerouslySetInnerHTML={{ __html:t.introBanner }} /></InfoBanner>
+  </div>
+);
+
+// ── Section: Asset Screening ──────────────────────────────────────────────────
+const CATEGORIES = ['All','TW_ETF','US_ETF','CRYPTO'];
+const CAT_BADGE  = { TW_ETF:'blue', US_ETF:'navy', CRYPTO:'amber' };
+const PER_PAGE   = 8;
+const SORT_COLS  = [
+  { label:'',       key:null },
+  { label:'ticker', key:'ticker' },
+  { label:'name',   key:'name'   },
+  { label:'cat',    key:null     },
+  { label:'sub',    key:null     },
+  { label:'cagr',   key:'cagr'   },
+  { label:'vol',    key:'vol'    },
+  { label:'maxDD',  key:'maxDD'  },
+  { label:'sharpe', key:'sharpe' },
+  { label:'aum',    key:null     },
+];
+
+const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPersona, onReviewPortfolio }) => {
+  const [search,  setSearch]  = useState('');
+  const [cat,     setCat]     = useState('All');
+  const [cagrMin, setCagrMin] = useState(0);
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
+  const catLabel = { All:t.catAll, TW_ETF:t.catTW, US_ETF:t.catUS, CRYPTO:t.catCrypto };
+
+  const colLabels = ['', t.colTicker, t.colName, t.colCategory, t.colSubcategory, t.colCagr, t.colVol, t.colMaxDD, t.colSharpe, t.colAum];
+
+  const filtered = useMemo(() => PPL_ASSETS.filter(a => {
+    if (cat !== 'All' && a.category !== cat) return false;
+    if (a.cagr < cagrMin) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const displayName = (lang === 'zh' && a.nameZh) ? a.nameZh : a.name;
+      if (!a.ticker.toLowerCase().includes(q) && !a.name.toLowerCase().includes(q) && !displayName.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [cat, cagrMin, search]);
+
+  const sortedFiltered = useMemo(() => {
+    if (!sortKey) return filtered;
+    return [...filtered].sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey];
+      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === 'asc' ? av - bv : bv - av;
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  const toggle = useCallback((ticker) => {
+    setConfirmed(false); setPersona(null);
+    setWatchlist(w => w.includes(ticker) ? w.filter(x => x !== ticker) : [...w, ticker]);
+  }, [setConfirmed, setPersona, setWatchlist]);
+
+  const selectAll = useCallback(() => {
+    setConfirmed(false); setPersona(null);
+    setWatchlist(w => { const s = new Set(w); filtered.forEach(a => s.add(a.ticker)); return Array.from(s); });
+  }, [filtered, setConfirmed, setPersona, setWatchlist]);
+
+  const deselectAll = useCallback(() => {
+    setConfirmed(false); setPersona(null);
+    const tks = new Set(filtered.map(a => a.ticker));
+    setWatchlist(w => w.filter(tk => !tks.has(tk)));
+  }, [filtered, setConfirmed, setPersona, setWatchlist]);
+
+  const applyPersona = (name) => {
+    const p = PPL_PERSONAS[name];
+    setWatchlist(p.watchlist); setPersona(name); setConfirmed(true);
+  };
+
+  const onSortCol = (key) => {
+    if (!key) return;
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('desc'); }
+  };
+
+  return (
+    <div>
+      <SectionTitle icon="🔍" title={t.screeningTitle} caption={t.screeningCaption} />
+      <Accordion title={t.screeningCriteriaTitle}>
+        {t.screeningCriteriaBody.map((p, i) => (
+          <p key={i} style={{ fontSize:14, color:'#2d3e52', lineHeight:1.8, marginBottom: i < t.screeningCriteriaBody.length - 1 ? 14 : 0 }}>{p}</p>
+        ))}
+      </Accordion>
+
+      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
+        <input value={search} onChange={e => { setSearch(e.target.value); }}
+          placeholder={t.searchPlaceholder}
+          style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', width:195, outline:'none' }} />
+        {CATEGORIES.map(c => (
+          <button key={c} onClick={() => { setCat(c); }}
+            style={{ padding:'6px 13px', borderRadius:6, border:'1px solid', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.12s',
+              borderColor:cat===c?'#4182b9':'#d0d7e2', background:cat===c?'#4182b9':'#fff', color:cat===c?'#fff':'#555' }}>
+            {catLabel[c]}
+          </button>
+        ))}
+        <select value={cagrMin} onChange={e => { setCagrMin(+e.target.value); }}
+          style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', background:'#fff', cursor:'pointer' }}>
+          {[0,5,10,15,20,30].map(v => <option key={v} value={v}>{t.cagrFilter} {v}%</option>)}
+        </select>
+        <Btn small variant="ghost" onClick={selectAll}>{t.selectAll}</Btn>
+        <Btn small variant="ghost" onClick={deselectAll}>{t.deselectAll}</Btn>
+        <div style={{ marginLeft:'auto', fontSize:13, color:'#888' }}>{t.selectedCount(watchlist.length, filtered.length)}</div>
+      </div>
+
+      <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,0.05)', marginBottom:14 }}>
+        <div style={{ overflowY:'auto', maxHeight:420 }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <thead>
+            <tr style={{ background:'#f7f9fc', borderBottom:'2px solid #e8edf3' }}>
+              {SORT_COLS.map((col, i) => {
+                const label = colLabels[i];
+                const isActive = col.key !== null && sortKey === col.key;
+                return (
+                  <th key={i} onClick={() => onSortCol(col.key)}
+                    style={{ padding:'10px 12px', textAlign:'left', fontWeight:600, color:isActive?'#1e5a96':'#555',
+                      fontSize:11, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap',
+                      cursor:col.key?'pointer':'default', userSelect:'none',
+                      position:'sticky', top:0, background:'#f7f9fc', zIndex:1 }}>
+                    {label}
+                    {col.key && <span style={{ marginLeft:4, color:isActive?'#4182b9':'#ccc' }}>{isActive?(sortDir==='asc'?'▲':'▼'):'↕'}</span>}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedFiltered.map((a, i) => {
+              const inW = watchlist.includes(a.ticker);
+              return (
+                <tr key={a.ticker} onClick={() => toggle(a.ticker)}
+                  style={{ background:inW?'#eff5fb':(i%2===0?'#fff':'#fafbfc'), borderBottom:'1px solid #f0f2f6', cursor:'pointer', transition:'background 0.1s' }}>
+                  <td style={{ padding:'10px 12px' }}>
+                    <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${inW?'#4182b9':'#d0d7e2'}`, background:inW?'#4182b9':'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, color:'#fff', fontWeight:700 }}>
+                      {inW ? '✓' : '+'}
+                    </div>
+                  </td>
+                  <td style={{ padding:'10px 12px', fontWeight:700, color:'#0d1f3c', fontFamily:'monospace', fontSize:12 }}>{a.ticker}</td>
+                  <td style={{ padding:'10px 12px', color:'#333', maxWidth:180 }}>{(lang === 'zh' && a.nameZh) ? a.nameZh : a.name}</td>
+                  <td style={{ padding:'10px 12px' }}><Badge label={catLabel[a.category]} variant={CAT_BADGE[a.category]} /></td>
+                  <td style={{ padding:'10px 12px', color:'#555', fontSize:12 }}>{a.subcategory}</td>
+                  <td style={{ padding:'10px 12px', fontWeight:600, color:a.cagr>=10?'#1e5a96':'#333' }}>{a.cagr.toFixed(1)}%</td>
+                  <td style={{ padding:'10px 12px', color:'#555' }}>{a.vol.toFixed(1)}%</td>
+                  <td style={{ padding:'10px 12px', color:'#e53e3e', fontWeight:600 }}>{a.maxDD.toFixed(1)}%</td>
+                  <td style={{ padding:'10px 12px', color:'#333' }}>{a.sharpe.toFixed(2)}</td>
+                  <td style={{ padding:'10px 12px', color:'#888', fontSize:12, whiteSpace:'nowrap' }}>{a.aumNote}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div style={{ background:'#f7f9fc', border:'1px solid #e8edf3', borderRadius:10, padding:'16px 18px', marginBottom:16 }}>
+        <div style={{ fontSize:14, fontWeight:600, color:'#0d1f3c', marginBottom:12 }}>{t.personaPrompt}</div>
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+          {Object.entries(PPL_PERSONAS).map(([name, p]) => (
+            <div key={name}
+              style={{ flex:1, minWidth:190, background:'#fff', border:'1px solid #e8edf3', borderRadius:8, padding:'14px 16px', cursor:'pointer', transition:'box-shadow 0.15s' }}
+              onClick={() => applyPersona(name)}
+              onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 12px rgba(65,130,185,0.15)'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow='none'}>
+              <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c', marginBottom:4 }}>{name}</div>
+              <div style={{ fontSize:12, color:'#6b727e', marginBottom:10, lineHeight:1.55 }}>
+                {typeof p.description==='object' ? (p.description[lang] || p.description.en) : p.description}
+              </div>
+              <Btn small onClick={e => { e.stopPropagation(); applyPersona(name); }}>{t.applyPersona}</Btn>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {watchlist.length > 0 && (
+        <div style={{ display:'flex', justifyContent:'flex-end' }}>
+          <Btn onClick={onReviewPortfolio}>{t.reviewPortfolio(watchlist.length)}</Btn>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Section: Correlation Analysis ─────────────────────────────────────────────
+const CORR_GROUPS = [
+  { id:'tw_highdiv', tickers:['0056.TW','00878.TW','00919.TW','00713.TW','00929.TW'],
+    labelEn:'Taiwan High-Dividend ETFs',     labelZh:'台灣高股息 ETF',
+    recommend:'0056.TW', reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
+  { id:'tw_equity',  tickers:['0050.TW','006208.TW','0052.TW','00952.TW'],
+    labelEn:'Taiwan Equity / Tech ETFs',     labelZh:'台灣大盤 / 科技 ETF',
+    recommend:'0050.TW', reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
+  { id:'us_equity',  tickers:['VOO','IVV','SPY','VTI','VUG','00646.TW'],
+    labelEn:'US Equity ETFs',                labelZh:'美國股票 ETF',
+    recommend:'VOO',     reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
+  { id:'intl',       tickers:['VEA','IEFA','VXUS','IEMG','00955.TWO'],
+    labelEn:'International Equity ETFs',     labelZh:'國際股票 ETF',
+    recommend:'VEA',     reasonEn:'highest AUM in group', reasonZh:'本組最高 AUM' },
+  { id:'bond',       tickers:['BND','AGG'],
+    labelEn:'US Aggregate Bond ETFs',        labelZh:'美國綜合債券 ETF',
+    recommend:'BND',     reasonEn:'highest AUM',          reasonZh:'最高 AUM' },
+];
+
+const CorrelationSection = ({ t, lang, watchlist, setWatchlist, confirmed, setConfirmed, persona }) => {
+  const zh = lang === 'zh';
+
+  const [keepers, setKeepers] = useState(() => {
+    const k = {};
+    CORR_GROUPS.forEach(g => { k[g.id] = g.recommend; });
+    return k;
+  });
+
+  if (!watchlist.length) return (
+    <div>
+      <SectionTitle icon="🔗" title={t.corrTitle} caption={t.corrCaption} />
+      <InfoBanner>{t.corrAddFirst}</InfoBanner>
+    </div>
+  );
+
+  if (persona) return (
+    <div>
+      <SectionTitle icon="🔗" title={t.corrTitle} caption={t.corrCaption} />
+      <InfoBanner type="success">{t.corrPersonaApplied(persona)}</InfoBanner>
+    </div>
+  );
+
+  const assetObjs    = watchlist.map(tk => PPL_ASSETS.find(a => a.ticker===tk)).filter(Boolean);
+  const hasCrypto    = assetObjs.some(a => a.category==='CRYPTO');
+  const hasUS        = assetObjs.some(a => a.category==='US_ETF');
+  const hasTW        = assetObjs.some(a => a.category==='TW_ETF');
+  const diversity    = [hasCrypto,hasUS,hasTW].filter(Boolean).length;
+  const avgCorr      = Math.max(0.05, 0.75 - diversity*0.12 - watchlist.length*0.01).toFixed(2);
+  const wellDiv      = +avgCorr < 0.5;
+  const catLabel     = { TW_ETF:t.catTW, US_ETF:t.catUS, CRYPTO:t.catCrypto };
+
+  const activeGroups = CORR_GROUPS.map(g => ({
+    ...g,
+    present: g.tickers.filter(tk => watchlist.includes(tk)),
+  })).filter(g => g.present.length >= 2);
+
+  const removeOthers = (group) => {
+    const keeper = (keepers[group.id] && group.present.includes(keepers[group.id]))
+      ? keepers[group.id]
+      : (group.present.includes(group.recommend) ? group.recommend : group.present[0]);
+    const toRemove = group.present.filter(tk => tk !== keeper);
+    setConfirmed(false);
+    setWatchlist(w => w.filter(tk => !toRemove.includes(tk)));
+  };
+
+  return (
+    <div>
+      <SectionTitle icon="🔗" title={t.corrTitle} caption={t.corrCaption} />
+      {persona && <InfoBanner type="success">{t.corrPersonaApplied(persona)}</InfoBanner>}
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
+        <MetricCard label={t.corrSelectedAssets} value={watchlist.length} sub={t.corrInWatchlist} />
+        <MetricCard label={t.corrOverlaps} value={activeGroups.length}
+          delta={activeGroups.length>0?t.corrOverlapHint:null} deltaPositive={false} />
+        <MetricCard label={t.corrAvgCorr} value={avgCorr}
+          delta={wellDiv?t.corrWellDiv:t.corrSomeOverlap} deltaPositive={wellDiv} />
+      </div>
+
+      {activeGroups.length > 0 && (
+        <div style={{ marginBottom:24 }}>
+          <div style={{ fontWeight:700, fontSize:15, color:'#0d1f3c', marginBottom:4 }}>
+            ⚠️ {t.corrHighCorrTitle}
+          </div>
+          <div style={{ fontSize:13, color:'#6b727e', marginBottom:14, lineHeight:1.6 }}>
+            {t.corrHighCorrCaption}
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {activeGroups.map(group => {
+              const keeper = (keepers[group.id] && group.present.includes(keepers[group.id]))
+                ? keepers[group.id]
+                : (group.present.includes(group.recommend) ? group.recommend : group.present[0]);
+              const toRemove = group.present.filter(tk => tk !== keeper);
+              return (
+                <div key={group.id} style={{ background:'#fff', border:'1px solid #e8edf3', borderLeft:'4px solid #e8a000', borderRadius:8, padding:'16px 20px', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10, flexWrap:'wrap' }}>
+                    <span style={{ fontWeight:700, fontSize:13, color:'#0d1f3c' }}>
+                      {zh ? group.labelZh : group.labelEn}
+                    </span>
+                    <span style={{ fontSize:11, color:'#888' }}>
+                      ({zh ? '估計相關係數 ≥ 0.85' : 'est. correlation ≥ 0.85'})
+                    </span>
+                    <span style={{ marginLeft:'auto', fontSize:12, color:'#555' }}>
+                      <strong>{t.corrRecommend}</strong>{' '}
+                      <code style={{ fontFamily:'monospace', fontWeight:700, color:'#0d1f3c' }}>{group.recommend}</code>
+                      {' '}— {zh ? group.reasonZh : group.reasonEn}
+                    </span>
+                  </div>
+                  <div style={{ fontSize:12, color:'#555', marginBottom:8 }}>{t.corrSelectKeep}</div>
+                  <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginBottom:14 }}>
+                    {group.present.map(tk => (
+                      <label key={tk} style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
+                        <input type="radio" name={`grp-${group.id}`} value={tk}
+                          checked={keeper === tk}
+                          onChange={() => setKeepers(k => ({ ...k, [group.id]: tk }))}
+                          style={{ cursor:'pointer', accentColor:'#4182b9' }} />
+                        <span style={{ fontFamily:'monospace', fontWeight:700, fontSize:13, color:'#0d1f3c' }}>{tk}</span>
+                        {tk === group.recommend && (
+                          <span style={{ fontSize:10, fontWeight:700, color:'#21a350', background:'#d4f0e0', padding:'1px 6px', borderRadius:9999 }}>
+                            {t.corrRec}
+                          </span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                  {toRemove.length > 0 && (
+                    <Btn small variant="danger" onClick={() => removeOthers(group)}>
+                      {zh ? `移除 ${toRemove.join('、')} →` : `Remove ${toRemove.join(', ')} →`}
+                    </Btn>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:24 }}>
+        {assetObjs.map(a => (
+          <div key={a.ticker} style={{ background:'#eff5fb', border:'1px solid #a8cae8', borderRadius:8, padding:'6px 12px', fontSize:13 }}>
+            <span style={{ fontWeight:700, color:'#0a326e', fontFamily:'monospace' }}>{a.ticker}</span>
+            <span style={{ color:'#888', marginLeft:6, fontSize:12 }}>{catLabel[a.category]}</span>
+            <span style={{ color:'#4182b9', marginLeft:8 }}>{a.cagr.toFixed(1)}% CAGR</span>
+          </div>
+        ))}
+      </div>
+
+      {!confirmed ? (
+        <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+          <Btn onClick={() => setConfirmed(true)}>{t.confirmBtn(watchlist.length)}</Btn>
+          <span style={{ fontSize:13, color:'#888' }}>{t.confirmUnlocks}</span>
+        </div>
+      ) : (
+        <InfoBanner type="success">{t.confirmedBanner}</InfoBanner>
+      )}
+    </div>
+  );
+};
+
+// ── Section: Risk Allocation ──────────────────────────────────────────────────
+const RISK_LEVELS    = ['Low','Medium','High','Extreme High'];
+const RISK_LABEL_KEY = { Low:'riskLow', Medium:'riskMed', High:'riskHigh', 'Extreme High':'riskXH' };
+const RISK_VOL_MAP   = { Low:12, Medium:20, High:35, 'Extreme High':65 };
+
+const RiskAllocation = ({ t, watchlist, confirmed, riskLevel, setRiskLevel, allocation, setAllocation }) => {
+  const [selectedTicker, setSelectedTicker] = useState(null);
+
+  useEffect(() => {
+    if (confirmed && watchlist.length) setAllocation(computeAllocation(watchlist, riskLevel));
+  }, [watchlist, riskLevel, confirmed]);
+
+  if (!confirmed || !watchlist.length) return (
+    <div>
+      <SectionTitle icon="⚖️" title={t.allocTitle} caption={t.allocCaption} />
+      <InfoBanner>{t.allocLocked}</InfoBanner>
+    </div>
+  );
+
+  const allVols = PPL_ASSETS.map(x => x.vol).sort((a,b) => a-b);
+  const allItems = Object.entries(allocation).map(([ticker, weight]) => {
+    const a = PPL_ASSETS.find(x => x.ticker===ticker);
+    const volRank = allVols.indexOf(a?.vol ?? 0);
+    const volTier = Math.min(Math.floor(volRank/6), 5);
+    return { ticker, weight, name:a?.name, cagr:a?.cagr, vol:a?.vol, maxDD:a?.maxDD, sharpe:a?.sharpe, volTier };
+  }).filter(x => x.name);
+
+  const wCagr = allItems.reduce((s,i) => s + i.weight*(i.cagr ||0), 0);
+  const wVol  = allItems.reduce((s,i) => s + i.weight*(i.vol  ||0), 0);
+  const wDD   = allItems.reduce((s,i) => s + i.weight*(i.maxDD||0), 0);
+  const wSh   = allItems.reduce((s,i) => s + i.weight*(i.sharpe||0), 0);
+
+  const selectedItem = allItems.find(i => i.ticker === selectedTicker);
+
+  return (
+    <div>
+      <SectionTitle icon="⚖️" title={t.allocTitle} caption={t.allocCaption} />
+
+      <div style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap' }}>
+        {RISK_LEVELS.map(r => (
+          <button key={r} onClick={() => setRiskLevel(r)}
+            style={{ padding:'8px 18px', borderRadius:8, border:'1px solid', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s',
+              borderColor:riskLevel===r?'#4182b9':'#d0d7e2', background:riskLevel===r?'#4182b9':'#fff', color:riskLevel===r?'#fff':'#555' }}>
+            {t[RISK_LABEL_KEY[r]]}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
+        <MetricCard label={t.wCagr}   value={wCagr.toFixed(2)+'%'} />
+        <MetricCard label={t.portVol} value={wVol.toFixed(1)+'%'} sub={`${t.target} ${RISK_VOL_MAP[riskLevel]}%`} />
+        <MetricCard label={t.wMaxDD}  value={wDD.toFixed(1)+'%'} />
+        <MetricCard label={t.wSharpe} value={wSh.toFixed(2)} />
+      </div>
+
+      <div style={{ display:'flex', alignItems:'baseline', gap:10, marginBottom:8 }}>
+        <div style={{ fontWeight:600, fontSize:14, color:'#0d1f3c' }}>{t.allocComposition}</div>
+        <div style={{ fontSize:12, color:'#888' }}>{t.allocClickHint}</div>
+      </div>
+      <Treemap items={allItems} onSelect={setSelectedTicker} selectedTicker={selectedTicker} />
+
+      {selectedItem && (
+        <div style={{ marginTop:10, background:'#fff', border:'1px solid #a8cae8', borderRadius:10, padding:'16px 20px', boxShadow:'0 2px 8px rgba(65,130,185,0.12)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+            <span style={{ fontFamily:'monospace', fontWeight:700, fontSize:16, color:'#0d1f3c' }}>{selectedItem.ticker}</span>
+            <span style={{ fontSize:14, color:'#555', flex:1 }}>{selectedItem.name}</span>
+            <button onClick={() => setSelectedTicker(null)}
+              style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, color:'#888', fontFamily:'inherit', fontWeight:600 }}>
+              ✕ {t.detailClose}
+            </button>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10 }}>
+            <MetricCard label={t.detailWeight} value={`${(selectedItem.weight*100).toFixed(1)}%`} />
+            <MetricCard label={t.colCagr}      value={`${selectedItem.cagr?.toFixed(1)}%`} />
+            <MetricCard label={t.colVol}       value={`${selectedItem.vol?.toFixed(1)}%`} />
+            <MetricCard label={t.colMaxDD}     value={`${selectedItem.maxDD?.toFixed(1)}%`} />
+            <MetricCard label={t.colSharpe}    value={selectedItem.sharpe?.toFixed(2)} />
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+// ── Section: Backtest & Pain Index ────────────────────────────────────────────
+const TIME_RANGES = [
+  { key:'1y',  label:'1Y',  from:'2024-04' },
+  { key:'3y',  label:'3Y',  from:'2022-04' },
+  { key:'5y',  label:'5Y',  from:'2020-04' },
+  { key:'10y', label:'10Y', from:'2015-04' },
+  { key:'all', label:'All', from:'2010-01' },
+];
+const EV_CHIP = {
+  red:    { bg:'rgba(229,62,62,0.12)',  color:'#c53030' },
+  orange: { bg:'rgba(214,105,0,0.12)',  color:'#a05000' },
+  purple: { bg:'rgba(107,57,196,0.12)', color:'#6b39c4' },
+};
+
+function clampEventsToLabels(events, labels) {
+  if (!labels.length) return [];
+  const first = labels[0];
+  const last = labels[labels.length - 1];
+  return events
+    .filter(ev => ev.xMax >= first && ev.xMin <= last)
+    .map(ev => {
+      const minTarget = ev.xMin < first ? first : ev.xMin;
+      const maxTarget = ev.xMax > last ? last : ev.xMax;
+      const xMin = labels.find(label => label >= minTarget);
+      const xMax = [...labels].reverse().find(label => label <= maxTarget);
+      return xMin && xMax && xMin <= xMax ? { ...ev, xMin, xMax } : null;
+    })
+    .filter(Boolean);
+}
+
+const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, monthly, setMonthly, backtestResult, displayCurrency }) => {
+  const [timeRange, setTimeRange] = useState('all');
+  const bt = backtestResult;
+
+  if (!confirmed || !Object.keys(allocation).length) return (
+    <div>
+      <SectionTitle icon="📈" title={t.btTitle} caption={t.btCaption} />
+      <InfoBanner>{t.btLocked}</InfoBanner>
+    </div>
+  );
+
+  const fmtMoneyFull = v => formatMoney(v, displayCurrency, false);
+  const fmtMoneyShort = v => formatMoney(v, displayCurrency, true);
+  const rangeFrom  = TIME_RANGES.find(r => r.key===timeRange)?.from || '2010-01';
+  const startIdx   = bt.labels.findIndex(l => l>=rangeFrom);
+  const sl         = Math.max(0, startIdx);
+  const labels     = bt.labels.slice(sl);
+  const portVals   = bt.portVals.slice(sl);
+  const invested   = bt.invested.slice(sl);
+  const drawdowns  = bt.drawdowns.slice(sl);
+  const visEv      = clampEventsToLabels(DRAWDOWN_EVENTS, labels);
+  const periodSub  = bt.startDate && bt.endDate ? `${bt.startDate} – ${bt.endDate}` : t.btSince;
+
+  return (
+    <div>
+      <SectionTitle icon="📈" title={t.btTitle} caption={t.btCaption} />
+      <InfoBanner type={bt.source === 'history' ? 'success' : 'warning'}>
+        {bt.source === 'history' ? t.btSourceHistory : t.btSourceProjection} {t.currencyDisplayNote}
+      </InfoBanner>
+      <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap', alignItems:'flex-end' }}>
+        {[[t.btInitial,initial,setInitial],[t.btMonthly,monthly,setMonthly]].map(([label,val,setter]) => (
+          <div key={label}>
+            <div style={{ fontSize:12, fontWeight:600, color:'#555', marginBottom:4 }}>{label}</div>
+            <input type="number" value={val} onChange={e => setter(+e.target.value)}
+              style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', width:170 }} />
+          </div>
+        ))}
+        <div style={{ marginLeft:'auto', display:'flex', alignItems:'flex-end', gap:5, flexWrap:'wrap' }}>
+          {TIME_RANGES.map(r => (
+            <button key={r.key} onClick={() => setTimeRange(r.key)}
+              style={{ padding:'6px 13px', borderRadius:6, border:'1px solid', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.12s',
+                borderColor:timeRange===r.key?'#4182b9':'#d0d7e2', background:timeRange===r.key?'#4182b9':'#fff', color:timeRange===r.key?'#fff':'#555' }}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
+        <MetricCard label={t.btFinalVal}    value={fmtMoneyFull(bt.finalVal)} />
+        <MetricCard label={t.btTotalInv}    value={fmtMoneyFull(bt.totalInv)} />
+        <MetricCard label={t.btTotalReturn} value={((bt.finalVal/bt.totalInv-1)*100).toFixed(1)+'%'}
+          delta={(bt.finalVal>=bt.totalInv?'+':'')+fmtMoneyFull(bt.finalVal-bt.totalInv)} deltaPositive={bt.finalVal>=bt.totalInv} />
+        <MetricCard label={t.btCagr} value={(bt.cagr*100).toFixed(2)+'%'} sub={periodSub} />
+      </div>
+      <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'20px 20px 16px', marginBottom:14, boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+          <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c' }}>{t.btPortValue}</div>
+          <div style={{ fontSize:11, color:'#888' }}>{t.btHoverHint}</div>
+        </div>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:7, marginBottom:14 }}>
+          {DRAWDOWN_EVENTS.map(ev => {
+            const c = EV_CHIP[ev.color]||EV_CHIP.red;
+            const lbl = lang==='zh'?(ev.labelZh||ev.label):ev.label;
+            return (
+              <div key={ev.label} style={{ display:'flex', alignItems:'center', gap:5, background:c.bg, borderRadius:20, padding:'3px 9px' }}>
+                <div style={{ width:8, height:8, borderRadius:2, background:c.color, opacity:0.8 }} />
+                <span style={{ fontSize:11, fontWeight:600, color:c.color }}>{lbl}</span>
+              </div>
+            );
+          })}
+        </div>
+        <ChartLine labels={labels} height={300} yFmt={fmtMoneyShort} events={visEv} extraInfo={drawdowns} lang={lang}
+          datasets={[
+            { label:lang==='zh'?'組合價值':'Portfolio Value', data:portVals, borderColor:'#4182b9', backgroundColor:'rgba(65,130,185,0.07)', borderWidth:2, pointRadius:0, fill:true, tension:0.35 },
+            { label:lang==='zh'?'累計投入':'Total Invested',  data:invested, borderColor:'#a8cae8', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[5,4], tension:0.35 },
+          ]} />
+      </div>
+      <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'20px 20px 16px', marginBottom:14, boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+        <div style={{ display:'flex', alignItems:'baseline', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+          <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c' }}>{t.btPainIndex}</div>
+          <div style={{ fontSize:12, color:'#e53e3e', fontWeight:700 }}>{t.btWorst} {bt.maxDD.toFixed(1)}%</div>
+          <div style={{ fontSize:11, color:'#888', marginLeft:'auto' }}>{t.btDashHint}</div>
+        </div>
+        <ChartLine labels={labels} height={200} yFmt={v=>v.toFixed(1)+'%'} events={visEv} lang={lang}
+          hLines={[
+            { value:-10, label:'-10%', color:'rgba(229,62,62,0.40)' },
+            { value:-20, label:'-20%', color:'rgba(229,62,62,0.55)' },
+            { value:-30, label:'-30%', color:'rgba(180,0,0,0.55)'   },
+          ]}
+          datasets={[
+            { label:lang==='zh'?'回撤 %':'Drawdown %', data:drawdowns, borderColor:'#e53e3e', backgroundColor:'rgba(229,62,62,0.07)', borderWidth:1.5, pointRadius:0, fill:true, tension:0.3 },
+          ]} />
+      </div>
+      <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'20px 20px 16px', marginBottom:20, boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+        <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c', marginBottom:14 }}>{t.btAnnualReturns}</div>
+        <ChartBar labels={bt.annualReturns.map(r=>r.year)} data={bt.annualReturns.map(r=>r.ret)} />
+      </div>
+      <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c', marginBottom:10 }}>{t.btTopEpisodes}</div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+        {t.btEpisodes.map((ep,i) => {
+          const ddVal = i===0?(bt.maxDD<-25?bt.maxDD.toFixed(1):'-28.4'):(i===1?'-24.1':'-16.3');
+          return (
+            <div key={ep.label} style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'14px 16px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                <div style={{ width:24, height:24, borderRadius:6, background:'#eff5fb', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#1e5a96' }}>{i+1}</div>
+                <div style={{ fontWeight:700, fontSize:13, color:'#0d1f3c' }}>{ep.label}</div>
+              </div>
+              <div style={{ fontSize:12, color:'#888', marginBottom:8 }}>{ep.period}</div>
+              <div style={{ display:'flex', gap:20 }}>
+                <div>
+                  <div style={{ fontSize:11, color:'#888' }}>{t.btPeakDD}</div>
+                  <div style={{ fontSize:22, fontWeight:700, color:'#e53e3e' }}>{ddVal}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:'#888' }}>{t.btRecovery}</div>
+                  <div style={{ fontSize:22, fontWeight:700, color:'#4182b9' }}>{ep.recovery}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ── Section: FIRE Calculator ──────────────────────────────────────────────────
+const FireSection = ({ t, confirmed, btCagr, displayCurrency }) => {
+  const defaultCagr = btCagr ? (btCagr*100).toFixed(1) : '8.0';
+  const [expenses,  setExpenses]  = useState(720000);
+  const [savings,   setSavings]   = useState(500000);
+  const [contrib,   setContrib]   = useState(20000);
+  const [cagrInput, setCagrInput] = useState(defaultCagr);
+  const [withdraw,  setWithdraw]  = useState(4);
+  const [inflation, setInflation] = useState(2.5);
+
+  useEffect(() => { if (btCagr) setCagrInput((btCagr*100).toFixed(1)); }, [btCagr]);
+
+  const fire = useMemo(() => calculateFIRE({
+    cagr:cagrInput/100, currentSavings:savings, monthlyContrib:contrib,
+    annualExpenses:expenses, withdrawalRate:withdraw/100, inflation:inflation/100,
+  }), [cagrInput, savings, contrib, expenses, withdraw, inflation]);
+
+  const fmtDisplay = v => formatMoney(v, displayCurrency, true);
+
+  if (!confirmed) return (
+    <div>
+      <SectionTitle icon="🔥" title={t.fireTitle} caption={t.fireCaption} />
+      <InfoBanner>{t.fireLocked}</InfoBanner>
+    </div>
+  );
+
+  return (
+    <div>
+      <SectionTitle icon="🔥" title={t.fireTitle} caption={t.fireCaption} />
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
+        <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'20px 24px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c', marginBottom:18 }}>{t.fireParams}</div>
+          {[[t.fireAnnualExp,expenses,setExpenses,10000],[t.fireCurrentSav,savings,setSavings,50000],[t.fireMonthlyContrib,contrib,setContrib,1000]].map(([label,val,setter,step]) => (
+            <div key={label} style={{ marginBottom:14 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:'#555', marginBottom:4 }}>{label}</div>
+              <input type="number" value={val} step={step} onChange={e => setter(+e.target.value)}
+                style={{ width:'100%', padding:'8px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', outline:'none' }} />
+            </div>
+          ))}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+            {[[t.fireCagr,cagrInput,setCagrInput,0.1],[t.fireWithdraw,withdraw,setWithdraw,0.5],[t.fireInflation,inflation,setInflation,0.5]].map(([label,val,setter,step]) => (
+              <div key={label}>
+                <div style={{ fontSize:11, fontWeight:600, color:'#555', marginBottom:4 }}>{label}</div>
+                <input type="number" value={val} step={step} onChange={e => setter(+e.target.value)}
+                  style={{ width:'100%', padding:'7px 10px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', outline:'none' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+            <MetricCard label={t.fireTarget}    value={fmtDisplay(fire.target)} sub={`${formatMoney(expenses, displayCurrency)} ÷ ${withdraw}%`} />
+            <MetricCard label={t.fireYearsNom}  value={fire.yearsNominal!=null?fire.yearsNominal+' yrs':t.fireYrsPlus} />
+            <MetricCard label={t.fireYearsReal} value={fire.yearsReal!=null?fire.yearsReal+' yrs':t.fireYrsPlus} />
+            <MetricCard label={t.fireCagrUsed}  value={parseFloat(cagrInput).toFixed(1)+'%'}
+              sub={btCagr?t.fireCagrFrom:t.fireCagrManual} />
+          </div>
+          <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'16px 20px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontWeight:600, fontSize:14, color:'#0d1f3c', marginBottom:14 }}>{t.fireProjection}</div>
+            <ChartLine labels={fire.labels}
+              yFmt={v=>formatMoney(v, displayCurrency, true)}
+              datasets={[
+                { label:t.fireNominal,    data:fire.nomVals,  borderColor:'#4182b9', backgroundColor:'rgba(65,130,185,0.10)', borderWidth:2, pointRadius:0, fill:true, tension:0.4 },
+                { label:t.fireReal,       data:fire.realVals, borderColor:'#72a8d4', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[5,4], tension:0.4 },
+                { label:t.fireTargetLine, data:fire.labels.map(()=>fire.target), borderColor:'#e53e3e', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[8,4] },
+              ]} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Section: Summary ──────────────────────────────────────────────────────────
+const SummarySection = ({ t, lang, watchlist, allocation, riskLevel, btCagr, confirmed }) => {
+  if (!confirmed || !Object.keys(allocation).length) return (
+    <div>
+      <SectionTitle icon="📋" title={t.summaryTitle} caption={t.summaryCaption} />
+      <InfoBanner>{t.summaryLocked}</InfoBanner>
+    </div>
+  );
+
+  const allItems = Object.entries(allocation)
+    .map(([tk,w]) => { const a=PPL_ASSETS.find(x=>x.ticker===tk); return { ticker:tk, weight:w, name:a?.name, cagr:a?.cagr }; })
+    .filter(x=>x.name).sort((a,b) => b.weight-a.weight);
+  const topAssets = allItems.slice(0,3).map(a=>`${a.ticker} (${(a.weight*100).toFixed(0)}%)`).join(', ');
+  const riskLabel = t[RISK_LABEL_KEY[riskLevel]] || riskLevel;
+  const insights  = generatePortfolioInsights(allocation, riskLevel, btCagr, lang);
+
+  return (
+    <div>
+      <SectionTitle icon="📋" title={t.summaryTitle} caption={t.summaryCaption} />
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+        <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'20px 24px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontWeight:700, fontSize:15, color:'#0d1f3c', marginBottom:16 }}>{t.summaryStructure}</div>
+          <div style={{ fontSize:14, color:'#333', lineHeight:2 }}>
+            <div>{t.summaryRisk} <strong>{riskLabel}</strong></div>
+            <div>{t.summaryAssets} <strong>{watchlist.length}</strong></div>
+            <div>{t.summaryTop} <strong style={{ color:'#0a326e' }}>{topAssets}</strong></div>
+            {btCagr && <div>{t.summaryCagr} <strong style={{ color:'#21a350' }}>{(btCagr*100).toFixed(2)}%</strong></div>}
+          </div>
+          <div style={{ marginTop:18, padding:'12px 16px', background:'#f7f9fc', borderRadius:8, fontSize:13, color:'#555', lineHeight:1.7 }}>
+            <span dangerouslySetInnerHTML={{ __html:t.summaryNote }} />
+          </div>
+        </div>
+
+        <div style={{ background:'linear-gradient(135deg,#0d1f3c 0%,#1e5a96 100%)', borderRadius:10, padding:'20px 24px', color:'#fff' }}>
+          <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>{t.summaryAI}</div>
+          <div style={{ fontSize:12, color:'rgba(255,255,255,0.5)', marginBottom:16 }}>{t.summaryAITagline}</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {insights.map((ins,i) => (
+              <div key={i} style={{ background:'rgba(255,255,255,0.09)', borderRadius:8, padding:'11px 14px', fontSize:13, color:'rgba(255,255,255,0.88)', lineHeight:1.7 }}>
+                {ins}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Main App — single-page scrollable layout ──────────────────────────────────
+const SECTION_STYLE = { padding:'44px 48px' };
+const DIVIDER       = { borderTop:'2px solid #f0f2f6' };
+
+const App = () => {
+  const [lang,       setLang]       = useState('en');
+  const [activeNav,  setActiveNav]  = useState('intro');
+  const [watchlist,  setWatchlist]  = useState([]);
+  const [confirmed,  setConfirmed]  = useState(false);
+  const [persona,    setPersona]    = useState(null);
+  const [riskLevel,  setRiskLevel]  = useState('Medium');
+  const [allocation, setAllocation] = useState({});
+  const [initial,    setInitial]    = useState(300000);
+  const [monthly,    setMonthly]    = useState(15000);
+  const [displayCurrency, setDisplayCurrency] = useState('TWD');
+
+  const mainRef = useRef();
+  const t = T[lang] || T.en;
+
+  const backtestResult = useMemo(() => {
+    if (!confirmed || !Object.keys(allocation).length) return null;
+    return generateBacktest(allocation, initial, monthly);
+  }, [allocation, confirmed, initial, monthly]);
+
+  const btCagr = backtestResult?.cagr ?? null;
+
+  const scrollTo = useCallback((id) => {
+    const el   = document.getElementById('section-'+id);
+    const main = mainRef.current;
+    if (!el || !main) return;
+    main.scrollTo({ top: el.offsetTop - 20, behavior:'smooth' });
+  }, []);
+
+  // Track active section while scrolling
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const onScroll = () => {
+      const top = main.scrollTop + 120;
+      let cur = 'intro';
+      for (const { id } of NAV_ITEMS) {
+        const el = document.getElementById('section-'+id);
+        if (el && el.offsetTop <= top) cur = id;
+      }
+      setActiveNav(cur);
+    };
+    main.addEventListener('scroll', onScroll, { passive:true });
+    return () => main.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const sectionProps = {
+    t, lang, watchlist, setWatchlist, confirmed, setConfirmed,
+    persona, setPersona, riskLevel, setRiskLevel,
+    allocation, setAllocation, initial, setInitial, monthly, setMonthly,
+    btCagr, backtestResult, displayCurrency, setDisplayCurrency,
+  };
+
+  return (
+    <div style={{ display:'flex', minHeight:'100vh', fontFamily:"'Source Sans 3',system-ui,sans-serif", background:'#f7f9fc' }}>
+      <Sidebar active={activeNav} onNav={scrollTo} lang={lang} setLang={setLang} t={t} confirmed={confirmed} />
+      <main ref={mainRef} style={{ flex:1, overflowY:'auto', minWidth:0 }}>
+        <AppHeader t={t} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} />
+        <div id="section-intro"       style={SECTION_STYLE}><IntroSection       {...sectionProps} /></div>
+        <div style={DIVIDER} />
+        <div id="section-screening"   style={SECTION_STYLE}><AssetScreening     {...sectionProps} onReviewPortfolio={() => scrollTo('correlation')} /></div>
+        <div style={DIVIDER} />
+        <div id="section-correlation" style={SECTION_STYLE}><CorrelationSection {...sectionProps} lang={lang} /></div>
+        <div style={DIVIDER} />
+        <div id="section-allocation"  style={SECTION_STYLE}><RiskAllocation     {...sectionProps} /></div>
+        <div style={DIVIDER} />
+        <div id="section-backtest"    style={SECTION_STYLE}><BacktestSection     {...sectionProps} /></div>
+        <div style={DIVIDER} />
+        <div id="section-fire"        style={SECTION_STYLE}><FireSection         {...sectionProps} /></div>
+        <div style={DIVIDER} />
+        <div id="section-summary"     style={SECTION_STYLE}><SummarySection      {...sectionProps} /></div>
+        <div style={{ height:80 }} />
+      </main>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+
+  <script>
+    (function waitForRoot() {
+      const observer = new MutationObserver(() => {
+        const root = document.getElementById('root');
+        if (root && root.children.length > 0) {
+          const loader = document.getElementById('loading');
+          if (loader) loader.style.display = 'none';
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.getElementById('root'), { childList:true });
+    })();
+  </script>
+</body>
+</html>

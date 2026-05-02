@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.dirname(__file__))
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -777,10 +777,10 @@ st.title(tr("Asset Screening"))
 st.caption(tr("Filter and sort assets from the pool below. Click ＋ to add an asset to your watchlist."))
 with st.expander(tr("📋 How assets are selected"), expanded=False):
     st.markdown(tr("""
-    The **35 assets** in this pool come from three categories. The list is static and curated by AUM / market-cap rank — no live scraping occurs at runtime.
+    The **37 assets** in this pool come from three categories. The list is static and curated by AUM / market-cap rank — no live scraping occurs at runtime.
 
     **Asset universe:**
-    - **TW ETF** (12): Top Taiwan ETFs by AUM as of 2026/04/27 (source: Yahoo Finance TW). Covers market-cap, high-dividend, ESG, bond, and AI-theme strategies. Assets with insufficient price history are excluded.
+    - **TW ETF** (14): Top Taiwan ETFs by AUM as of 2026/04/27 (source: Yahoo Finance TW). Covers market-cap, high-dividend, ESG, bond, and AI-theme strategies. Includes 00646.TW and 00955.TWO as owner additions. Assets with insufficient price history are excluded.
     - **US ETF** (15): Top 15 US ETFs by AUM as of 2026/03–04 (source: TipRanks / InvestLane). Includes broad market, growth, value, international, bond, and gold ETFs.
     - **Crypto** (8): Top 10 cryptocurrencies by market cap as of 2026/04, excluding stablecoins and assets with insufficient trading history (source: CoinMarketCap).
 
@@ -789,10 +789,10 @@ with st.expander(tr("📋 How assets are selected"), expanded=False):
 
     All metrics are calculated from the full available price history for each asset using daily closing prices from Yahoo Finance, stored in Google BigQuery.
     """, """
-    這個資產池共有 **35 個資產**，來自三個類別。清單是依 AUM / 市值排名靜態整理而成，執行時不會即時爬取資料。
+    這個資產池共有 **37 個資產**，來自三個類別。清單是依 AUM / 市值排名靜態整理而成，執行時不會即時爬取資料。
 
     **資產 universe：**
-    - **台股 ETF**（12）：截至 2026/04/27 依 AUM 排名的台灣主要 ETF（來源：Yahoo Finance TW），涵蓋市值型、高股息、ESG、債券與 AI 主題策略。價格歷史不足的資產會被排除。
+    - **台股 ETF**（14）：截至 2026/04/27 依 AUM 排名的台灣主要 ETF（來源：Yahoo Finance TW），涵蓋市值型、高股息、ESG、債券與 AI 主題策略；另含持有人私人加入的 00646.TW 與 00955.TWO。價格歷史不足的資產會被排除。
     - **美股 ETF**（15）：截至 2026/03–04 依 AUM 排名的前 15 大美國 ETF（來源：TipRanks / InvestLane），包含大盤、成長、價值、國際、債券與黃金 ETF。
     - **加密貨幣**（8）：截至 2026/04 依市值排名的前 10 大加密貨幣，排除穩定幣與交易歷史不足的資產（來源：CoinMarketCap）。
 

@@ -27,7 +27,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 #   returns None for most tickers and surfaces a confusing
 #       TypeError: 'NoneType' object is not subscriptable
 #   which makes debugging hard. The direct REST API + verify=False mirrors the
-#   proven pattern used by load_fx_rate() in src/processing/backtest.py for
+#   proven pattern used by load_fx_rate() in streamlit_dashboard/src/processing/backtest.py for
 #   TWD=X and is robust across network environments.
 # ──────────────────────────────────────────────────────────────────────────────
 _YAHOO_HEADERS = {"User-Agent": "Mozilla/5.0"}

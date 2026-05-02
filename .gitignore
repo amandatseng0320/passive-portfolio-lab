@@ -35,6 +35,9 @@ venv/
 .streamlit/secrets.toml
 secrets.template.toml
 
+# Local tool configuration
+.claude/
+
 # Data
 data/
 

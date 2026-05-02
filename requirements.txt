@@ -1,11 +1,1 @@
-streamlit
-streamlit-aggrid
-pandas
-numpy
-plotly
-google-cloud-bigquery
-pandas-gbq
-pyarrow
-google-genai==1.47.0
-python-dotenv
-requests
+-r streamlit_dashboard/requirements.txt

@@ -1,12 +1,20 @@
 # Passive Portfolio Lab
 
-A Streamlit dashboard for long-term passive investors. It helps users screen ETFs and crypto assets, assemble a portfolio, inspect correlation risk, run TWD-based historical backtests, and estimate a FIRE timeline.
+Passive Portfolio Lab is a bilingual toolkit for long-term passive investors. It has two deployable surfaces:
+
+- **Streamlit Dashboard**: interactive research app with BigQuery reads, live data helpers, and optional Gemini insights.
+- **GitHub Web**: static GitHub Pages app with BigQuery-exported asset metrics and daily TWD price history.
 
 The core question:
 
 **If a portfolio's backtested return looks attractive, what is the risk, drawdown pain, and FIRE trade-off behind it?**
 
-The app supports both English and Traditional Chinese (`zh-TW`) from a one-click sidebar language toggle.
+Both versions support English and Traditional Chinese (`zh-TW`) and focus on TWD-based portfolio analysis for Taiwan-based investors.
+
+For app-specific setup, see:
+
+- [Streamlit Dashboard](streamlit_dashboard/README.md)
+- [GitHub Web](github_web/README.md)
 
 ---
 
@@ -18,9 +26,9 @@ The dashboard can switch between English and Traditional Chinese from the sideba
 
 ### 2. Asset Screening
 
-Browse a curated universe of 35 assets:
+Browse a curated universe of 37 assets:
 
-- 12 Taiwan ETFs selected by AUM rank
+- 14 Taiwan ETFs selected by AUM rank (includes 2 owner additions: 00646.TW, 00955.TWO)
 - 15 US ETFs selected by AUM rank
 - 8 major cryptocurrencies, excluding stablecoins and assets with insufficient history
 
@@ -92,6 +100,8 @@ The current backtest engine uses a combined contribution model:
 - Initial lump-sum investment on the first available trading day
 - Monthly contribution on the first trading day of each subsequent month
 - USD-denominated assets converted to TWD using daily historical TWD/USD exchange rates
+- Web version uses BigQuery-exported daily TWD price history for static historical backtests
+- TWD / USD display toggle for portfolio values while keeping inputs and calculations in TWD
 
 The backtest section shows:
 
@@ -156,19 +166,31 @@ If `GEMINI_API_KEY` is configured, Gemini 2.5 Flash generates concise strategic 
 
 ```text
 passive-portfolio-lab/
-├── dashboard/
-│   └── Passive_Portfolio_Lab.py      # Main Streamlit dashboard
-├── src/
-│   ├── data_collection/
-│   │   ├── fetch_prices.py           # Yahoo Finance REST price fetching
-│   │   └── fetch_macro.py            # FRED CPI fetching
-│   └── processing/
-│       ├── screening.py              # Static asset universe
-│       ├── metrics.py                # Financial metric calculations
-│       ├── backtest.py               # Combined TWD backtesting engine
-│       ├── drawdown_events.py        # Drawdown episode detection and tagging
-│       └── fire_calculator.py        # FIRE projection logic
-├── requirements.txt                  # Python dependencies
+├── streamlit_dashboard/
+│   ├── app.py                        # Main Streamlit dashboard
+│   ├── requirements.txt              # Streamlit app dependencies
+│   └── src/
+│       ├── data_collection/
+│       │   ├── fetch_prices.py       # Yahoo Finance REST price fetching
+│       │   └── fetch_macro.py        # FRED CPI fetching
+│       └── processing/
+│           ├── screening.py          # Static asset universe
+│           ├── metrics.py            # Financial metric calculations
+│           ├── backtest.py           # Combined TWD backtesting engine
+│           ├── drawdown_events.py    # Drawdown episode detection and tagging
+│           └── fire_calculator.py    # FIRE projection logic
+├── github_web/
+│   ├── index.html                    # Static web dashboard for GitHub Pages
+│   ├── scripts/
+│   │   ├── export_web_data.py        # BigQuery export for static web data
+│   │   └── backfill_missing_web_assets.py
+│   └── src/
+│       ├── colors_and_type.css       # Web design tokens
+│       └── ppl-data.js               # Exported asset metrics and price history
+├── .github/
+│   └── workflows/
+│       └── update-and-deploy.yml     # Scheduled data refresh and Pages deploy
+├── requirements.txt                  # Compatibility wrapper for Streamlit Cloud
 ├── .env.example                      # Environment variable template
 └── README.md
 ```
