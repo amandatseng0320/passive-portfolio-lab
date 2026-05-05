@@ -9,6 +9,7 @@ Passive Portfolio Lab is a bilingual toolkit for long-term passive investors. It
 
 - **Streamlit Dashboard**: https://passive-portfolio-lab-new.streamlit.app/
 - **GitHub Web**: https://amandatseng0320.github.io/passive-portfolio-lab/
+- **Looker Studio Dashboard**: https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67
 
 The core question:
 
@@ -20,6 +21,7 @@ For app-specific setup, see:
 
 - [Streamlit Dashboard](streamlit_dashboard/README.md)
 - [GitHub Web](github_web/README.md)
+- [Looker Studio Dashboard](looker_studio/README.md)
 
 ---
 
