@@ -63,7 +63,33 @@ jobs:
             git push
           fi
 
-      # ── 6. Deploy github_web/ to GitHub Pages ──────────────────────────────
+      # ── 6. Validate exported data ─────────────────────────────────────────
+      - name: Validate export
+        run: python github_web/scripts/validate_export.py
+
+      # ── 7. Write job summary ───────────────────────────────────────────────
+      - name: Export summary
+        run: |
+          echo "## Export Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          UPDATED_AT=$(grep -o 'PPL_HISTORY_UPDATED_AT = "[^"]*"' github_web/src/ppl-data.js \
+            | cut -d'"' -f2)
+          ASSET_COUNT=$(grep -c '{ ticker:' github_web/src/ppl-data.js || echo "?")
+          FX=$(grep -o 'PPL_FX_RATE = [0-9.]*' github_web/src/ppl-data.js | cut -d' ' -f3)
+          echo "| Updated at | $UPDATED_AT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Assets exported | $ASSET_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| FX rate (TWD/USD) | $FX |" >> $GITHUB_STEP_SUMMARY
+
+      # ── 8. Upload ppl-data.js artifact for 7-day debugging window ─────────
+      - name: Upload export artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppl-data-${{ github.run_id }}
+          path: github_web/src/ppl-data.js
+          retention-days: 7
+
+      # ── 9. Deploy github_web/ to GitHub Pages ──────────────────────────────
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
