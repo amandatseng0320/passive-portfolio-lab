@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>被動投資組合實驗室 — Passive Portfolio Lab</title>
+<meta name="description" content="專為台灣投資人設計的被動投資資料工具。以新台幣計算的回測、財務自由試算、37 個 ETF 與加密貨幣篩選，三大平台一次整合。" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:    #0d1f3c;
+    --blue:    #4182b9;
+    --sky:     #72a8d4;
+    --accent:  #f59e0b;
+    --bg:      #f7f9fc;
+    --white:   #ffffff;
+    --text:    #1a2535;
+    --muted:   #6b727e;
+    --border:  #dde4ed;
+    --green:   #16a34a;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+
+  /* ── 導覽列 ────────────────────────────────────────────────── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(13,31,60,0.97);
+    backdrop-filter: blur(8px);
+    padding: 0 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+  .nav-brand .badge {
+    background: var(--blue); color: #fff;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+  }
+  .nav-brand .name { color: #fff; font-weight: 700; font-size: 15px; }
+  .nav-links { display: flex; gap: 28px; align-items: center; }
+  .nav-links a {
+    color: rgba(255,255,255,0.72); font-size: 13px; text-decoration: none;
+    transition: color 0.15s;
+  }
+  .nav-links a:hover { color: #fff; }
+  .nav-cta {
+    background: var(--blue); color: #fff !important;
+    padding: 7px 18px; border-radius: 7px; font-weight: 600 !important;
+    font-size: 13px !important;
+  }
+  .nav-cta:hover { background: #1e5a96 !important; }
+
+  /* ── Hero ─────────────────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 60%, #0d1f3c 100%);
+    padding: 96px 48px 80px;
+    text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(65,130,185,0.18) 0%, transparent 70%);
+  }
+  .hero-kicker {
+    display: inline-block;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--sky); margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: clamp(34px, 6vw, 62px);
+    font-weight: 900; color: #fff; line-height: 1.2;
+    letter-spacing: -0.01em; margin-bottom: 24px;
+  }
+  .hero h1 span { color: var(--sky); }
+  .hero-sub {
+    font-size: clamp(15px, 2vw, 18px);
+    color: rgba(255,255,255,0.72); max-width: 600px; margin: 0 auto 40px;
+    line-height: 1.8;
+  }
+  .hero-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--blue); color: #fff;
+    padding: 14px 32px; border-radius: 9px; font-size: 15px; font-weight: 700;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 4px 18px rgba(65,130,185,0.45); transition: all 0.2s;
+  }
+  .btn-primary:hover { background: #1e5a96; transform: translateY(-1px); }
+  .btn-secondary {
+    background: rgba(255,255,255,0.10); color: #fff;
+    padding: 14px 32px; border-radius: 9px; font-size: 15px; font-weight: 600;
+    text-decoration: none; border: 1px solid rgba(255,255,255,0.22);
+    display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.18); }
+  .hero-stats {
+    display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
+    margin-top: 64px; padding-top: 48px;
+    border-top: 1px solid rgba(255,255,255,0.10);
+  }
+  .hero-stat { text-align: center; }
+  .hero-stat .num { font-size: 36px; font-weight: 800; color: #fff; line-height: 1; }
+  .hero-stat .label { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 6px; }
+
+  /* ── 區塊通用 ─────────────────────────────────────────────── */
+  section { padding: 88px 48px; }
+  section:nth-child(even) { background: var(--white); }
+  .section-kicker {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--blue); margin-bottom: 14px;
+  }
+  .section-title {
+    font-size: clamp(26px, 4vw, 40px); font-weight: 800;
+    color: var(--navy); line-height: 1.25; margin-bottom: 16px;
+  }
+  .section-sub {
+    font-size: 16px; color: var(--muted); max-width: 580px; margin-bottom: 56px;
+    line-height: 1.8;
+  }
+
+  /* ── 功能卡片 ─────────────────────────────────────────────── */
+  .feature-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px;
+  }
+  .feature-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px 26px;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .feature-card:hover { box-shadow: 0 8px 32px rgba(13,31,60,0.1); transform: translateY(-2px); }
+  .feature-icon { font-size: 28px; margin-bottom: 14px; }
+  .feature-card h3 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+  .feature-card p  { font-size: 14px; color: var(--muted); line-height: 1.75; }
+
+  /* ── 平台卡片 ─────────────────────────────────────────────── */
+  .surface-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px;
+  }
+  .surface-card {
+    border-radius: 16px; padding: 32px 28px;
+    position: relative; overflow: hidden;
+  }
+  .surface-card.card-streamlit { background: linear-gradient(135deg, #1e3a5f 0%, #0d2240 100%); }
+  .surface-card.card-web       { background: linear-gradient(135deg, #1a3a6b 0%, #0d1f3c 100%); }
+  .surface-card.card-looker    { background: linear-gradient(135deg, #1f3b5c 0%, #0f2540 100%); }
+  .surface-card .pill {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; padding: 3px 10px; border-radius: 20px;
+    margin-bottom: 20px;
+  }
+  .card-streamlit .pill { background: rgba(65,130,185,0.3); color: #a8cae8; }
+  .card-web .pill       { background: rgba(114,168,212,0.3); color: #c4dff2; }
+  .card-looker .pill    { background: rgba(245,158,11,0.25); color: #fcd34d; }
+  .surface-card h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+  .surface-card p  { font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.75; margin-bottom: 22px; }
+  .surface-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600; color: var(--sky); text-decoration: none;
+    border-bottom: 1px solid transparent; transition: border-color 0.15s;
+  }
+  .surface-link:hover { border-color: var(--sky); }
+  .feature-list {
+    list-style: none; margin-top: 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .feature-list li { font-size: 13px; color: rgba(255,255,255,0.65); display: flex; gap: 8px; align-items: flex-start; }
+  .feature-list li::before { content: '✓'; color: var(--sky); font-weight: 700; flex-shrink: 0; }
+
+  /* ── 資料管道 ─────────────────────────────────────────────── */
+  .pipeline {
+    display: flex; align-items: center; justify-content: center;
+    flex-wrap: wrap; gap: 0; margin: 40px 0;
+  }
+  .pipeline-node {
+    background: var(--navy); color: #fff;
+    padding: 18px 24px; border-radius: 10px; text-align: center;
+    min-width: 130px;
+  }
+  .pipeline-node .node-icon  { font-size: 22px; margin-bottom: 6px; }
+  .pipeline-node .node-label { font-size: 12px; font-weight: 700; color: var(--sky); }
+  .pipeline-node .node-sub   { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .pipeline-arrow { color: var(--blue); font-size: 22px; padding: 0 8px; flex-shrink: 0; }
+
+  /* ── 資產標籤 ─────────────────────────────────────────────── */
+  .asset-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .chip {
+    font-size: 12px; font-weight: 600; padding: 4px 12px;
+    border-radius: 20px; border: 1px solid;
+  }
+  .chip-tw     { background: rgba(65,130,185,0.08);  border-color: rgba(65,130,185,0.25);  color: #1e5a96; }
+  .chip-us     { background: rgba(22,163,74,0.08);   border-color: rgba(22,163,74,0.25);   color: #15803d; }
+  .chip-crypto { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.3);   color: #b45309; }
+
+  /* ── 數字橫條 ─────────────────────────────────────────────── */
+  .metrics-bar {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 2px; border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--border); margin: 28px 0;
+  }
+  .metric-cell { background: var(--white); padding: 24px 20px; text-align: center; }
+  .metric-cell .val { font-size: 28px; font-weight: 800; color: var(--navy); }
+  .metric-cell .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── 步驟 ─────────────────────────────────────────────────── */
+  .steps { display: flex; flex-direction: column; gap: 32px; max-width: 680px; }
+  .step  { display: flex; gap: 24px; align-items: flex-start; }
+  .step-num {
+    width: 40px; height: 40px; flex-shrink: 0;
+    background: var(--navy); color: #fff;
+    border-radius: 50%; font-size: 16px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body h4 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+  .step-body p  { font-size: 14px; color: var(--muted); line-height: 1.75; }
+
+  /* ── 技術棧 ───────────────────────────────────────────────── */
+  .tech-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;
+  }
+  .tech-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 20px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .tech-logo { font-size: 24px; flex-shrink: 0; }
+  .tech-name { font-size: 14px; font-weight: 700; color: var(--navy); }
+  .tech-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ── 資安 / 監控 ──────────────────────────────────────────── */
+  .callout-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .callout { border-radius: 12px; padding: 28px 26px; }
+  .callout.security { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .callout.monitor  { background: #eff5fb; border: 1px solid #bfdbfe; }
+  .callout h4 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .callout.security h4 { color: #15803d; }
+  .callout.monitor  h4 { color: #1e40af; }
+  .callout ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .callout li { font-size: 13px; display: flex; gap: 8px; align-items: flex-start; color: #374151; }
+  .callout.security li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+  .callout.monitor  li::before { content: '●'; color: var(--blue); font-size: 8px; margin-top: 5px; flex-shrink: 0; }
+
+  /* ── CTA ──────────────────────────────────────────────────── */
+  .cta-section {
+    background: linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%);
+    padding: 96px 48px; text-align: center;
+  }
+  .cta-section h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; color: #fff; margin-bottom: 16px; }
+  .cta-section p  { font-size: 16px; color: rgba(255,255,255,0.65); max-width: 500px; margin: 0 auto 40px; line-height: 1.8; }
+
+  /* ── Footer ───────────────────────────────────────────────── */
+  footer {
+    background: var(--navy); color: rgba(255,255,255,0.45);
+    padding: 32px 48px; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+  }
+  footer a { color: rgba(255,255,255,0.55); text-decoration: none; }
+  footer a:hover { color: #fff; }
+
+  /* ── 響應式 ───────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    section { padding: 64px 20px; }
+    .hero { padding: 72px 20px 60px; }
+    .hero-stats { gap: 28px; }
+    .cta-section { padding: 64px 20px; }
+    footer { padding: 24px 20px; flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 導覽列 -->
+<nav>
+  <a href="#" class="nav-brand">
+    <span class="badge">PPL</span>
+    <span class="name">被動投資組合實驗室</span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">功能介紹</a>
+    <a href="#how-it-works">使用流程</a>
+    <a href="#tech">技術架構</a>
+    <a href="#live-demo" class="nav-cta">立即試用 →</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-kicker">Passive Portfolio Lab · 資料驅動的被動投資工具</div>
+  <h1>用數據投資，<br /><span>而不是靠感覺。</span></h1>
+  <p class="hero-sub">
+    專為台灣投資人設計的全端被動投資分析工具。
+    以新台幣計算的歷史回測、財務自由試算，加上 37 個精選 ETF 與加密貨幣篩選，
+    三大平台一次整合。
+  </p>
+  <div class="hero-btns">
+    <a href="https://passive-portfolio-lab-new.streamlit.app" class="btn-primary" target="_blank" rel="noopener">
+      🚀 開啟互動儀表板
+    </a>
+    <a href="https://amandatseng0320.github.io/passive-portfolio-lab" class="btn-secondary" target="_blank" rel="noopener">
+      🌐 靜態網頁版
+    </a>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="num">37</div>
+      <div class="label">精選資產</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">3</div>
+      <div class="label">交付平台</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">98</div>
+      <div class="label">自動化測試通過</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">每日</div>
+      <div class="label">自動更新資料</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">TWD</div>
+      <div class="label">以台幣為計算基礎</div>
+    </div>
+  </div>
+</div>
+
+<!-- 功能介紹 -->
+<section id="features">
+  <div style="max-width:1100px; margin:0 auto;">
+    <div class="section-kicker">工具功能</div>
+    <h2 class="section-title">被動投資人需要的，這裡都有。</h2>
+    <p class="section-sub">
+      六個整合模組，所有計算皆以新台幣（TWD）為基準——
+      因為你的錢是台幣，分析也應該用台幣。
+    </p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <h3>資產篩選</h3>
+        <p>瀏覽 37 個精選被動資產：14 檔台股 ETF、15 檔美股 ETF、8 個加密貨幣。依 CAGR、波動率、最大回撤或 Sharpe 比率排序，依類別篩選，一鍵加入自選清單。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚖️</div>
+        <h3>相關性分析</h3>
+        <p>檢視自選資產之間的連動程度。自動標記高相關群組（≥0.85）並建議保留哪一檔——讓你的分散投資真正發揮效果，而不只是數字堆砌。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <h3>風險配置</h3>
+        <p>選擇風險等級（低 → 極高），以年化波動率為主要代理指標，自動生成投資比例。可手動微調，合計恆為 100%。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📈</div>
+        <h3>歷史回測</h3>
+        <p>以 BigQuery 同步的每日真實價格，進行台幣計價的歷史模擬回測。一次性投入 + 每月定期定額，看見你實際需要承受的回撤幅度與持續時間——「痛苦指數」。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔥</div>
+        <h3>財務自由試算</h3>
+        <p>輸入現有存款、每月投入金額、目標支出與提領率，根據組合歷史 CAGR 推估達到財務獨立（FIRE）的時間軸，並附年度成長圖表。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>AI 投資組合分析</h3>
+        <p>Gemini 2.5 Flash 自動生成組合優勢、風險點與 FIRE 進度的白話文摘要。已明確標示為說明用途，非投資建議。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 三大平台 -->
+<section style="background:#fff;" id="live-demo">
+  <div style="max-width:1100px; margin:0 auto;">
+    <div class="section-kicker">三種使用方式</div>
+    <h2 class="section-title">同一份資料，三個平台。</h2>
+    <p class="section-sub">
+      依使用情境選擇最適合的工具——互動分析、手機友善靜態網頁，或可分享的 BI 報表。
+    </p>
+    <div class="surface-grid">
+      <div class="surface-card card-streamlit">
+        <div class="pill">完整功能版</div>
+        <h3>Streamlit 互動儀表板</h3>
+        <p>功能最完整的平台。即時連接 BigQuery，以完整每日價格進行回測，並整合 AI 分析洞見與六步驟組合建構流程。</p>
+        <ul class="feature-list">
+          <li>使用每日真實價格的 BigQuery 回測</li>
+          <li>回撤事件自動標記（COVID、升息等）</li>
+          <li>Gemini 2.5 Flash AI 投資組合摘要</li>
+          <li>可選密碼保護（預設公開）</li>
+        </ul>
+        <br/>
+        <a href="https://passive-portfolio-lab-new.streamlit.app" class="surface-link" target="_blank" rel="noopener">
+          開啟儀表板 →
+        </a>
+      </div>
+      <div class="surface-card card-web">
+        <div class="pill">靜態版 · 無需憑證</div>
+        <h3>GitHub Pages 靜態網頁</h3>
+        <p>零後端的 React 單頁應用程式。資料以每晚匯出的 JS 套件提供服務——瀏覽器端完全不呼叫 BigQuery，不需任何憑證，支援手機瀏覽。</p>
+        <ul class="feature-list">
+          <li>首次載入後可離線使用</li>
+          <li>中英雙語 UI（EN / 中文）</li>
+          <li>手機版側邊欄抽屜導覽</li>
+          <li>GitHub Actions 每日自動更新</li>
+        </ul>
+        <br/>
+        <a href="https://amandatseng0320.github.io/passive-portfolio-lab" class="surface-link" target="_blank" rel="noopener">
+          開啟網頁版 →
+        </a>
+      </div>
+      <div class="surface-card card-looker">
+        <div class="pill">BI 報表 · 可分享</div>
+        <h3>Looker Studio 報表</h3>
+        <p>六個預建的投資組合視圖，整合為可分享的 BI 報表。以 BigQuery 視圖為資料來源——唯讀、即時，無需程式碼即可嵌入分享。</p>
+        <ul class="feature-list">
+          <li>投資組合配置比例分解</li>
+          <li>年化報酬率比較圖</li>
+          <li>FIRE 情境試算表</li>
+          <li>可分享連結，無需登入</li>
+        </ul>
+        <br/>
+        <a href="#" class="surface-link">查看報表 →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 使用流程 -->
+<section id="how-it-works">
+  <div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:start;">
+    <div>
+      <div class="section-kicker">六步驟流程</div>
+      <h2 class="section-title">從零開始，一步步走向財務自由。</h2>
+      <p class="section-sub" style="margin-bottom:40px;">
+        每個步驟都會解鎖下一個區段。初次使用約需 10 分鐘完成完整分析。
+      </p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>資產篩選</h4>
+            <p>從 37 個資產池中選擇標的。依類別篩選、依任一指標排序，建立你的自選清單。建議先廣泛選取，後續再縮減。</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>相關性分析</h4>
+            <p>識別重複的資產。每個高相關群組（≥0.85）都會推薦保留哪一檔——移除其餘標的，避免偽分散。</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>風險配置</h4>
+            <p>選擇你的風險等級或手動設定比例。確認組合後，解鎖回測與 FIRE 試算區段。</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>歷史回測</h4>
+            <p>執行台幣計價的歷史模擬。查看年化報酬、最大回撤、五大最深回撤事件，以及每次回撤的恢復天數。</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>FIRE 試算</h4>
+            <p>輸入存款、每月投入金額與退休目標支出。取得預計達到財務獨立的年份，以及年度成長投影圖表。</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <h4>總覽摘要</h4>
+            <p>單頁投資組合快照：持有標的、配置比例、關鍵績效指標與 FIRE 達成狀況。可截圖或列印留存。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-kicker">資料管道</div>
+      <h2 class="section-title" style="margin-bottom:12px;">自動化。每日執行。穩定可靠。</h2>
+      <p style="font-size:15px; color:var(--muted); margin-bottom:36px; line-height:1.8;">
+        GitHub Actions 工作流程每晚凌晨一點（台北時間）自動執行。
+        價格資料從 Yahoo Finance 流入 BigQuery，再推送至每個平台——全程無需人工介入。
+      </p>
+      <div class="pipeline">
+        <div class="pipeline-node">
+          <div class="node-icon">📡</div>
+          <div class="node-label">Yahoo Finance</div>
+          <div class="node-sub">每日收盤價</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-node">
+          <div class="node-icon">🗄️</div>
+          <div class="node-label">BigQuery</div>
+          <div class="node-sub">raw_prices</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-node">
+          <div class="node-icon">⚙️</div>
+          <div class="node-label">匯出腳本</div>
+          <div class="node-sub">Python</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-node">
+          <div class="node-icon">🌐</div>
+          <div class="node-label">GitHub Pages</div>
+          <div class="node-sub">ppl-data.js</div>
+        </div>
+      </div>
+      <div style="margin-top:40px; background:var(--bg); border-radius:12px; padding:24px 22px; border:1px solid var(--border);">
+        <div style="font-size:12px; font-weight:700; color:var(--blue); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:12px;">資產池</div>
+        <div class="asset-chips">
+          <span class="chip chip-tw">0050.TW 大盤</span>
+          <span class="chip chip-tw">00878.TW 高股息</span>
+          <span class="chip chip-tw">006208.TW 富邦</span>
+          <span class="chip chip-us">SPY S&amp;P 500</span>
+          <span class="chip chip-us">QQQ Nasdaq</span>
+          <span class="chip chip-us">VTI 全市場</span>
+          <span class="chip chip-us">BND 債券</span>
+          <span class="chip chip-us">GLD 黃金</span>
+          <span class="chip chip-crypto">BTC-USD</span>
+          <span class="chip chip-crypto">ETH-USD</span>
+          <span class="chip chip-us">另 +27 個...</span>
+        </div>
+      </div>
+      <div class="metrics-bar">
+        <div class="metric-cell">
+          <div class="val">14</div>
+          <div class="lbl">台股 ETF</div>
+        </div>
+        <div class="metric-cell">
+          <div class="val">15</div>
+          <div class="lbl">美股 ETF</div>
+        </div>
+        <div class="metric-cell">
+          <div class="val">8</div>
+          <div class="lbl">加密貨幣</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 技術架構 -->
+<section id="tech" style="background:#fff;">
+  <div style="max-width:1100px; margin:0 auto;">
+    <div class="section-kicker">技術架構</div>
+    <h2 class="section-title">為可靠性與透明度而設計。</h2>
+    <p class="section-sub">
+      開源、完整文件、98 個自動化測試。每一個公式都有跡可循，沒有黑盒。
+    </p>
+
+    <div class="tech-grid" style="margin-bottom:56px;">
+      <div class="tech-card">
+        <div class="tech-logo">🐍</div>
+        <div>
+          <div class="tech-name">Python + Streamlit</div>
+          <div class="tech-desc">互動儀表板、資料管道、回測引擎</div>
+        </div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">⚛️</div>
+        <div>
+          <div class="tech-name">React 18 + Chart.js</div>
+          <div class="tech-desc">靜態 GitHub Pages SPA，無需建置步驟</div>
+        </div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">🗄️</div>
+        <div>
+          <div class="tech-name">Google BigQuery</div>
+          <div class="tech-desc">價格、指標與投資組合表格的核心資料庫</div>
+        </div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">📊</div>
+        <div>
+          <div class="tech-name">Looker Studio</div>
+          <div class="tech-desc">可分享的 BI 報表，以 BigQuery 視圖為底</div>
+        </div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">⚙️</div>
+        <div>
+          <div class="tech-name">GitHub Actions</div>
+          <div class="tech-desc">每日 CI/CD：抓取 → 匯出 → Commit → 部署</div>
+        </div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">🤖</div>
+        <div>
+          <div class="tech-name">Gemini 2.5 Flash</div>
+          <div class="tech-desc">AI 投資組合說明，已標示為參考用途</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:start;">
+      <div>
+        <h3 style="font-size:18px; font-weight:700; color:var(--navy); margin-bottom:20px;">核心設計原則</h3>
+        <div style="display:flex; flex-direction:column; gap:18px;">
+          <div style="border-left:3px solid var(--blue); padding-left:16px;">
+            <div style="font-size:14px; font-weight:700; color:var(--navy); margin-bottom:4px;">TWD 是計算基礎，不是顯示換算</div>
+            <div style="font-size:13px; color:var(--muted);">所有回測使用每日 TWD/USD 匯率（非快照），讓匯率波動正確反映在組合報酬中。USD 顯示切換僅為外觀換算。</div>
+          </div>
+          <div style="border-left:3px solid var(--blue); padding-left:16px;">
+            <div style="font-size:14px; font-weight:700; color:var(--navy); margin-bottom:4px;">靜態網頁 = 瀏覽器端無憑證風險</div>
+            <div style="font-size:13px; color:var(--muted);">GitHub Web 完全不從瀏覽器呼叫 BigQuery。所有資料以每晚匯出的 <code>ppl-data.js</code> 靜態檔案提供。</div>
+          </div>
+          <div style="border-left:3px solid var(--blue); padding-left:16px;">
+            <div style="font-size:14px; font-weight:700; color:var(--navy); margin-bottom:4px;">波動率計算符合市場慣例</div>
+            <div style="font-size:13px; color:var(--muted);">股票型 ETF 使用 √252 交易日；加密貨幣使用 √365 日曆日。測試套件強制驗證比例 = √(365/252) 以防回歸錯誤。</div>
+          </div>
+          <div style="border-left:3px solid var(--blue); padding-left:16px;">
+            <div style="font-size:14px; font-weight:700; color:var(--navy); margin-bottom:4px;">98 個測試，零外部呼叫</div>
+            <div style="font-size:13px; color:var(--muted);">所有金融計算均以合成 fixture 進行測試。BigQuery、Yahoo Finance、FRED 與 Gemini 皆以 mock 替代。測試在 1 秒內完成。</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="callout-grid">
+          <div class="callout security">
+            <h4>🔒 資安狀況</h4>
+            <ul>
+              <li>所有憑證已加入 .gitignore，從未 commit 至版本庫</li>
+              <li>靜態網頁：瀏覽器端完全不呼叫 BigQuery</li>
+              <li>三個平台均未收集任何使用者個人資料（PII）</li>
+              <li>資安審查：0 個 Critical，共 11 項發現</li>
+              <li>匯率範圍過濾（20–50 TWD/USD）作為第二道防線</li>
+            </ul>
+          </div>
+          <div class="callout monitor">
+            <h4>📡 可觀測性</h4>
+            <ul>
+              <li>GitHub Actions 工作流程執行結果可在 repository UI 查看</li>
+              <li>匯出時間戳記顯示於網頁版頁尾</li>
+              <li>建議新增：validate_export.py 資料品質自動驗證</li>
+              <li>建議新增：工作流程摘要區塊（人可讀的執行記錄）</li>
+              <li>建議新增：Artifact 上傳，保留 7 天供事後除錯</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 免責聲明 -->
+<section style="padding:48px 48px; background:var(--bg);">
+  <div style="max-width:820px; margin:0 auto; text-align:center;">
+    <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:28px 32px;">
+      <div style="font-size:13px; font-weight:700; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.1em;">免責聲明</div>
+      <p style="font-size:14px; color:var(--muted); line-height:1.85;">
+        本工具提供之所有資料與分析，<strong>僅供說明及教育用途，不構成任何投資建議</strong>。
+        過去績效不代表未來結果。加密貨幣相關指標因歷史較短且波動極端，請特別審慎參考。
+        所有金額除另有標示外，均以新台幣（TWD）計算。
+      </p>
+      <p style="font-size:14px; color:var(--muted); margin-top:12px; line-height:1.85;">
+        All data and analysis is for informational and educational purposes only and does not constitute investment advice.
+        Historical performance does not guarantee future results.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-section">
+  <h2>準備好開始建立你的<br />被動投資組合了嗎？</h2>
+  <p>從互動儀表板開始，或先瀏覽靜態網頁版——無需建立帳號。</p>
+  <div class="hero-btns">
+    <a href="https://passive-portfolio-lab-new.streamlit.app" class="btn-primary" target="_blank" rel="noopener">
+      🚀 開啟 Streamlit 儀表板
+    </a>
+    <a href="https://amandatseng0320.github.io/passive-portfolio-lab" class="btn-secondary" target="_blank" rel="noopener">
+      🌐 開啟 GitHub 網頁版
+    </a>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <div>
+    <strong style="color:rgba(255,255,255,0.72);">被動投資組合實驗室</strong>
+    &nbsp;·&nbsp; Passive Portfolio Lab &nbsp;·&nbsp; 最後更新：2026-05-23
+  </div>
+  <div style="display:flex; gap:20px; flex-wrap:wrap;">
+    <a href="https://github.com/amandatseng0320/passive-portfolio-lab" target="_blank" rel="noopener">GitHub</a>
+    <a href="FINAL_REPORT.md">結案報告</a>
+    <a href="CHANGELOG.md">更新紀錄</a>
+    <a href="DATA_CONTRACT.md">資料規格</a>
+  </div>
+</footer>
+
+</body>
+</html>
