@@ -16,7 +16,8 @@ from pathlib import Path
 
 OUTPUT = Path(__file__).resolve().parents[1] / "src" / "ppl-data.js"
 EXPECTED_MIN_ASSETS = 30   # alert if fewer than 30 assets exported
-EXPECTED_ASSETS = 37       # current ASSET_POOL size
+# Keep EXPECTED_ASSETS in sync with ASSET_POOL in screening.py when adding/removing assets
+EXPECTED_ASSETS = 37
 MAX_STALENESS_HOURS = 25   # allow 1 hour of drift past the 24-hour schedule
 
 
@@ -33,8 +34,8 @@ def main() -> None:
         if f"const {var}" not in content:
             errors.append(f"MISSING global: const {var}")
 
-    # 2. Asset count
-    asset_count = len([l for l in content.splitlines() if l.strip().startswith("{ ticker:")])
+    # 2. Asset count — count distinct ticker values rather than relying on line formatting
+    asset_count = len(re.findall(r'ticker:\s*["\']([^"\']+)["\']', content))
     if asset_count < EXPECTED_MIN_ASSETS:
         errors.append(
             f"ASSET COUNT: {asset_count} assets exported (expected >= {EXPECTED_MIN_ASSETS})"

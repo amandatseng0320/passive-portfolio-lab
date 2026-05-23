@@ -1,22 +1,16 @@
-import os
 import sys
+import os
 import numpy as np
 import pandas as pd
 import pandas_gbq
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Add project root to sys.path to access src modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from src.processing.screening import get_all_candidates
+from src.processing.screening import get_all_candidates, validate_tickers
+from src.processing.utils import get_bq_config
 
 def load_prices_from_bq():
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    dataset_id = os.getenv("BIGQUERY_DATASET")
-    if not project_id or not dataset_id:
-        raise ValueError("Missing GOOGLE_CLOUD_PROJECT or BIGQUERY_DATASET in .env")
+    project_id, dataset_id = get_bq_config()
         
     query = f"SELECT * FROM `{dataset_id}.raw_prices` ORDER BY ticker, date"
     df = pandas_gbq.read_gbq(query, project_id=project_id)
@@ -125,10 +119,10 @@ def calculate_metrics(df):
     return pd.DataFrame(results)
 
 def upload_to_bigquery(df):
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    dataset_id = os.getenv("BIGQUERY_DATASET")
-    if not project_id or not dataset_id:
-        print("Missing GOOGLE_CLOUD_PROJECT or BIGQUERY_DATASET in env. Skipping upload.")
+    try:
+        project_id, dataset_id = get_bq_config()
+    except ValueError as e:
+        print(f"{e}. Skipping upload.")
         return
         
     table_id = f"{dataset_id}.asset_metrics"
