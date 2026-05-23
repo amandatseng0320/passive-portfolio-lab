@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import pandas_gbq
 from dotenv import load_dotenv
+from .screening import validate_tickers
 
 load_dotenv()
 
@@ -62,6 +63,7 @@ def load_prices_for_tickers(tickers: list) -> pd.DataFrame:
     Load price data for specified tickers from BigQuery raw_prices table.
     Returns columns: date, ticker, close
     """
+    validate_tickers(tickers)
     project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
     dataset_id = os.getenv("BIGQUERY_DATASET")
     if not project_id or not dataset_id:

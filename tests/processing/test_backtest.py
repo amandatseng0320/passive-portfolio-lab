@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 from src.processing.backtest import run_combined
+from src.processing.screening import validate_tickers
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -227,3 +228,26 @@ class TestOutputSchema:
                               initial_investment=10_000,
                               monthly_contribution=0)
         assert (result["portfolio_value"] > 0).all()
+
+
+class TestTickerWhitelist:
+    """validate_tickers() must reject anything not in ASSET_POOL."""
+
+    def test_valid_tickers_do_not_raise(self):
+        # Sample of known-good tickers from ASSET_POOL
+        validate_tickers(["0050.TW", "SPY", "BTC-USD"])
+
+    def test_empty_list_does_not_raise(self):
+        validate_tickers([])
+
+    def test_unknown_ticker_raises(self):
+        with pytest.raises(ValueError, match="not in ASSET_POOL"):
+            validate_tickers(["AAPL"])
+
+    def test_sql_injection_attempt_raises(self):
+        with pytest.raises(ValueError, match="not in ASSET_POOL"):
+            validate_tickers(["0050.TW', 'x'; DROP TABLE raw_prices; --"])
+
+    def test_mix_of_valid_and_invalid_raises(self):
+        with pytest.raises(ValueError, match="not in ASSET_POOL"):
+            validate_tickers(["0050.TW", "NOTREAL"])

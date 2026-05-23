@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import pandas_gbq
 from dotenv import load_dotenv
+from .screening import validate_tickers
 
 load_dotenv()
 
@@ -12,6 +13,7 @@ def load_cagr_from_bq(tickers: list) -> dict:
     Load CAGR values for specified tickers from BigQuery asset_metrics table.
     Returns a dict: {ticker: cagr}
     """
+    validate_tickers(tickers)
     project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
     dataset_id = os.getenv("BIGQUERY_DATASET")
     if not project_id or not dataset_id:

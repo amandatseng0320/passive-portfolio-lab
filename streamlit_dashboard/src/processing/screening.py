@@ -384,6 +384,17 @@ def get_all_tickers() -> list[str]:
     return [a["ticker"] for a in ASSET_POOL]
 
 
+def validate_tickers(tickers: list[str]) -> None:
+    """Raise ValueError if any ticker is not in ASSET_POOL.
+
+    Call this before interpolating tickers into SQL to prevent injection.
+    """
+    allowed = {a["ticker"] for a in ASSET_POOL}
+    invalid = [t for t in tickers if t not in allowed]
+    if invalid:
+        raise ValueError(f"Ticker(s) not in ASSET_POOL: {invalid}")
+
+
 def get_tickers_by_category(category: str) -> list[str]:
     """Return tickers filtered by top-level category. category: 'TW_ETF' | 'US_ETF' | 'CRYPTO'"""
     return [a["ticker"] for a in ASSET_POOL if a["category"] == category]
