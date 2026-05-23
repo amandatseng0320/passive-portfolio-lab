@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Passive Portfolio Lab</title>
+  <title>Passive Portfolio Lab — 被動投資組合實驗室</title>
+  <meta name="description" content="Passive Portfolio Lab is a bilingual toolkit for Taiwan-based long-term investors. Analyze ETF and crypto portfolios, run TWD-based backtests, and estimate your FIRE timeline." />
+  <meta property="og:title" content="Passive Portfolio Lab" />
+  <meta property="og:description" content="TWD-based portfolio analysis for Taiwan investors — backtest, drawdown, and FIRE calculator for 37 ETFs and crypto assets." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
 
   <link rel="stylesheet" href="src/colors_and_type.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -46,6 +51,135 @@
       background: #0d1f3c; color: #a8cae8;
       font-family: 'Source Sans 3', system-ui, sans-serif;
       font-size: 14px; letter-spacing: 0.06em; z-index: 9999;
+    }
+  </style>
+
+  <style>
+    /* ── Mobile responsive ──────────────────────────────────────────────── */
+    #ppl-sidebar {
+      transition: transform 0.25s ease;
+    }
+    #ppl-hamburger {
+      display: none;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #fff;
+      border-radius: 6px;
+      padding: 7px 11px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    #ppl-sidebar-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 299;
+    }
+
+    @media (max-width: 767px) {
+      #ppl-hamburger { display: block; }
+
+      #ppl-sidebar {
+        position: fixed !important;
+        top: 0; left: 0;
+        height: 100vh !important;
+        z-index: 300;
+        transform: translateX(-100%);
+      }
+      #ppl-sidebar.sidebar-open {
+        transform: translateX(0);
+      }
+      #ppl-sidebar-overlay.overlay-open {
+        display: block;
+      }
+      .sidebar-close-btn { display: flex !important; }
+
+      /* App header: compact on mobile */
+      #ppl-app-header {
+        padding: 14px 18px !important;
+        flex-wrap: wrap;
+        gap: 10px !important;
+      }
+      #ppl-app-header .header-sep     { display: none; }
+      #ppl-app-header .header-tagline { display: none; }
+
+      /* Section padding: tighter on mobile */
+      .ppl-section { padding: 28px 18px !important; }
+
+      /* Tables: allow horizontal scroll */
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+
+      /* Charts: don't overflow */
+      canvas { max-width: 100% !important; }
+
+      /* MetricCard grid: stack on very small screens */
+      .ppl-metric-grid {
+        grid-template-columns: 1fr 1fr !important;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .ppl-metric-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    /* ── Instruction popup ──────────────────────────────────────────────── */
+    #ppl-help-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 500;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    #ppl-help-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 32px 36px;
+      max-width: 540px;
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.22);
+      position: relative;
+    }
+    #ppl-help-box h2 {
+      font-size: 20px; font-weight: 700; color: #0d1f3c;
+      margin-bottom: 6px;
+    }
+    #ppl-help-box .help-sub {
+      font-size: 13px; color: #6b727e; margin-bottom: 20px;
+    }
+    #ppl-help-box .help-step {
+      display: flex; gap: 14px; margin-bottom: 16px; align-items: flex-start;
+    }
+    #ppl-help-box .help-num {
+      flex-shrink: 0;
+      width: 28px; height: 28px;
+      background: #4182b9; color: #fff;
+      border-radius: 50%; font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #ppl-help-box .help-text strong { color: #0d1f3c; }
+    #ppl-help-box .help-text { font-size: 14px; line-height: 1.6; color: #444; }
+    #ppl-help-box .help-note {
+      background: #eff5fb; border-left: 3px solid #4182b9; border-radius: 6px;
+      padding: 10px 14px; font-size: 13px; color: #1f3b5c;
+      line-height: 1.6; margin-top: 20px;
+    }
+    #ppl-help-close {
+      margin-top: 24px;
+      background: #4182b9; color: #fff;
+      border: none; border-radius: 7px;
+      padding: 10px 24px; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; width: 100%;
+    }
+    #ppl-help-close:hover { background: #1e5a96; }
+
+    @media (max-width: 480px) {
+      #ppl-help-box { padding: 24px 20px; }
     }
   </style>
 </head>
@@ -673,27 +807,38 @@ const NAV_ITEMS = [
 ];
 
 // ── App Header ────────────────────────────────────────────────────────────────
-const AppHeader = ({ t, displayCurrency, setDisplayCurrency }) => (
-  <div style={{
+const AppHeader = ({ t, lang, displayCurrency, setDisplayCurrency, onToggleSidebar, onHelp }) => (
+  <div id="ppl-app-header" style={{
     background:'linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%)',
     padding:'22px 48px', display:'flex', alignItems:'center', gap:20,
     borderBottom:'1px solid rgba(255,255,255,0.08)',
     boxShadow:'0 2px 12px rgba(0,0,0,0.15)',
   }}>
+    <button id="ppl-hamburger" onClick={onToggleSidebar} aria-label="Open menu"
+      style={{ background:'none', border:'none', cursor:'pointer', padding:'4px 6px', marginRight:4 }}>
+      <span style={{ display:'block', width:22, height:2, background:'#fff', marginBottom:5 }} />
+      <span style={{ display:'block', width:22, height:2, background:'#fff', marginBottom:5 }} />
+      <span style={{ display:'block', width:22, height:2, background:'#fff' }} />
+    </button>
     <div>
       <div style={{ fontSize:11, fontWeight:700, color:'#72a8d4', letterSpacing:'0.16em', textTransform:'uppercase', marginBottom:3 }}>{t.appTitle}</div>
       <div style={{ fontSize:30, fontWeight:700, color:'#fff', lineHeight:1.1, letterSpacing:'-0.01em' }}>{t.appSub}</div>
     </div>
-    <div style={{ width:1, height:40, background:'rgba(255,255,255,0.18)', flexShrink:0 }} />
-    <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)', lineHeight:1.6 }}>{t.appTagline}</div>
-    <div style={{ marginLeft:'auto' }}>
+    <div className="header-sep" style={{ width:1, height:40, background:'rgba(255,255,255,0.18)', flexShrink:0 }} />
+    <div className="header-tagline" style={{ fontSize:13, color:'rgba(255,255,255,0.65)', lineHeight:1.6 }}>{t.appTagline}</div>
+    <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:10 }}>
+      <button onClick={onHelp} title="How to use" style={{
+        background:'rgba(255,255,255,0.12)', border:'1px solid rgba(255,255,255,0.22)',
+        borderRadius:20, padding:'5px 12px', color:'#fff', fontSize:12, fontWeight:600,
+        cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:5,
+      }}>❓ {lang === 'zh' ? '使用說明' : 'How to use'}</button>
       <CurrencyToggle t={t} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} />
     </div>
   </div>
 );
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-const Sidebar = ({ active, onNav, lang, setLang, t, confirmed }) => {
+const Sidebar = ({ active, onNav, lang, setLang, t, confirmed, onClose, className }) => {
   const lockedSet = useMemo(() => {
     const s = new Set(['correlation','allocation','backtest','fire','summary']);
     if (confirmed) s.clear();
@@ -701,13 +846,18 @@ const Sidebar = ({ active, onNav, lang, setLang, t, confirmed }) => {
   }, [confirmed]);
 
   return (
-    <div style={{ width:230, minWidth:230, background:'#0d1f3c', height:'100vh',
+    <div id="ppl-sidebar" className={className || ''} style={{ width:230, minWidth:230, background:'#0d1f3c', height:'100vh',
       position:'sticky', top:0, display:'flex', flexDirection:'column',
       overflow:'hidden', flexShrink:0 }}>
-      <div style={{ padding:'26px 20px 18px', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ padding:'26px 20px 18px', borderBottom:'1px solid rgba(255,255,255,0.08)', position:'relative' }}>
         <div style={{ fontSize:10, fontWeight:700, color:'#72a8d4', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:3 }}>{t.appTitle}</div>
         <div style={{ fontSize:22, fontWeight:700, color:'#fff', lineHeight:1.1 }}>{t.appSub}</div>
         <div style={{ fontSize:11, color:'rgba(255,255,255,0.55)', marginTop:5 }}>{t.appTagline}</div>
+        <button onClick={onClose} aria-label="Close menu" style={{
+          display:'none', position:'absolute', top:14, right:14,
+          background:'rgba(255,255,255,0.12)', border:'none', borderRadius:6,
+          color:'#fff', fontSize:18, lineHeight:1, padding:'2px 8px', cursor:'pointer',
+        }} className="sidebar-close-btn">✕</button>
       </div>
 
       <div style={{ padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', gap:4 }}>
@@ -1518,6 +1668,38 @@ const SummarySection = ({ t, lang, watchlist, allocation, riskLevel, btCagr, con
   );
 };
 
+// ── Instruction popup ─────────────────────────────────────────────────────────
+const InstructionPopup = ({ lang, t, onClose }) => {
+  const isZh = lang === 'zh';
+  const steps = t.introHowSteps || [];
+  return (
+    <div id="ppl-help-overlay" onClick={e => { if (e.target.id === 'ppl-help-overlay') onClose(); }}>
+      <div id="ppl-help-box">
+        <h2>{isZh ? '如何使用本工具' : 'How to use this tool'}</h2>
+        <div className="help-sub">
+          {isZh
+            ? '依照以下六個步驟，完成你的被動投資組合分析。'
+            : 'Follow these six steps to build your passive portfolio analysis.'}
+        </div>
+        {steps.map(s => (
+          <div key={s.step} className="help-step">
+            <div className="help-num">{s.step}</div>
+            <div className="help-text"><strong>{s.title}</strong><br />{s.desc}</div>
+          </div>
+        ))}
+        <div className="help-note">
+          {isZh
+            ? '💡 所有計算以新台幣（TWD）為基礎。美元顯示僅為換算參考，不影響底層數字。'
+            : '💡 All calculations are in TWD. The USD toggle is display-only and does not affect underlying computations.'}
+        </div>
+        <button id="ppl-help-close" onClick={onClose}>
+          {isZh ? '開始使用 →' : 'Get started →'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ── Main App — single-page scrollable layout ──────────────────────────────────
 const SECTION_STYLE = { padding:'44px 48px' };
 const DIVIDER       = { borderTop:'2px solid #f0f2f6' };
@@ -1533,16 +1715,24 @@ const App = () => {
   const [initial,    setInitial]    = useState(300000);
   const [monthly,    setMonthly]    = useState(15000);
   const [displayCurrency, setDisplayCurrency] = useState('TWD');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showHelp,    setShowHelp]    = useState(false);
 
   const mainRef = useRef();
   const t = T[lang] || T.en;
 
-  const backtestResult = useMemo(() => {
-    if (!confirmed || !Object.keys(allocation).length) return null;
-    return generateBacktest(allocation, initial, monthly);
-  }, [allocation, confirmed, initial, monthly]);
+  // Show popup on first visit
+  useEffect(() => {
+    if (!localStorage.getItem('ppl_help_seen')) setShowHelp(true);
+  }, []);
 
-  const btCagr = backtestResult?.cagr ?? null;
+  const closeHelp = () => {
+    localStorage.setItem('ppl_help_seen', '1');
+    setShowHelp(false);
+  };
+
+  const toggleSidebar = () => setSidebarOpen(o => !o);
+  const closeSidebar  = () => setSidebarOpen(false);
 
   const scrollTo = useCallback((id) => {
     const el   = document.getElementById('section-'+id);
@@ -1550,6 +1740,18 @@ const App = () => {
     if (!el || !main) return;
     main.scrollTo({ top: el.offsetTop - 20, behavior:'smooth' });
   }, []);
+
+  const handleNav = useCallback((id) => {
+    scrollTo(id);
+    setSidebarOpen(false);
+  }, [scrollTo]);
+
+  const backtestResult = useMemo(() => {
+    if (!confirmed || !Object.keys(allocation).length) return null;
+    return generateBacktest(allocation, initial, monthly);
+  }, [allocation, confirmed, initial, monthly]);
+
+  const btCagr = backtestResult?.cagr ?? null;
 
   // Track active section while scrolling
   useEffect(() => {
@@ -1577,9 +1779,12 @@ const App = () => {
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', fontFamily:"'Source Sans 3',system-ui,sans-serif", background:'#f7f9fc' }}>
-      <Sidebar active={activeNav} onNav={scrollTo} lang={lang} setLang={setLang} t={t} confirmed={confirmed} />
+      <div id="ppl-sidebar-overlay" className={sidebarOpen ? 'overlay-open' : ''} onClick={closeSidebar} />
+      <Sidebar active={activeNav} onNav={handleNav} lang={lang} setLang={setLang} t={t} confirmed={confirmed}
+        onClose={closeSidebar} className={sidebarOpen ? 'sidebar-open' : ''} />
       <main ref={mainRef} style={{ flex:1, overflowY:'auto', minWidth:0 }}>
-        <AppHeader t={t} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} />
+        <AppHeader t={t} lang={lang} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency}
+          onToggleSidebar={toggleSidebar} onHelp={() => setShowHelp(true)} />
         <div id="section-intro"       style={SECTION_STYLE}><IntroSection       {...sectionProps} /></div>
         <div style={DIVIDER} />
         <div id="section-screening"   style={SECTION_STYLE}><AssetScreening     {...sectionProps} onReviewPortfolio={() => scrollTo('correlation')} /></div>
@@ -1595,6 +1800,7 @@ const App = () => {
         <div id="section-summary"     style={SECTION_STYLE}><SummarySection      {...sectionProps} /></div>
         <div style={{ height:80 }} />
       </main>
+      {showHelp && <InstructionPopup lang={lang} t={t} onClose={closeHelp} />}
     </div>
   );
 };
