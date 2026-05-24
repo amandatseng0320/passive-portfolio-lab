@@ -9,6 +9,7 @@ Passive Portfolio Lab is a bilingual toolkit for long-term passive investors. It
 
 - **Streamlit Dashboard**: https://passive-portfolio-lab-new.streamlit.app/
 - **GitHub Web**: https://amandatseng0320.github.io/passive-portfolio-lab/
+- **Landing Page**: https://amandatseng0320.github.io/passive-portfolio-lab/landing.html
 - **Looker Studio Dashboard**: https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67
 
 The core question:
@@ -181,22 +182,38 @@ passive-portfolio-lab/
 │       │   ├── fetch_prices.py       # Yahoo Finance REST price fetching
 │       │   └── fetch_macro.py        # FRED CPI fetching
 │       └── processing/
-│           ├── screening.py          # Static asset universe
+│           ├── screening.py          # Static asset universe + ticker whitelist
+│           ├── utils.py              # Shared BQ config helper
 │           ├── metrics.py            # Financial metric calculations
 │           ├── backtest.py           # Combined TWD backtesting engine
 │           ├── drawdown_events.py    # Drawdown episode detection and tagging
 │           └── fire_calculator.py    # FIRE projection logic
 ├── github_web/
 │   ├── index.html                    # Static web dashboard for GitHub Pages
+│   ├── landing.html                  # Project landing / sales page
 │   ├── scripts/
 │   │   ├── export_web_data.py        # BigQuery export for static web data
+│   │   ├── validate_export.py        # Post-export data validation
 │   │   └── backfill_missing_web_assets.py
 │   └── src/
 │       ├── colors_and_type.css       # Web design tokens
 │       └── ppl-data.js               # Exported asset metrics and price history
+├── docs/
+│   ├── CHANGELOG.md
+│   ├── DATA_CONTRACT.md
+│   ├── DELIVERY_SCOPE.md
+│   ├── FINAL_REPORT.md
+│   ├── HANDOFF.md
+│   ├── MONITORING.md
+│   ├── SECURITY_REVIEW.md
+│   └── TEST_STRATEGY.md
+├── tests/
+│   └── processing/
+│       └── test_backtest.py          # Unit tests incl. ticker whitelist
 ├── .github/
 │   └── workflows/
 │       └── update-and-deploy.yml     # Scheduled data refresh and Pages deploy
+├── CLAUDE.md                         # Claude Code project instructions
 ├── requirements.txt                  # Compatibility wrapper for Streamlit Cloud
 ├── .env.example                      # Environment variable template
 └── README.md
