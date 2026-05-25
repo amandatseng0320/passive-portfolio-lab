@@ -7,7 +7,7 @@ Passive Portfolio Lab is a bilingual toolkit for long-term passive investors. It
 
 ## Live Apps
 
-- **Streamlit Dashboard**: https://passive-portfolio-lab-new.streamlit.app/
+- **Streamlit Dashboard**: https://passive-portfolio-lab.streamlit.app/
 - **GitHub Web**: https://amandatseng0320.github.io/passive-portfolio-lab/
 - **Landing Page**: https://amandatseng0320.github.io/passive-portfolio-lab/landing.html
 - **Looker Studio Dashboard**: https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67
