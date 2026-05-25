@@ -54,7 +54,7 @@ except Exception:
     # Local dev: no secrets.toml, skip silently.
     pass
 
-st.set_page_config(page_title="Passive Portfolio Lab", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Passive Portfolio Lab", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 
 # ── Language / i18n ───────────────────────────────────────────────────────────
 if 'lang' not in st.session_state:

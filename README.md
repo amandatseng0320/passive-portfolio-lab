@@ -198,15 +198,6 @@ passive-portfolio-lab/
 │   └── src/
 │       ├── colors_and_type.css       # Web design tokens
 │       └── ppl-data.js               # Exported asset metrics and price history
-├── docs/
-│   ├── CHANGELOG.md
-│   ├── DATA_CONTRACT.md
-│   ├── DELIVERY_SCOPE.md
-│   ├── FINAL_REPORT.md
-│   ├── HANDOFF.md
-│   ├── MONITORING.md
-│   ├── SECURITY_REVIEW.md
-│   └── TEST_STRATEGY.md
 ├── tests/
 │   └── processing/
 │       └── test_backtest.py          # Unit tests incl. ticker whitelist
