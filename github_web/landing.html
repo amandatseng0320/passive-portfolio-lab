@@ -104,15 +104,6 @@
     display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;
   }
   .btn-secondary:hover { background: rgba(255,255,255,0.18); }
-  .hero-stats {
-    display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
-    margin-top: 64px; padding-top: 48px;
-    border-top: 1px solid rgba(255,255,255,0.10);
-  }
-  .hero-stat { text-align: center; }
-  .hero-stat .num { font-size: 36px; font-weight: 800; color: #fff; line-height: 1; }
-  .hero-stat .label { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 6px; }
-
   /* ── 區塊通用 ─────────────────────────────────────────────── */
   section { padding: 88px 48px; }
   section:nth-child(even) { background: var(--white); }
@@ -276,7 +267,6 @@
     .nav-links a:not(.nav-cta) { display: none; }
     section { padding: 64px 20px; }
     .hero { padding: 72px 20px 60px; }
-    .hero-stats { gap: 28px; }
     .cta-section { padding: 64px 20px; }
     footer { padding: 24px 20px; flex-direction: column; text-align: center; }
   }
@@ -294,7 +284,7 @@
     <a href="#features">功能介紹</a>
     <a href="#how-it-works">使用流程</a>
     <a href="#tech">技術架構</a>
-    <a href="#live-demo" class="nav-cta">立即試用 →</a>
+    <a href="#live-demo" class="nav-cta">立即體驗 →</a>
   </div>
 </nav>
 
@@ -303,42 +293,14 @@
   <div class="hero-kicker">Passive Portfolio Lab · 資料驅動的被動投資工具</div>
   <h1>用數據投資，<br /><span>而不是靠感覺。</span></h1>
   <p class="hero-sub">
-    專為台灣投資人設計的全端被動投資分析工具。
-    以新台幣計算的歷史回測、財務自由試算，加上 37 個精選 ETF 與加密貨幣篩選，
+    專為台灣投資人設計的全端被動投資分析工具。<br />
+    以新台幣計算的歷史回測、財務自由試算，加上 37 個精選 ETF 與加密貨幣篩選，<br />
     三大平台一次整合。
   </p>
   <div class="hero-btns">
     <a href="https://passive-portfolio-lab.streamlit.app" class="btn-primary" target="_blank" rel="noopener">
-      🚀 互動儀表板
+      立即體驗 →
     </a>
-    <a href="https://amandatseng0320.github.io/passive-portfolio-lab" class="btn-secondary" target="_blank" rel="noopener">
-      📊 靜態網頁版
-    </a>
-    <a href="https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67" class="btn-secondary" target="_blank" rel="noopener">
-      📋 Looker 報表
-    </a>
-  </div>
-  <div class="hero-stats">
-    <div class="hero-stat">
-      <div class="num">37</div>
-      <div class="label">精選資產</div>
-    </div>
-    <div class="hero-stat">
-      <div class="num">3</div>
-      <div class="label">交付平台</div>
-    </div>
-    <div class="hero-stat">
-      <div class="num">98</div>
-      <div class="label">自動化測試通過</div>
-    </div>
-    <div class="hero-stat">
-      <div class="num">每日</div>
-      <div class="label">自動更新資料</div>
-    </div>
-    <div class="hero-stat">
-      <div class="num">TWD</div>
-      <div class="label">以台幣為計算基礎</div>
-    </div>
   </div>
 </div>
 
