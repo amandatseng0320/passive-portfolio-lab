@@ -7,7 +7,6 @@ command line, merges them into the existing raw_prices table, then recalculates
 asset_metrics from the full refreshed raw_prices table.
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -23,17 +22,10 @@ sys.path.append(str(REPO_ROOT / "streamlit_dashboard"))
 from src.data_collection.fetch_prices import fetch_prices
 from src.processing.metrics import calculate_metrics
 from src.processing.screening import get_all_candidates
+from src.processing.utils import get_bq_config, upload_to_bq
 
 
 DEFAULT_TICKERS = ["00646.TW", "00955.TWO"]
-
-
-def require_env():
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    dataset_id = os.getenv("BIGQUERY_DATASET")
-    if not project_id or not dataset_id:
-        raise ValueError("Missing GOOGLE_CLOUD_PROJECT or BIGQUERY_DATASET")
-    return project_id, dataset_id
 
 
 def load_existing_raw_prices(project_id, dataset_id):
@@ -43,18 +35,9 @@ def load_existing_raw_prices(project_id, dataset_id):
     return df
 
 
-def upload_replace(df, project_id, table_id):
-    pandas_gbq.to_gbq(
-        dataframe=df,
-        destination_table=table_id,
-        project_id=project_id,
-        if_exists="replace",
-    )
-
-
 def main():
     tickers = sys.argv[1:] or DEFAULT_TICKERS
-    project_id, dataset_id = require_env()
+    project_id, dataset_id = get_bq_config()
 
     candidates = get_all_candidates()
     selected = candidates[candidates["ticker"].isin(tickers)].copy()
@@ -72,17 +55,14 @@ def main():
     raw_prices = raw_prices[["date", "ticker", "category", "open", "high", "low", "close", "volume"]]
     raw_prices["date"] = pd.to_datetime(raw_prices["date"])
 
-    raw_table = f"{dataset_id}.raw_prices"
-    print(f"Replacing {project_id}.{raw_table} with {len(raw_prices):,} rows...")
-    upload_replace(raw_prices, project_id, raw_table)
+    print(f"Replacing raw_prices with {len(raw_prices):,} rows...")
+    upload_to_bq(raw_prices, "raw_prices")
 
     print("Recalculating full asset_metrics from refreshed raw_prices...")
     metrics_df = calculate_metrics(raw_prices)
     if metrics_df.empty:
         raise RuntimeError("Metric calculation returned no rows; asset_metrics was not updated.")
-    metrics_table = f"{dataset_id}.asset_metrics"
-    print(f"Replacing {project_id}.{metrics_table} with {len(metrics_df):,} rows...")
-    upload_replace(metrics_df, project_id, metrics_table)
+    upload_to_bq(metrics_df, "asset_metrics")
 
     print("Backfill complete.")
     print(metrics_df[metrics_df["ticker"].isin(tickers)][[

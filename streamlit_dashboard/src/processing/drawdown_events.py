@@ -19,41 +19,47 @@ means no curated event matched (the episode is still a real drawdown).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, NamedTuple, Optional
 
 import numpy as np
 import pandas as pd
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Curated market-event lookup. Each entry:
-#   (start_date, end_date, label, short_tag)
+# Curated market-event lookup.
 #
 # - Cover both equity and crypto-relevant events so the labelling works across all
 #   portfolio compositions supported by the dashboard.
 # - Date ranges are loose on purpose: they capture the period during which the event
 #   was the dominant market narrative, not just the exact peak-to-trough window.
-# - "label" is the sentence users see; "short_tag" is reserved for chart annotations
+# - `label` is the sentence users see; `short_tag` is reserved for chart annotations
 #   where horizontal space is tight.
 # ────────────────────────────────────────────────────────────────────────────────
-MARKET_EVENTS: List[tuple] = [
+class MarketEvent(NamedTuple):
+    start_date: str   # ISO date string, inclusive
+    end_date:   str   # ISO date string, inclusive
+    label:      str   # Full description shown in the UI
+    short_tag:  str   # Abbreviated chart annotation
+
+
+MARKET_EVENTS: List[MarketEvent] = [
     # --- Equity / macro ---
-    ("2007-10-01", "2009-06-30", "Global Financial Crisis (subprime / Lehman)", "GFC"),
-    ("2010-04-15", "2010-07-31", "Flash Crash & early Greek debt crisis", "EU-Debt-I"),
-    ("2011-07-01", "2011-10-31", "US credit downgrade & eurozone debt crisis", "EU-Debt-II"),
-    ("2015-08-01", "2016-02-29", "China slowdown & oil price collapse", "China-Oil"),
-    ("2018-01-22", "2018-04-10", "Volmageddon & early Trump tariffs", "Volmageddon"),
-    ("2018-10-01", "2018-12-31", "Q4 2018 Fed tightening & trade war escalation", "Q4-2018"),
-    ("2020-02-15", "2020-04-30", "COVID-19 pandemic crash", "COVID"),
-    ("2022-01-01", "2022-10-31", "Fed rate hikes & inflation shock (2022 bear)", "2022-Bear"),
-    ("2023-03-08", "2023-04-15", "US regional banking crisis (SVB, Signature, First Republic)", "SVB"),
-    ("2024-08-01", "2024-08-15", "Japan carry-trade unwind / August 2024 selloff", "Carry-Unwind"),
-    ("2025-02-01", "2025-05-31", "Trump tariff shock & trade tensions", "2025-Tariffs"),
-    ("2025-10-01", "2026-03-31", "AI bubble scare & SaaSpocalypse (tech-heavy selloff)", "AI-Scare"),
+    MarketEvent("2007-10-01", "2009-06-30", "Global Financial Crisis (subprime / Lehman)", "GFC"),
+    MarketEvent("2010-04-15", "2010-07-31", "Flash Crash & early Greek debt crisis", "EU-Debt-I"),
+    MarketEvent("2011-07-01", "2011-10-31", "US credit downgrade & eurozone debt crisis", "EU-Debt-II"),
+    MarketEvent("2015-08-01", "2016-02-29", "China slowdown & oil price collapse", "China-Oil"),
+    MarketEvent("2018-01-22", "2018-04-10", "Volmageddon & early Trump tariffs", "Volmageddon"),
+    MarketEvent("2018-10-01", "2018-12-31", "Q4 2018 Fed tightening & trade war escalation", "Q4-2018"),
+    MarketEvent("2020-02-15", "2020-04-30", "COVID-19 pandemic crash", "COVID"),
+    MarketEvent("2022-01-01", "2022-10-31", "Fed rate hikes & inflation shock (2022 bear)", "2022-Bear"),
+    MarketEvent("2023-03-08", "2023-04-15", "US regional banking crisis (SVB, Signature, First Republic)", "SVB"),
+    MarketEvent("2024-08-01", "2024-08-15", "Japan carry-trade unwind / August 2024 selloff", "Carry-Unwind"),
+    MarketEvent("2025-02-01", "2025-05-31", "Trump tariff shock & trade tensions", "2025-Tariffs"),
+    MarketEvent("2025-10-01", "2026-03-31", "AI bubble scare & SaaSpocalypse (tech-heavy selloff)", "AI-Scare"),
 
     # --- Crypto-specific ---
-    ("2018-01-01", "2018-12-31", "Crypto winter (post-2017 peak)", "Crypto-Winter"),
-    ("2021-05-01", "2021-07-31", "China crypto mining ban & May 2021 flash crash", "May-2021"),
-    ("2022-05-01", "2022-12-31", "Terra/Luna collapse & FTX implosion", "Terra-FTX"),
+    MarketEvent("2018-01-01", "2018-12-31", "Crypto winter (post-2017 peak)", "Crypto-Winter"),
+    MarketEvent("2021-05-01", "2021-07-31", "China crypto mining ban & May 2021 flash crash", "May-2021"),
+    MarketEvent("2022-05-01", "2022-12-31", "Terra/Luna collapse & FTX implosion", "Terra-FTX"),
 ]
 
 

@@ -1,5 +1,7 @@
 import sys
 import os
+import json
+import tempfile
 sys.path.append(os.path.dirname(__file__))
 
 import streamlit as st
@@ -9,6 +11,7 @@ import numpy as np
 import pandas_gbq
 import plotly.graph_objects as go
 import plotly.express as px
+import requests
 from datetime import date
 from collections import defaultdict
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
@@ -18,6 +21,7 @@ from src.processing.backtest import run_backtest, load_prices_for_tickers
 from src.processing.fire_calculator import calculate_fire
 from src.processing.drawdown_events import identify_drawdown_events, MARKET_EVENTS
 from src.data_collection.fetch_macro import get_latest_cpi_yoy
+from src.processing.utils import YAHOO_HEADERS, RISK_FREE_RATE
 from google import genai
 import warnings
 from urllib3.exceptions import InsecureRequestWarning
@@ -40,8 +44,6 @@ load_dotenv()
 _app_password = None
 try:
     if "gcp_service_account" in st.secrets:
-        import json
-        import tempfile
         _creds_path = os.path.join(tempfile.gettempdir(), "gcp_credentials.json")
         with open(_creds_path, "w") as _f:
             json.dump(dict(st.secrets["gcp_service_account"]), _f)
@@ -209,6 +211,59 @@ def fmt_years(value):
         return f"{value} 年" if value else "50+ 年"
     return f"{value} yrs" if value else "50+ yrs"
 
+# ── Portfolio risk constants ───────────────────────────────────────────────────
+# Maps risk tier names to a sort order and to the allocation optimizer's target
+# annual volatility. Adjust RISK_VOL_TARGET if the acceptable risk bounds change.
+RISK_ORDER: dict[str, int] = {"Low": 1, "Medium": 2, "High": 3, "Extreme High": 4}
+RISK_VOL_TARGET: dict[str, float] = {
+    "Low": 0.12,
+    "Medium": 0.20,
+    "High": 0.35,
+    "Extreme High": 0.65,
+}
+def vol_to_risk_label(v: float) -> str:
+    """Map an annualized volatility to the nearest risk tier label."""
+    if v < 0.16:
+        return "Low"
+    elif v < 0.27:
+        return "Medium"
+    elif v < 0.50:
+        return "High"
+    return "Extreme High"
+
+
+def compute_allocation(df: pd.DataFrame, target_vol: float) -> pd.DataFrame:
+    """
+    Return *df* with a ``weight`` column fitted to *target_vol*.
+
+    Uses inverse-volatility weights as a starting point, then iteratively
+    nudges weights toward the target portfolio volatility (200 iterations max).
+    Weights are clamped to ≥ 0.01 and renormalized each step.
+    """
+    df = df.copy()
+    vols = df['volatility'].values.astype(float)
+
+    # Step 1: inverse volatility weights as starting point
+    inv_vol = 1.0 / np.where(vols == 0, 0.001, vols)
+    weights = inv_vol / inv_vol.sum()
+
+    # Step 2: iteratively nudge weights toward target volatility
+    for _ in range(200):
+        port_vol = float(np.dot(weights, vols))
+        if abs(port_vol - target_vol) < 0.001:
+            break
+        if port_vol > target_vol:
+            adj = weights * (1 - 0.05 * (vols / vols.max()))
+        else:
+            adj = weights * (1 + 0.05 * (vols / vols.max()))
+        weights = np.clip(adj, 0.01, None)
+        weights = weights / weights.sum()
+
+    df['weight'] = weights
+    df['weight'] = df['weight'] / df['weight'].sum()
+    return df
+
+
 # ── Password gate (activated only when APP_PASSWORD is configured in secrets) ──
 if _app_password:
     def _check_password():
@@ -320,13 +375,11 @@ def fetch_price_and_volume(tickers: list) -> dict:
     Fetch current price and volume directly from Yahoo Finance REST API.
     More stable than yfinance library which breaks when Yahoo changes their backend.
     """
-    import requests
     result = {}
-    headers = {'User-Agent': 'Mozilla/5.0'}
     for ticker in tickers:
         try:
             url = f'https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=5d'
-            r = requests.get(url, headers=headers, timeout=10, verify=False)
+            r = requests.get(url, headers=YAHOO_HEADERS, timeout=10, verify=False)
             data = r.json()
             close = data['chart']['result'][0]['indicators']['quote'][0]['close']
             volume = data['chart']['result'][0]['indicators']['quote'][0]['volume']
@@ -366,6 +419,22 @@ def load_prices_wide(tickers_tuple: tuple) -> pd.DataFrame:
 REDUNDANCY_THRESHOLD = 0.90  # ρ ≥ this → suggest removing duplicates
 
 
+def _avg_pairwise_corr(corr: pd.DataFrame, tickers: list) -> float:
+    """Return the mean upper-triangle pairwise correlation for *tickers* in *corr*.
+
+    Returns 0.0 when fewer than 2 tickers are available.
+    """
+    if len(tickers) < 2:
+        return 0.0
+    valid = [t for t in tickers if t in corr.index]
+    if len(valid) < 2:
+        return 0.0
+    c_sub = corr.loc[valid, valid]
+    mask_ut = np.triu(np.ones_like(c_sub, dtype=bool), k=1)
+    pair_vals = c_sub.where(mask_ut).stack().dropna()
+    return float(pair_vals.mean()) if not pair_vals.empty else 0.0
+
+
 def _compute_redundant_groups(corr: pd.DataFrame, pool_df: pd.DataFrame, threshold: float):
     """
     Identify near-duplicate groups using union-find on pairs with ρ ≥ threshold.
@@ -373,7 +442,6 @@ def _compute_redundant_groups(corr: pd.DataFrame, pool_df: pd.DataFrame, thresho
     (proxy for liquidity / popularity) and removing the rest.
     Returns a list of dicts: {keep, remove, max_corr, group}.
     """
-    from collections import defaultdict
     mask = np.triu(np.ones_like(corr, dtype=bool), k=1)
     pair_vals = corr.where(mask).stack().dropna()
     high_pairs = pair_vals[pair_vals >= threshold].sort_values(ascending=False)
@@ -466,20 +534,11 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
     rm_set = set()
     final_tickers = list(tickers)
 
-    def calc_avg_corr(t_list):
-        if len(t_list) < 2: return 0.0
-        valid = [t for t in t_list if t in corr.index]
-        if len(valid) < 2: return 0.0
-        c_sub = corr.loc[valid, valid]
-        mask_ut = np.triu(np.ones_like(c_sub, dtype=bool), k=1)
-        pair_vals = c_sub.where(mask_ut).stack().dropna()
-        return float(pair_vals.mean()) if not pair_vals.empty else 0.0
-
-    avg_corr_before = calc_avg_corr(tickers)
+    avg_corr_before = _avg_pairwise_corr(corr, tickers)
     # Compute "after" by simulating accepting all suggested removals, so the
     # metric is meaningful before the user actually clicks "Keep Selected Assets".
     suggested_removes = {t for s in suggestions for t in s['group'] if t != s['keep']}
-    avg_corr_after = calc_avg_corr([t for t in tickers if t not in suggested_removes])
+    avg_corr_after = _avg_pairwise_corr(corr, [t for t in tickers if t not in suggested_removes])
 
     # ── UI: Insight Strip ──────────────────────────────────────────────────
     col1, col2, col3 = st.columns(3)
@@ -845,7 +904,6 @@ def build_display_df(df):
     d = df.copy()
     
     # Get current FX rate
-    import streamlit as st
     fx_rate = st.session_state.get('live_twd_usd', 32.0)
     
     # 1. Price calculation: USD-equivalent for sorting, Native for display
@@ -1089,15 +1147,6 @@ else:
         min_vol = float(vols.min())
         max_vol = float(vols.max())
 
-        def vol_to_risk_label(v):
-            if v < 0.16: return "Low"
-            elif v < 0.27: return "Medium"
-            elif v < 0.50: return "High"
-            else: return "Extreme High"
-
-        RISK_ORDER = {"Low": 1, "Medium": 2, "High": 3, "Extreme High": 4}
-        RISK_VOL_TARGET = {"Low": 0.12, "Medium": 0.20, "High": 0.35, "Extreme High": 0.65}
-
         min_risk = vol_to_risk_label(min_vol)
         max_risk = vol_to_risk_label(max_vol)
         min_risk_num = RISK_ORDER[min_risk]
@@ -1168,46 +1217,28 @@ The achievable risk range is derived from the **annualized volatility** of the a
 
         target_vol = RISK_VOL_TARGET[risk_pref]
 
-        # ── Auto-allocation algorithm ──────────────────────────────────────────
-        def compute_allocation(df, target_vol):
-            df = df.copy()
-            tickers = df['ticker'].tolist()
-            vols = df['volatility'].values.astype(float)
-
-            # Step 1: inverse volatility weights as starting point
-            inv_vol = 1.0 / np.where(vols == 0, 0.001, vols)
-            weights = inv_vol / inv_vol.sum()
-
-            # Step 2: iteratively nudge weights toward target volatility
-            for _ in range(200):
-                port_vol = float(np.dot(weights, vols))
-                if abs(port_vol - target_vol) < 0.001:
-                    break
-                if port_vol > target_vol:
-                    # reduce weight of highest-vol assets
-                    adj = weights * (1 - 0.05 * (vols / vols.max()))
-                else:
-                    # increase weight of highest-vol assets
-                    adj = weights * (1 + 0.05 * (vols / vols.max()))
-                weights = np.clip(adj, 0.01, None)
-                weights = weights / weights.sum()
-
-            df['weight'] = weights
-            df['weight'] = df['weight'] / df['weight'].sum()
-            return df
-
         # ── Weight assignment ──────────────────────────────────────────────────
         # If a persona is active and the watchlist matches, use its preset weights
         p_weights = st.session_state.get('persona_weights')
         p_name = st.session_state.get('active_persona')
-        use_persona_weights = (p_weights and p_name and 
-                              set(p_weights.keys()) == set(selected_metrics['ticker']))
-        
-        if use_persona_weights:
+        use_persona_weights = (p_weights and p_name and
+                               set(p_weights.keys()) == set(selected_metrics['ticker']))
+
+        # Cache key: skip the 200-iteration optimizer if inputs haven't changed.
+        alloc_key = (tuple(sorted(selected_metrics['ticker'])), target_vol,
+                     use_persona_weights, p_name if use_persona_weights else None)
+        if alloc_key == st.session_state.get('_alloc_cache_key') and \
+                st.session_state.get('_alloc_cache_df') is not None:
+            alloc_df = st.session_state['_alloc_cache_df']
+        elif use_persona_weights:
             alloc_df = selected_metrics.copy()
             alloc_df['weight'] = alloc_df['ticker'].map(p_weights)
+            st.session_state['_alloc_cache_key'] = alloc_key
+            st.session_state['_alloc_cache_df'] = alloc_df
         else:
             alloc_df = compute_allocation(selected_metrics, target_vol)
+            st.session_state['_alloc_cache_key'] = alloc_key
+            st.session_state['_alloc_cache_df'] = alloc_df
 
         # Final portfolio metrics
         port_vol = float(np.dot(alloc_df['weight'].values, alloc_df['volatility'].values))
@@ -1253,7 +1284,6 @@ The achievable risk range is derived from the **annualized volatility** of the a
         alloc_df['label'] = alloc_df.apply(
             lambda r: f"{r['ticker']}<br>{r['weight_pct']}%<br>CAGR: {r['cagr']:.1%}", axis=1
         )
-        import json
         # Pre-calculate radar scores in Python
         pool_cagr_max = float(metrics_df['cagr'].max())
         pool_vol_max = float(metrics_df['volatility'].max())
@@ -1266,11 +1296,11 @@ The achievable risk range is derived from the **annualized volatility** of the a
             sharpe_score = round(min(100, max(0, (r['sharpe_ratio'] / pool_sharpe_max) * 100)) if pool_sharpe_max else 0, 1)
             worst_score = round(min(100, max(0, (1 - abs(r['worst_year']) / 1.0) * 100)), 1)
             return [cagr_score, vol_score, dd_score, sharpe_score, worst_score]
+        metrics_by_ticker = {row['ticker']: row for _, row in metrics_df.iterrows()}
         treemap_data_list = []
         for _, row in alloc_df.iterrows():
-            metrics_row = metrics_df[metrics_df['ticker'] == row['ticker']]
-            if not metrics_row.empty:
-                mr = metrics_row.iloc[0]
+            mr = metrics_by_ticker.get(row['ticker'])
+            if mr is not None:
                 radar = calc_radar(mr)
                 yf_ticker = row['ticker']
                 tv_ticker = row['ticker'].replace('-USD', 'USD').replace('.TW', '')
@@ -1943,6 +1973,7 @@ with st.spinner(tr("Calculating FIRE projection...")):
             None
         )
         st.session_state['fire_years_real'] = real_fire_year
+        st.session_state['fire_result_cache'] = result
 
         display_usd = st.session_state.get('display_usd', False)
         fx_rate = st.session_state.get('live_twd_usd', 32.0)
@@ -2025,13 +2056,13 @@ else:
     port_vol_sum = float(np.dot(alloc_df_sum['weight'].values, alloc_df_sum['volatility'].values))
     display_cagr = backtest_cagr if backtest_cagr else allocation_cagr
 
-    # ── FIRE years (re-calculate if not in session state) ─────────────────────
-    fire_result = calculate_fire(
+    # ── FIRE years (reuse cached result from FIRE section when available) ────────
+    fire_result = st.session_state.get('fire_result_cache') or calculate_fire(
         target_amount=st.session_state.get('fire_target', 30000000),
         monthly_contribution=st.session_state.get('fire_monthly', 15000),
         initial_capital=st.session_state.get('fire_capital', 300000),
         weights=allocation,
-        max_years=50
+        max_years=50,
     )
     fire_years = fire_result.get('years_to_fire', None)
 
@@ -2060,12 +2091,6 @@ else:
     dominant_cat = max(category_weights, key=category_weights.get)
     dominant_pct = category_weights[dominant_cat] * 100
     top_holding = sorted(allocation.items(), key=lambda x: -x[1])[0]
-    cat_descriptions = {
-        'TW_ETF': f"Taiwan ETFs dominate at <strong>{dominant_pct:.0f}%</strong> of your portfolio. This gives you strong exposure to Taiwan's equity market — high historical returns, but concentrated in a single market with geopolitical risk.",
-        'US_ETF': f"US ETFs make up <strong>{dominant_pct:.0f}%</strong> of your portfolio, anchored by <strong>{top_holding[0]}</strong> ({top_holding[1]*100:.1f}%). This is a broadly diversified, globally proven approach — the core of most passive strategies.",
-        'DEFENSIVE': f"Defensive assets (bonds and commodities) dominate at <strong>{dominant_pct:.0f}%</strong>. This heavily dampens volatility but also caps long-term growth — suitable for investors prioritizing stability over accumulation speed.",
-        'CRYPTO': f"Crypto assets represent <strong>{dominant_pct:.0f}%</strong> of your allocation. While historically high-returning, crypto introduces extreme volatility that can overwhelm the stability of other holdings.",
-    }
     if st.session_state.get('lang') == "zh-TW":
         cat_descriptions = {
             'TW_ETF': f"台股 ETF 佔投資組合 <strong>{dominant_pct:.0f}%</strong>，是目前最大類別。這帶來台灣股票市場的高度曝險，歷史報酬具吸引力，但也集中於單一市場並帶有地緣政治風險。",
@@ -2075,6 +2100,12 @@ else:
         }
         insight1 = "📊 <strong>投資組合結構：</strong> " + cat_descriptions.get(dominant_cat, f"你最大的類別是 {dominant_cat}，佔 {dominant_pct:.0f}%。")
     else:
+        cat_descriptions = {
+            'TW_ETF': f"Taiwan ETFs dominate at <strong>{dominant_pct:.0f}%</strong> of your portfolio. This gives you strong exposure to Taiwan's equity market — high historical returns, but concentrated in a single market with geopolitical risk.",
+            'US_ETF': f"US ETFs make up <strong>{dominant_pct:.0f}%</strong> of your portfolio, anchored by <strong>{top_holding[0]}</strong> ({top_holding[1]*100:.1f}%). This is a broadly diversified, globally proven approach — the core of most passive strategies.",
+            'DEFENSIVE': f"Defensive assets (bonds and commodities) dominate at <strong>{dominant_pct:.0f}%</strong>. This heavily dampens volatility but also caps long-term growth — suitable for investors prioritizing stability over accumulation speed.",
+            'CRYPTO': f"Crypto assets represent <strong>{dominant_pct:.0f}%</strong> of your allocation. While historically high-returning, crypto introduces extreme volatility that can overwhelm the stability of other holdings.",
+        }
         insight1 = "📊 <strong>Portfolio Structure:</strong> " + cat_descriptions.get(dominant_cat, f"Your largest category is {dominant_cat} at {dominant_pct:.0f}%.")
 
     # Insight 2: drawdown contextualized
@@ -2227,10 +2258,8 @@ if st.button(btn_label, type="secondary", key="currency_toggle"):
     st.session_state['display_usd'] = not st.session_state['display_usd']
     if st.session_state['display_usd']:
         try:
-            import requests
-            headers = {'User-Agent': 'Mozilla/5.0'}
             url = 'https://query1.finance.yahoo.com/v8/finance/chart/TWD=X?interval=1d&range=5d'
-            r = requests.get(url, headers=headers, timeout=10, verify=False)
+            r = requests.get(url, headers=YAHOO_HEADERS, timeout=10, verify=False)
             data = r.json()
             closes = data['chart']['result'][0]['indicators']['quote'][0]['close']
             closes = [x for x in closes if x is not None]

@@ -81,22 +81,25 @@ def calculate_fire(
     annual_cagr = get_portfolio_cagr(weights)
     monthly_rate = (1 + annual_cagr) ** (1 / 12) - 1
 
-    portfolio_value = float(initial_capital)
-    years_to_fire = None
-    records = []
+    # Vectorized future-value formula (growth first, then contribution each month):
+    #   P(n) = P0*(1+r)^n + C*((1+r)^n - 1)/r    when r != 0
+    #   P(n) = P0 + C*n                             when r == 0
+    months = np.arange(1, max_years * 12 + 1)
+    growth = (1.0 + monthly_rate) ** months
+    if monthly_rate != 0:
+        values = initial_capital * growth + monthly_contribution * (growth - 1) / monthly_rate
+    else:
+        values = initial_capital + monthly_contribution * months
 
-    for month in range(1, max_years * 12 + 1):
-        # Growth first, then contribution
-        portfolio_value = portfolio_value * (1 + monthly_rate) + monthly_contribution
+    # Keep only year-end snapshots (months 12, 24, …)
+    year_months = months[months % 12 == 0]
+    year_values = np.round(values[months % 12 == 0], 2)
+    years_arr = year_months // 12
 
-        if month % 12 == 0:
-            year = month // 12
-            records.append({"year": year, "portfolio_value": round(portfolio_value, 2)})
+    reached = year_values >= target_amount
+    years_to_fire = int(years_arr[reached][0]) if reached.any() else None
 
-            if years_to_fire is None and portfolio_value >= target_amount:
-                years_to_fire = year
-
-    projection_df = pd.DataFrame(records)
+    projection_df = pd.DataFrame({"year": years_arr, "portfolio_value": year_values})
 
     return {
         "years_to_fire": years_to_fire,

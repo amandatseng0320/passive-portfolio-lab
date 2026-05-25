@@ -6,8 +6,8 @@ import pandas_gbq
 
 # Add project root to sys.path to access src modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from src.processing.screening import get_all_candidates, validate_tickers
-from src.processing.utils import get_bq_config
+from src.processing.screening import get_all_candidates
+from src.processing.utils import get_bq_config, upload_to_bq, RISK_FREE_RATE
 
 def load_prices_from_bq():
     project_id, dataset_id = get_bq_config()
@@ -90,9 +90,8 @@ def calculate_metrics(df):
             worst_year_label = int(worst_row['year'])
             
             # Sharpe Ratio
-            risk_free_rate = 0.02
             if volatility != 0:
-                sharpe_ratio = (cagr - risk_free_rate) / volatility
+                sharpe_ratio = (cagr - RISK_FREE_RATE) / volatility
             else:
                 sharpe_ratio = 0.0
                 
@@ -119,24 +118,13 @@ def calculate_metrics(df):
     return pd.DataFrame(results)
 
 def upload_to_bigquery(df):
+    """Upload metrics DataFrame to BigQuery asset_metrics (replaces table)."""
     try:
-        project_id, dataset_id = get_bq_config()
+        upload_to_bq(df, "asset_metrics")
     except ValueError as e:
         print(f"{e}. Skipping upload.")
-        return
-        
-    table_id = f"{dataset_id}.asset_metrics"
-    print(f"Uploading {len(df)} rows to {project_id}.{table_id}...")
-    try:
-        pandas_gbq.to_gbq(
-            dataframe=df,
-            destination_table=table_id,
-            project_id=project_id,
-            if_exists='replace'
-        )
-        print("BigQuery upload completed successfully.")
     except Exception as e:
-        print(f"BigQuery upload failed: {str(e)}")
+        print(f"BigQuery upload failed: {e}")
 
 def run_pipeline():
     print("--- Starting Metrics Pipeline ---")

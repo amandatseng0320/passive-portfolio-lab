@@ -379,11 +379,6 @@ ASSET_POOL: list[AssetInfo] = [
 
 # ── Utility Functions ─────────────────────────────────────────────────────────
 
-def get_all_tickers() -> list[str]:
-    """Return a list of all asset tickers in the pool."""
-    return [a["ticker"] for a in ASSET_POOL]
-
-
 def validate_tickers(tickers: list[str]) -> None:
     """Raise ValueError if any ticker is not in ASSET_POOL.
 
@@ -395,27 +390,12 @@ def validate_tickers(tickers: list[str]) -> None:
         raise ValueError(f"Ticker(s) not in ASSET_POOL: {invalid}")
 
 
-def get_tickers_by_category(category: str) -> list[str]:
-    """Return tickers filtered by top-level category. category: 'TW_ETF' | 'US_ETF' | 'CRYPTO'"""
-    return [a["ticker"] for a in ASSET_POOL if a["category"] == category]
-
-
 def get_asset_info(ticker: str) -> AssetInfo | None:
     """Return full asset info for a given ticker, or None if not found."""
     for a in ASSET_POOL:
         if a["ticker"] == ticker:
             return a
     return None
-
-
-def get_category_map() -> dict[str, str]:
-    """Return a {ticker: category} mapping for fast category-color lookups in the dashboard."""
-    return {a["ticker"]: a["category"] for a in ASSET_POOL}
-
-
-def get_subcategory_map() -> dict[str, str]:
-    """Return a {ticker: subcategory} mapping for subcategory badge display on the screening page."""
-    return {a["ticker"]: a["subcategory"] for a in ASSET_POOL}
 
 
 _CATEGORY_CURRENCY: dict[str, str] = {
@@ -448,9 +428,9 @@ def get_all_candidates() -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    tw  = get_tickers_by_category("TW_ETF")
-    us  = get_tickers_by_category("US_ETF")
-    cry = get_tickers_by_category("CRYPTO")
+    tw  = [a["ticker"] for a in ASSET_POOL if a["category"] == "TW_ETF"]
+    us  = [a["ticker"] for a in ASSET_POOL if a["category"] == "US_ETF"]
+    cry = [a["ticker"] for a in ASSET_POOL if a["category"] == "CRYPTO"]
     print(f"Taiwan ETF  ({len(tw)}):  {tw}")
     print(f"US ETF      ({len(us)}):  {us}")
     print(f"Crypto      ({len(cry)}): {cry}")

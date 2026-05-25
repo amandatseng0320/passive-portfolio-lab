@@ -4,7 +4,6 @@ import time
 import pandas as pd
 import requests
 import urllib3
-import pandas_gbq
 from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -13,6 +12,7 @@ load_dotenv()
 # Ensure we can import from the src directory
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.processing.screening import get_all_candidates
+from src.processing.utils import YAHOO_HEADERS, upload_to_bq
 
 # Silence the "InsecureRequestWarning" noise from verify=False calls below.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -30,7 +30,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 #   proven pattern used by load_fx_rate() in streamlit_dashboard/src/processing/backtest.py for
 #   TWD=X and is robust across network environments.
 # ──────────────────────────────────────────────────────────────────────────────
-_YAHOO_HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 def fetch_ticker_prices_yahoo(ticker: str, timeout: int = 30, max_retries: int = 3) -> pd.DataFrame:
@@ -50,7 +49,7 @@ def fetch_ticker_prices_yahoo(ticker: str, timeout: int = 30, max_retries: int =
     last_err = None
     for attempt in range(max_retries):
         try:
-            r = requests.get(url, headers=_YAHOO_HEADERS, timeout=timeout, verify=False)
+            r = requests.get(url, headers=YAHOO_HEADERS, timeout=timeout, verify=False)
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP {r.status_code}")
             data = r.json()
@@ -134,7 +133,7 @@ def fetch_prices(tickers_df):
     """
     all_data = []
 
-    for index, row in tickers_df.iterrows():
+    for _, row in tickers_df.iterrows():
         ticker = row['ticker']
         category = row['category']
 
@@ -190,30 +189,13 @@ def fetch_prices(tickers_df):
     return combined_df[expected_columns]
 
 def upload_to_bigquery(df):
-    """
-    Uploads the fully processed and combined price DataFrame to BigQuery.
-    Replaces table contents upon execution.
-    """
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    dataset_id = os.getenv("BIGQUERY_DATASET")
-    
-    if not project_id or not dataset_id:
-        print("Missing 'GOOGLE_CLOUD_PROJECT' or 'BIGQUERY_DATASET' mapped in .env. Skipping BQ upload.")
-        return
-        
-    table_id = f"{dataset_id}.raw_prices"
-    print(f"Uploading ~{len(df)} records directly to BigQuery '{table_id}'...")
-    
+    """Upload the processed price DataFrame to BigQuery raw_prices (replaces table)."""
     try:
-        pandas_gbq.to_gbq(
-            dataframe=df,
-            destination_table=table_id,
-            project_id=project_id,
-            if_exists='replace'
-        )
-        print("Upload completed successfully!")
+        upload_to_bq(df, "raw_prices")
+    except ValueError as e:
+        print(f"{e}. Skipping BQ upload.")
     except Exception as e:
-        print(f"Failed to upload data to BigQuery: {str(e)}")
+        print(f"Failed to upload data to BigQuery: {e}")
 
 def run_pipeline():
     """ Execute pipeline pulling candidates, prices, and pushing to database """

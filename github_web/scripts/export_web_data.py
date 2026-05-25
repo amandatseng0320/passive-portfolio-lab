@@ -16,7 +16,6 @@ Usage (CI — set env vars via GitHub Secrets):
     GOOGLE_CLOUD_PROJECT=... BIGQUERY_DATASET=... python github_web/scripts/export_web_data.py
 """
 
-import os
 import re
 import sys
 import json
@@ -37,6 +36,7 @@ sys.path.append(str(REPO_ROOT / "streamlit_dashboard"))
 
 from src.processing.screening import ASSET_POOL
 from src.processing.backtest import load_fx_rate
+from src.processing.utils import get_bq_config
 
 # ── Chinese names (TW ETFs only — US/Crypto keep English) ─────────────────────
 ZH_NAMES = {
@@ -87,13 +87,7 @@ def sql_string(value: str) -> str:
 
 
 def load_metrics() -> pd.DataFrame:
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    dataset_id = os.getenv("BIGQUERY_DATASET")
-    if not project_id or not dataset_id:
-        raise ValueError(
-            "Missing GOOGLE_CLOUD_PROJECT or BIGQUERY_DATASET. "
-            "Set them in .env or as environment variables."
-        )
+    project_id, dataset_id = get_bq_config()
     query = f"SELECT * FROM `{dataset_id}.asset_metrics`"
     print(f"Querying {project_id}.{dataset_id}.asset_metrics ...")
     df = pandas_gbq.read_gbq(query, project_id=project_id)
@@ -103,8 +97,7 @@ def load_metrics() -> pd.DataFrame:
 
 def load_raw_prices(tickers: list[str]) -> pd.DataFrame:
     """Load raw daily close prices for the web asset universe."""
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    dataset_id = os.getenv("BIGQUERY_DATASET")
+    project_id, dataset_id = get_bq_config()
     tickers_sql = ", ".join(sql_string(t) for t in tickers)
     query = f"""
         SELECT date, ticker, close
