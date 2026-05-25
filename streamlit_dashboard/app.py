@@ -58,7 +58,7 @@ st.set_page_config(page_title="Passive Portfolio Lab", layout="wide", initial_si
 
 # ── Language / i18n ───────────────────────────────────────────────────────────
 if 'lang' not in st.session_state:
-    st.session_state['lang'] = st.query_params.get("lang", "en")
+    st.session_state['lang'] = st.query_params.get("lang", "zh-TW")
 
 LANG_OPTIONS = {
     "English": "en",
