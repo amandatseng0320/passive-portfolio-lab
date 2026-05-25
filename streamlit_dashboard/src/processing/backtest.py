@@ -102,8 +102,9 @@ def run_combined(
     valid_tickers = [t for t in tickers_weights if t in pivot.columns]
     pivot = pivot[valid_tickers]
 
-    # Convert USD assets to TWD using daily FX rates
-    usd_tickers = [t for t in valid_tickers if not t.endswith('.TW')]
+    # Convert USD assets to TWD using daily FX rates.
+    # TWD assets end with '.TW' (e.g. 0050.TW) or '.TWO' (e.g. 00937B.TWO).
+    usd_tickers = [t for t in valid_tickers if not (t.endswith('.TW') or t.endswith('.TWO'))]
     if usd_tickers:
         fx = load_fx_rate(start_date, end_date)
         fx = fx.reindex(pivot.index).ffill().bfill()

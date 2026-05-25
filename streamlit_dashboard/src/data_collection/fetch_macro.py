@@ -29,12 +29,22 @@ def get_latest_cpi_yoy() -> float:
         data = response.json()
         observations = data.get("observations", [])
 
-        if len(observations) < 13:
+        # We request limit=13 (most recent month + 12 months prior) sorted descending,
+        # so observations[0] = latest month, observations[12] = same month one year ago.
+        REQUIRED = 13
+        if not isinstance(observations, list) or len(observations) < REQUIRED:
             print("Not enough FRED data to calculate YoY. Using fallback 2.5%.")
             return 0.025
 
-        latest = float(observations[0]['value'])
-        year_ago = float(observations[12]['value'])
+        latest_val = observations[0].get('value', '.')
+        year_ago_val = observations[12].get('value', '.')
+        # FRED uses '.' as a placeholder for missing/unreleased observations.
+        if latest_val == '.' or year_ago_val == '.':
+            print("FRED returned missing value ('.'). Using fallback 2.5%.")
+            return 0.025
+
+        latest = float(latest_val)
+        year_ago = float(year_ago_val)
         yoy = (latest - year_ago) / year_ago
         return round(yoy, 4)
 

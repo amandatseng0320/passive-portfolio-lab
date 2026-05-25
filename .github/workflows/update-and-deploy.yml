@@ -50,7 +50,11 @@ jobs:
           BIGQUERY_DATASET: passive_portfolio
         run: python github_web/scripts/export_web_data.py
 
-      # ── 5. Commit updated ppl-data.js if anything changed ─────────────────
+      # ── 5. Validate exported data (before commit so bad data never lands) ──
+      - name: Validate export
+        run: python github_web/scripts/validate_export.py
+
+      # ── 6. Commit updated ppl-data.js if anything changed ─────────────────
       - name: Commit data update
         run: |
           git config user.name  "github-actions[bot]"
@@ -62,10 +66,6 @@ jobs:
             git commit -m "chore: auto-update ppl-data.js from BigQuery [skip ci]"
             git push
           fi
-
-      # ── 6. Validate exported data ─────────────────────────────────────────
-      - name: Validate export
-        run: python github_web/scripts/validate_export.py
 
       # ── 7. Write job summary ───────────────────────────────────────────────
       - name: Export summary

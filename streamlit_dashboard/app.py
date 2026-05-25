@@ -465,20 +465,21 @@ def render_correlation_analysis(tickers: list, pool_df: pd.DataFrame) -> None:
     
     rm_set = set()
     final_tickers = list(tickers)
-    
-    # Calculate average correlation before and after
+
     def calc_avg_corr(t_list):
         if len(t_list) < 2: return 0.0
-        # Defensive filtering: only use tickers that actually exist in the correlation matrix
-        valid_tickers = [t for t in t_list if t in corr.index]
-        if len(valid_tickers) < 2: return 0.0
-        c_sub = corr.loc[valid_tickers, valid_tickers]
+        valid = [t for t in t_list if t in corr.index]
+        if len(valid) < 2: return 0.0
+        c_sub = corr.loc[valid, valid]
         mask_ut = np.triu(np.ones_like(c_sub, dtype=bool), k=1)
         pair_vals = c_sub.where(mask_ut).stack().dropna()
         return float(pair_vals.mean()) if not pair_vals.empty else 0.0
-        
+
     avg_corr_before = calc_avg_corr(tickers)
-    avg_corr_after = calc_avg_corr(final_tickers)
+    # Compute "after" by simulating accepting all suggested removals, so the
+    # metric is meaningful before the user actually clicks "Keep Selected Assets".
+    suggested_removes = {t for s in suggestions for t in s['group'] if t != s['keep']}
+    avg_corr_after = calc_avg_corr([t for t in tickers if t not in suggested_removes])
 
     # ── UI: Insight Strip ──────────────────────────────────────────────────
     col1, col2, col3 = st.columns(3)
@@ -845,7 +846,7 @@ def build_display_df(df):
     
     # Get current FX rate
     import streamlit as st
-    fx_rate = st.session_state.get('live_twd_usd', 32.5)
+    fx_rate = st.session_state.get('live_twd_usd', 32.0)
     
     # 1. Price calculation: USD-equivalent for sorting, Native for display
     d['price_usd'] = d.apply(lambda r: r['price'] / fx_rate if r['currency'] == 'TWD' else r['price'], axis=1)
@@ -1779,7 +1780,7 @@ portfolio_cagr = st.session_state.get('backtest_cagr', st.session_state.get('all
 bt_params = st.session_state.get('bt_params', {})
 risk_from_allocation = st.session_state.get('risk_pref', 'Medium')
 
-if st.session_state.get('backtest_cagr'):
+if st.session_state.get('backtest_cagr') is not None:
     st.success(tr(f"Using backtest CAGR: **{portfolio_cagr:.2%}** (from your Backtest results)",
                   f"使用回測 CAGR：**{portfolio_cagr:.2%}**（來自你的回測結果）"))
 elif portfolio_cagr:

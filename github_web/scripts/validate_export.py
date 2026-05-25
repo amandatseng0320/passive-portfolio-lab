@@ -70,7 +70,7 @@ def main() -> None:
             print(f"  {e}")
         sys.exit(1)
 
-    fx_val = float(fx_match.group(1)) if fx_match else 0.0
+    fx_val = float(fx_match.group(1)) if fx_match else 0.0  # fx_match non-None here (else appended to errors)
     print(f"Export validation passed ({asset_count} assets, FX={fx_val:.2f})")
 
 
