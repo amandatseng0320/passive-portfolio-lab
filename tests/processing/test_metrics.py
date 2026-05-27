@@ -12,19 +12,10 @@ import pandas as pd
 import pytest
 
 from src.processing.metrics import calculate_metrics
+from conftest import _make_price_df as _df
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
-
-def _df(ticker: str, category: str, closes, start: str = "2021-01-04") -> pd.DataFrame:
-    dates = pd.date_range(start, periods=len(closes), freq="D")
-    return pd.DataFrame({
-        "date": dates,
-        "ticker": ticker,
-        "close": np.array(closes, dtype=float),
-        "category": category,
-    })
-
 
 def _row(ticker: str, category: str, closes, start: str = "2021-01-04") -> pd.Series:
     """Run calculate_metrics and return the single result row."""

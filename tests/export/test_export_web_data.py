@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -28,12 +27,6 @@ from src.processing.screening import ASSET_POOL
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
-
-@pytest.fixture
-def minimal_metrics(minimal_metrics_df):
-    """Use the shared minimal_metrics_df fixture."""
-    return minimal_metrics_df
-
 
 @pytest.fixture
 def minimal_prices():
@@ -62,40 +55,40 @@ def constant_fx_fixture():
 # ── PPL_ASSETS block ──────────────────────────────────────────────────────────
 
 class TestPPLAssets:
-    def test_block_contains_ppl_assets_declaration(self, minimal_metrics):
-        block = ewd.build_assets_block(minimal_metrics, "2025-01-01 00:00 UTC")
+    def test_block_contains_ppl_assets_declaration(self, minimal_metrics_df):
+        block = ewd.build_assets_block(minimal_metrics_df, "2025-01-01 00:00 UTC")
         assert "const PPL_ASSETS = [" in block
 
-    def test_block_closes_array(self, minimal_metrics):
-        block = ewd.build_assets_block(minimal_metrics, "2025-01-01 00:00 UTC")
+    def test_block_closes_array(self, minimal_metrics_df):
+        block = ewd.build_assets_block(minimal_metrics_df, "2025-01-01 00:00 UTC")
         assert "];" in block
 
-    def test_all_tickers_present(self, minimal_metrics):
-        block = ewd.build_assets_block(minimal_metrics, "2025-01-01 00:00 UTC")
+    def test_all_tickers_present(self, minimal_metrics_df):
+        block = ewd.build_assets_block(minimal_metrics_df, "2025-01-01 00:00 UTC")
         for asset in ASSET_POOL:
             assert asset["ticker"] in block, f"Missing ticker: {asset['ticker']}"
 
-    def test_cagr_stored_as_percentage_not_fraction(self, minimal_metrics):
-        # minimal_metrics has cagr=0.10 (fraction) → build_assets_block must
+    def test_cagr_stored_as_percentage_not_fraction(self, minimal_metrics_df):
+        # minimal_metrics_df has cagr=0.10 (fraction) → build_assets_block must
         # output cagr:10.0 (percentage). A value of 0.1 would be a fraction leak.
-        block = ewd.build_assets_block(minimal_metrics, "2025-01-01 00:00 UTC")
+        block = ewd.build_assets_block(minimal_metrics_df, "2025-01-01 00:00 UTC")
         # Should contain "cagr:10.0" (or similar), NOT "cagr:0.1"
         assert "cagr:10.0" in block, "CAGR should be exported as percentage (10.0), not fraction (0.1)"
         assert "cagr:0.1" not in block
 
-    def test_max_dd_stored_as_negative_percentage(self, minimal_metrics):
-        # minimal_metrics has max_drawdown=-0.25 → should export as -25.0
-        block = ewd.build_assets_block(minimal_metrics, "2025-01-01 00:00 UTC")
+    def test_max_dd_stored_as_negative_percentage(self, minimal_metrics_df):
+        # minimal_metrics_df has max_drawdown=-0.25 → should export as -25.0
+        block = ewd.build_assets_block(minimal_metrics_df, "2025-01-01 00:00 UTC")
         assert "maxDD:-25.0" in block
 
-    def test_tw_etf_assets_have_name_zh(self, minimal_metrics):
-        block = ewd.build_assets_block(minimal_metrics, "2025-01-01 00:00 UTC")
+    def test_tw_etf_assets_have_name_zh(self, minimal_metrics_df):
+        block = ewd.build_assets_block(minimal_metrics_df, "2025-01-01 00:00 UTC")
         # Check that at least one Taiwan ETF has nameZh
         assert "nameZh:" in block
 
-    def test_us_etf_has_no_name_zh(self, minimal_metrics):
+    def test_us_etf_has_no_name_zh(self, minimal_metrics_df):
         # Build a block for a US ETF only
-        us_metrics = minimal_metrics[minimal_metrics["category"] == "US_ETF"].copy()
+        us_metrics = minimal_metrics_df[minimal_metrics_df["category"] == "US_ETF"].copy()
         if us_metrics.empty:
             pytest.skip("No US_ETF in test metrics")
         block = ewd.build_assets_block(us_metrics, "2025-01-01 00:00 UTC")
@@ -109,12 +102,12 @@ class TestPPLAssets:
                         f"US ETF {ticker} should not have nameZh"
                     )
 
-    def test_currency_twd_for_tw_etf(self, minimal_metrics):
-        block = ewd.build_assets_block(minimal_metrics, "2025-01-01 00:00 UTC")
+    def test_currency_twd_for_tw_etf(self, minimal_metrics_df):
+        block = ewd.build_assets_block(minimal_metrics_df, "2025-01-01 00:00 UTC")
         assert 'currency:"TWD"' in block
 
-    def test_currency_usd_for_us_etf(self, minimal_metrics):
-        block = ewd.build_assets_block(minimal_metrics, "2025-01-01 00:00 UTC")
+    def test_currency_usd_for_us_etf(self, minimal_metrics_df):
+        block = ewd.build_assets_block(minimal_metrics_df, "2025-01-01 00:00 UTC")
         assert 'currency:"USD"' in block
 
 

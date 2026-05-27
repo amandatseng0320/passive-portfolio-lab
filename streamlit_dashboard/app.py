@@ -206,7 +206,7 @@ def tr(text: str, zh_tw: str = None) -> str:
 def risk_label(value: str) -> str:
     return tr(value)
 
-def fmt_years(value):
+def fmt_years(value) -> str:
     if st.session_state.get('lang') == "zh-TW":
         return f"{value} 年" if value else "50+ 年"
     return f"{value} yrs" if value else "50+ yrs"
@@ -232,12 +232,17 @@ def vol_to_risk_label(v: float) -> str:
     return "Extreme High"
 
 
+_ALLOC_MAX_ITER  = 200
+_ALLOC_TOLERANCE = 0.001
+_ALLOC_NUDGE     = 0.05
+
+
 def compute_allocation(df: pd.DataFrame, target_vol: float) -> pd.DataFrame:
     """
     Return *df* with a ``weight`` column fitted to *target_vol*.
 
     Uses inverse-volatility weights as a starting point, then iteratively
-    nudges weights toward the target portfolio volatility (200 iterations max).
+    nudges weights toward the target portfolio volatility (_ALLOC_MAX_ITER max).
     Weights are clamped to ≥ 0.01 and renormalized each step.
     """
     df = df.copy()
@@ -248,14 +253,14 @@ def compute_allocation(df: pd.DataFrame, target_vol: float) -> pd.DataFrame:
     weights = inv_vol / inv_vol.sum()
 
     # Step 2: iteratively nudge weights toward target volatility
-    for _ in range(200):
+    for _ in range(_ALLOC_MAX_ITER):
         port_vol = float(np.dot(weights, vols))
-        if abs(port_vol - target_vol) < 0.001:
+        if abs(port_vol - target_vol) < _ALLOC_TOLERANCE:
             break
         if port_vol > target_vol:
-            adj = weights * (1 - 0.05 * (vols / vols.max()))
+            adj = weights * (1 - _ALLOC_NUDGE * (vols / vols.max()))
         else:
-            adj = weights * (1 + 0.05 * (vols / vols.max()))
+            adj = weights * (1 + _ALLOC_NUDGE * (vols / vols.max()))
         weights = np.clip(adj, 0.01, None)
         weights = weights / weights.sum()
 

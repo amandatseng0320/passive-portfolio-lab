@@ -1,3 +1,4 @@
+"""Fetch US CPI year-over-year inflation rate from the FRED API."""
 import os
 import requests
 from dotenv import load_dotenv

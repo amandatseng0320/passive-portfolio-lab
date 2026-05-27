@@ -9,6 +9,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.processing.screening import get_all_candidates
 from src.processing.utils import get_bq_config, upload_to_bq, RISK_FREE_RATE
 
+_EQUITY_ANNUALISE = np.sqrt(252)
+_CRYPTO_ANNUALISE  = np.sqrt(365)
+
+
 def load_prices_from_bq():
     project_id, dataset_id = get_bq_config()
         
@@ -17,7 +21,7 @@ def load_prices_from_bq():
     df['date'] = pd.to_datetime(df['date'])
     return df
 
-def calculate_metrics(df):
+def calculate_metrics(df: pd.DataFrame) -> pd.DataFrame:
     print("Loading candidate names for mapping...")
     candidates_df = get_all_candidates()
     ticker_name_map = dict(zip(candidates_df['ticker'], candidates_df['name']))
@@ -51,9 +55,9 @@ def calculate_metrics(df):
             daily_returns = t_df['close'].pct_change().dropna()
             vol = daily_returns.std()
             if category == 'CRYPTO':
-                volatility = vol * np.sqrt(365)
+                volatility = vol * _CRYPTO_ANNUALISE
             else:
-                volatility = vol * np.sqrt(252)
+                volatility = vol * _EQUITY_ANNUALISE
                 
             # Max Drawdown
             rolling_max = t_df['close'].cummax()

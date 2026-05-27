@@ -205,14 +205,6 @@ code, pre {
   padding: 2px 5px;
 }
 
-/* ─── Utility classes ───────────────────────────────────────────────────── */
-
-.text-primary   { color: var(--color-primary); }
-.text-muted     { color: var(--color-fg-secondary); }
-.text-on-info   { color: var(--color-fg-on-info); }
-.bg-info        { background: var(--color-bg-info); }
-.bg-suggestion  { background: var(--color-bg-suggestion); }
-
 /* ─── Callout / Info banner (replicates Streamlit's inline HTML pattern) ── */
 
 .ppl-callout {

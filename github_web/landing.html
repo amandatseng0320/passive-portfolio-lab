@@ -109,6 +109,11 @@
 
   /* ── 區塊通用 ────────────────────────────────────────── */
   section { padding: 88px 48px; scroll-margin-top: 68px; }
+  .section-white { background: var(--white); }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .disclaimer-section { padding: 48px; background: var(--bg); }
+  .disclaimer-inner { max-width: 820px; margin: 0 auto; text-align: center; }
+  .disclaimer-box { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 28px 32px; }
   .section-kicker {
     font-size: 11px; font-weight: 700; letter-spacing: 0.16em;
     text-transform: uppercase; color: var(--blue); margin-bottom: 14px;
@@ -387,8 +392,8 @@
 </div>
 
 <!-- 這些問題都有答案了 -->
-<section id="questions" style="background:#fff;">
-  <div style="max-width:1100px; margin:0 auto;">
+<section id="questions" class="section-white">
+  <div class="container">
     <div class="section-kicker">你是否曾想過</div>
     <h2 class="section-title">這些問題，現在都有答案了。</h2>
     <p class="section-sub">用真實歷史數據，回答你一直沒辦法確切回答的投資問題。</p>
@@ -423,7 +428,7 @@
 
 <!-- 為什麼選被動投資 -->
 <section id="why">
-  <div style="max-width:1100px; margin:0 auto;">
+  <div class="container">
     <div class="section-kicker">投資哲學</div>
     <h2 class="section-title">打敗大盤的人，比你想的少得多。</h2>
     <div class="stat-row">
@@ -465,8 +470,8 @@
 </section>
 
 <!-- 精選標的 -->
-<section id="assets" style="background:#fff;">
-  <div style="max-width:1100px; margin:0 auto;">
+<section id="assets" class="section-white">
+  <div class="container">
     <div class="section-kicker">資產池</div>
     <h2 class="section-title">37 個精選標的，覆蓋台股、全球與加密貨幣市場。</h2>
     <p class="section-sub">
@@ -543,8 +548,8 @@
 </section>
 
 <!-- 三大平台 -->
-<section id="live-demo" style="background:#fff;">
-  <div style="max-width:1100px; margin:0 auto;">
+<section id="live-demo" class="section-white">
+  <div class="container">
     <div class="section-kicker">三種使用方式</div>
     <h2 class="section-title">同一份資料，三個平台。</h2>
     <p class="section-sub">
@@ -608,7 +613,7 @@
 
 <!-- 平台功能比較 -->
 <section id="compare">
-  <div style="max-width:1100px; margin:0 auto;">
+  <div class="container">
     <div class="section-kicker">功能比較</div>
     <h2 class="section-title">依你的情境，選擇適合的工具。</h2>
     <div class="compare-table-wrap">
@@ -677,8 +682,8 @@
 </section>
 
 <!-- 常見問題 -->
-<section id="faq" style="background:#fff;">
-  <div style="max-width:1100px; margin:0 auto;">
+<section id="faq" class="section-white">
+  <div class="container">
     <div class="section-kicker">FAQ</div>
     <h2 class="section-title">還有問題？</h2>
     <div class="faq-grid">
@@ -711,9 +716,9 @@
 </section>
 
 <!-- 免責聲明 -->
-<section style="padding:48px 48px; background:var(--bg);">
-  <div style="max-width:820px; margin:0 auto; text-align:center;">
-    <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:28px 32px;">
+<section class="disclaimer-section">
+  <div class="disclaimer-inner">
+    <div class="disclaimer-box">
       <div style="font-size:13px; font-weight:700; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.1em;">免責聲明</div>
       <p style="font-size:14px; color:var(--muted); line-height:1.85;">
         本工具提供之所有資料與分析，<strong>僅供說明及教育用途，不構成任何投資建議</strong>。<br />

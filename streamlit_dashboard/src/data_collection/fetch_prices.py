@@ -99,32 +99,33 @@ def fetch_ticker_prices_yahoo(ticker: str, timeout: int = 30, max_retries: int =
                 continue
             raise RuntimeError(f"Failed after {max_retries} attempts: {last_err}")
 
-def apply_manual_adjustments(df, ticker):
+# 0050.TW underwent a 4:1 zero-share split (零股分割) on 2014-01-02.
+# yfinance does not record this event; we correct it manually.
+_0050_SPLIT_DATE  = "2014-01-02"
+_0050_SPLIT_RATIO = 4.0
+
+
+def apply_manual_adjustments(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
     """
     Apply manual price adjustments for known issues not captured by yfinance.
-    
-    Known adjustments:
-    - 0050.TW: On 2014-01-02, a 4:1 stock split occurred.
-      This adjustment is based on observed price discontinuity 
-      in the raw data (37.41 on 2013-12-31 vs 9.33 on 2014-01-02).
-      The split ratio 4:1 is derived from 37.41 / 9.33 ≈ 4.0.
-      yfinance does not record this split because it is a Taiwan 
-      market zero-share split (零股分割), not a standard 
-      international stock split.
+
+    0050.TW: 4:1 zero-share split on 2014-01-02. Derived from observed
+    price discontinuity (37.41 on 2013-12-31 vs 9.33 on 2014-01-02).
     """
     if ticker == '0050.TW' and not df.empty:
-        mask = df['date'] < '2014-01-02'
-        
+        mask = df['date'] < _0050_SPLIT_DATE
+
         for col in ['open', 'high', 'low', 'close']:
             if col in df.columns:
-                df.loc[mask, col] = (df.loc[mask, col] / 4.0).astype(float).round(6)
-                
+                df.loc[mask, col] = (df.loc[mask, col] / _0050_SPLIT_RATIO).astype(float).round(6)
+
         if 'volume' in df.columns:
-            df.loc[mask, 'volume'] = (df.loc[mask, 'volume'] * 4).astype('int64')
-            
+            df.loc[mask, 'volume'] = (df.loc[mask, 'volume'] * _0050_SPLIT_RATIO).astype('int64')
+
     return df
 
-def fetch_prices(tickers_df):
+
+def fetch_prices(tickers_df: pd.DataFrame) -> pd.DataFrame:
     """
     Fetch the longest available historical daily price data for all candidate assets.
     

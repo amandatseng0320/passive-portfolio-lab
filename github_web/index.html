@@ -16,11 +16,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet" />
 
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <script defer crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script defer crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <script defer src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -550,10 +550,15 @@ const Treemap = ({ items, onSelect, selectedTicker }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
+// O(1) ticker → asset lookup; PPL_ASSETS is a static global constant.
+const assetMap = new Map(PPL_ASSETS.map(a => [a.ticker, a]));
+// Pre-sort all asset volatilities once for vol-rank tier computation.
+const _allVols = PPL_ASSETS.map(x => x.vol).sort((a, b) => a - b);
+
 // ── AI insights (rule-based, no API key needed) ───────────────────────────────
 function generatePortfolioInsights(allocation, riskLevel, btCagr, lang) {
   const allItems = Object.entries(allocation).map(([tk, w]) => {
-    const a = PPL_ASSETS.find(x => x.ticker === tk);
+    const a = assetMap.get(tk);
     return a ? { ticker:tk, weight:w, ...a } : null;
   }).filter(Boolean).sort((a, b) => b.weight - a.weight);
   if (!allItems.length) return [];
@@ -1228,7 +1233,7 @@ const CorrelationSection = ({ t, lang, watchlist, setWatchlist, confirmed, setCo
     </div>
   );
 
-  const assetObjs    = watchlist.map(tk => PPL_ASSETS.find(a => a.ticker===tk)).filter(Boolean);
+  const assetObjs    = watchlist.map(tk => assetMap.get(tk)).filter(Boolean);
   const hasCrypto    = assetObjs.some(a => a.category==='CRYPTO');
   const hasUS        = assetObjs.some(a => a.category==='US_ETF');
   const hasTW        = assetObjs.some(a => a.category==='TW_ETF');
@@ -1363,18 +1368,21 @@ const RiskAllocation = ({ t, watchlist, confirmed, riskLevel, setRiskLevel, allo
     </div>
   );
 
-  const allVols = PPL_ASSETS.map(x => x.vol).sort((a,b) => a-b);
-  const allItems = Object.entries(allocation).map(([ticker, weight]) => {
-    const a = PPL_ASSETS.find(x => x.ticker===ticker);
-    const volRank = allVols.indexOf(a?.vol ?? 0);
-    const volTier = Math.min(Math.floor(volRank/6), 5);
-    return { ticker, weight, name:a?.name, cagr:a?.cagr, vol:a?.vol, maxDD:a?.maxDD, sharpe:a?.sharpe, volTier };
-  }).filter(x => x.name);
-
-  const wCagr = allItems.reduce((s,i) => s + i.weight*(i.cagr ||0), 0);
-  const wVol  = allItems.reduce((s,i) => s + i.weight*(i.vol  ||0), 0);
-  const wDD   = allItems.reduce((s,i) => s + i.weight*(i.maxDD||0), 0);
-  const wSh   = allItems.reduce((s,i) => s + i.weight*(i.sharpe||0), 0);
+  const { allItems, wCagr, wVol, wDD, wSh } = useMemo(() => {
+    const items = Object.entries(allocation).map(([ticker, weight]) => {
+      const a = assetMap.get(ticker);
+      const volRank = _allVols.indexOf(a?.vol ?? 0);
+      const volTier = Math.min(Math.floor(volRank/6), 5);
+      return { ticker, weight, name:a?.name, cagr:a?.cagr, vol:a?.vol, maxDD:a?.maxDD, sharpe:a?.sharpe, volTier };
+    }).filter(x => x.name);
+    return {
+      allItems: items,
+      wCagr: items.reduce((s,i) => s + i.weight*(i.cagr ||0), 0),
+      wVol:  items.reduce((s,i) => s + i.weight*(i.vol  ||0), 0),
+      wDD:   items.reduce((s,i) => s + i.weight*(i.maxDD||0), 0),
+      wSh:   items.reduce((s,i) => s + i.weight*(i.sharpe||0), 0),
+    };
+  }, [allocation]);
 
   const selectedItem = allItems.find(i => i.ticker === selectedTicker);
 
@@ -1668,7 +1676,7 @@ const SummarySection = ({ t, lang, watchlist, allocation, riskLevel, btCagr, con
   );
 
   const allItems = Object.entries(allocation)
-    .map(([tk,w]) => { const a=PPL_ASSETS.find(x=>x.ticker===tk); return { ticker:tk, weight:w, name:a?.name, cagr:a?.cagr }; })
+    .map(([tk,w]) => { const a=assetMap.get(tk); return { ticker:tk, weight:w, name:a?.name, cagr:a?.cagr }; })
     .filter(x=>x.name).sort((a,b) => b.weight-a.weight);
   const topAssets = allItems.slice(0,3).map(a=>`${a.ticker} (${(a.weight*100).toFixed(0)}%)`).join(', ');
   const riskLabel = t[RISK_LABEL_KEY[riskLevel]] || riskLevel;

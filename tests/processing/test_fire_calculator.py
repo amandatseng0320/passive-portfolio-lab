@@ -1,7 +1,7 @@
 """
 Tests for streamlit_dashboard/src/processing/fire_calculator.py
 
-Covers: FIRE target formula, years-to-FIRE, projection structure,
+Covers: years-to-FIRE, projection structure,
 nominal vs inflation-adjusted timelines, and edge cases.
 
 load_cagr_from_bq is mocked — no BigQuery calls.
@@ -30,26 +30,6 @@ def _run(target_amount, monthly_contribution, initial_capital, annual_cagr,
             weights=weights,
             max_years=max_years,
         )
-
-
-# ── FIRE target formula ───────────────────────────────────────────────────────
-
-class TestFireTargetFormula:
-    def test_4pct_rule(self):
-        # annual_expenses = 600_000, withdrawal_rate = 0.04
-        # FIRE target = 600_000 / 0.04 = 15_000_000
-        annual_expenses = 600_000
-        withdrawal_rate = 0.04
-        fire_target = annual_expenses / withdrawal_rate
-        assert fire_target == pytest.approx(15_000_000.0, rel=1e-9)
-
-    def test_3pct_rule_more_conservative(self):
-        annual_expenses = 600_000
-        assert (annual_expenses / 0.03) > (annual_expenses / 0.04)
-
-    def test_target_scales_with_expenses(self):
-        withdrawal_rate = 0.04
-        assert (1_200_000 / withdrawal_rate) == pytest.approx(30_000_000.0, rel=1e-9)
 
 
 # ── Years to FIRE ─────────────────────────────────────────────────────────────
