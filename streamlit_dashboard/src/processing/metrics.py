@@ -86,7 +86,8 @@ def calculate_metrics(df: pd.DataFrame) -> pd.DataFrame:
             # Worst Year
             t_df['year'] = t_df['date'].dt.year
             yearly_returns = t_df.groupby('year').apply(
-                lambda x: (x['close'].iloc[-1] - x['close'].iloc[0]) / x['close'].iloc[0]
+                lambda x: (x['close'].iloc[-1] - x['close'].iloc[0]) / x['close'].iloc[0],
+                include_groups=False,
             ).reset_index(name='return')
             
             worst_row = yearly_returns.loc[yearly_returns['return'].idxmin()]
