@@ -1,36 +1,39 @@
 # Passive Portfolio Lab
 
-Passive Portfolio Lab is a bilingual toolkit for long-term passive investors. It has two deployable surfaces:
+Passive Portfolio Lab is a bilingual toolkit for long-term passive investors. It has three deployable surfaces:
 
-- **Streamlit Dashboard**: interactive research app with BigQuery reads, live data helpers, and optional Gemini insights.
-- **GitHub Web**: static GitHub Pages app with BigQuery-exported asset metrics and daily TWD price history.
+- **Streamlit Dashboard** — interactive research app with BigQuery reads, live data helpers, and optional Gemini AI insights.
+- **GitHub Web** — static GitHub Pages app with BigQuery-exported asset metrics and daily TWD price history.
+- **Looker Studio** — six pre-built portfolio views as a shareable BI report, backed by BigQuery semantic layer.
 
 ## Live Apps
 
-- **Streamlit Dashboard**: https://passive-portfolio-lab.streamlit.app/
-- **GitHub Web**: https://amandatseng0320.github.io/passive-portfolio-lab/
-- **Landing Page**: https://amandatseng0320.github.io/passive-portfolio-lab/landing.html
-- **Looker Studio Dashboard**: https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67
+| Platform | URL |
+|---|---|
+| Streamlit Dashboard | https://passive-portfolio-lab.streamlit.app/ |
+| GitHub Web | https://amandatseng0320.github.io/passive-portfolio-lab/ |
+| Landing Page | https://amandatseng0320.github.io/passive-portfolio-lab/landing.html |
+| Looker Studio | https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67 |
 
 The core question:
 
-**If a portfolio's backtested return looks attractive, what is the risk, drawdown pain, and FIRE trade-off behind it?**
+> If a portfolio's backtested return looks attractive, what is the risk, drawdown pain, and FIRE trade-off behind it?
 
-Both versions support English and Traditional Chinese (`zh-TW`) and focus on TWD-based portfolio analysis for Taiwan-based investors.
+All three surfaces support English and Traditional Chinese (`zh-TW`) and focus on TWD-based portfolio analysis for Taiwan-based investors.
 
-For app-specific setup, see:
+For surface-specific setup, see:
 
 - [Streamlit Dashboard](streamlit_dashboard/README.md)
 - [GitHub Web](github_web/README.md)
-- [Looker Studio Dashboard](looker_studio/README.md)
+- [Looker Studio](looker_studio/README.md)
 
 ---
 
 ## Key Features
 
-### 1. Bilingual Dashboard
+### 1. Bilingual Interface
 
-The dashboard can switch between English and Traditional Chinese from the sidebar. The toggle updates navigation, section titles, controls, messages, chart labels, and AI insight language where applicable.
+All three surfaces can switch between English and Traditional Chinese. The toggle updates navigation, section titles, controls, messages, chart labels, and AI insight language where applicable.
 
 ### 2. Asset Screening
 
@@ -40,48 +43,21 @@ Browse a curated universe of 37 assets:
 - 15 US ETFs selected by AUM rank
 - 8 major cryptocurrencies, excluding stablecoins and assets with insufficient history
 
-The asset pool is static and curated; no web scraping occurs at runtime.
+The asset pool is static and curated; no web scraping occurs at runtime. Assets are filtered by liquidity, fee rate, coverage overlap, and minimum 3 years of reliable closing prices.
 
-The screening table uses Streamlit-AgGrid and supports:
-
-- Search by ticker or name
-- Category filtering
-- CAGR, Sharpe, and max drawdown filters
-- Current price and volume display via Yahoo Finance v8 REST API
-- Native currency display while keeping cross-currency sorting mathematically consistent
-
-### 3. Persona Quick Start
-
-After browsing the asset pool, users can choose one of three preset investor personas:
-
-- Young Professional: medium-risk accumulation with Taiwan, US, developed-market, bond, gold, and Bitcoin exposure
-- Pre-Retirement: low-risk retirement sprint with diversified equity, bond, and gold exposure
-- Aggressive Growth: high-risk growth portfolio with VTI, QQQ, Taiwan equity, developed markets, Bitcoin, and gold
-
-The persona buttons sit below the asset table, matching the intended flow: users first see the asset universe, then use a preset if they are not sure where to start.
-
-When a persona is applied, the app fills in the watchlist, risk level, backtest parameters, and FIRE assumptions. The correlation section remains visible as a diagnostic view, but persona portfolios are auto-confirmed and do not require the manual "Confirm Assets" step.
-
-### 4. Correlation Analysis
+### 3. Correlation Analysis
 
 The correlation module computes pairwise correlation using the last 3 years of daily returns.
 
 For manually selected portfolios, it:
 
 - Flags highly correlated asset groups
-- Shows a "keep only one asset from each group" action prompt
-- Recommends one asset to keep based on AUM / liquidity
-- Lets users choose the one asset they want to keep from each correlated group
-- Removes the unselected overlapping assets only after users confirm the keep choices
+- Recommends one asset to keep from each group based on AUM / liquidity
 - Requires asset confirmation before unlocking downstream calculations
 
-For persona portfolios, it:
+For persona portfolios, it shows correlation diagnostics without requiring the manual confirmation step.
 
-- Shows selected asset count, overlap count, and average correlation
-- Skips the suggested-removal and confirmation workflow
-- Keeps the preset portfolio intact for the downstream calculations
-
-### 5. Risk Allocation & Portfolio Visualization
+### 4. Risk Allocation & Portfolio Visualization
 
 The app maps selected assets to an achievable risk range based on annualized volatility, then allocates weights toward a selected target risk tier:
 
@@ -92,68 +68,39 @@ The app maps selected assets to an achievable risk range based on annualized vol
 | High | 35% |
 | Extreme High | 65% |
 
-The allocation section includes:
+The allocation section includes weighted CAGR, volatility, max drawdown, and Sharpe metrics, an interactive treemap, and a clickable asset detail view with a radar chart.
 
-- Weighted CAGR, volatility, max drawdown, and Sharpe metrics
-- Interactive Plotly treemap
-- Clickable asset detail view with metrics and radar chart
-- Links to Yahoo Finance and TradingView for individual assets
+### 5. Backtest & Drawdown Analysis
 
-### 6. Backtest & Pain Index
-
-Backtests are calculated in New Taiwan Dollar (TWD).
-
-The current backtest engine uses a combined contribution model:
+Backtests are calculated in New Taiwan Dollar (TWD) using a combined contribution model:
 
 - Initial lump-sum investment on the first available trading day
 - Monthly contribution on the first trading day of each subsequent month
 - USD-denominated assets converted to TWD using daily historical TWD/USD exchange rates
-- Web version uses BigQuery-exported daily TWD price history for static historical backtests
-- TWD / USD display toggle for portfolio values while keeping inputs and calculations in TWD
 
-The backtest section shows:
+The backtest section shows final value, total invested, total return, CAGR, portfolio value over time, max drawdown over time, top 5 independent drawdown episodes with historical event labels, and annual returns.
 
-- Final value
-- Total invested
-- Total return
-- CAGR
-- Portfolio value over time
-- Max drawdown over time
-- Top 5 independent drawdown episodes with historical event context
-- Annual returns
+### 6. FIRE Calculator
 
-### 7. FIRE Calculator
+Estimates the path to financial independence based on portfolio CAGR assumptions and user inputs:
 
-The FIRE calculator estimates financial independence based on the portfolio's historical return assumptions and user inputs.
-
-The FIRE target is derived from:
-
-```text
-Annual Expenses / Withdrawal Rate
+```
+FIRE Target = Annual Expenses / Withdrawal Rate
 ```
 
-The calculator includes:
+Includes nominal and inflation-adjusted timelines. Inflation defaults to the latest US CPI year-over-year value from FRED when `FRED_API_KEY` is configured; falls back to 2.5% otherwise.
 
-- Annual expenses
-- Withdrawal rate
-- Current savings
-- Monthly contribution
-- Inflation rate
-- Nominal and inflation-adjusted FIRE timelines
+### 7. AI Insights (Streamlit only)
 
-Inflation defaults to the latest US CPI year-over-year value from FRED when `FRED_API_KEY` is configured. If FRED is unavailable, the app falls back to 2.5%.
+If `GEMINI_API_KEY` is configured, Gemini 2.5 Flash generates a concise portfolio review covering structure, drawdown context, FIRE timeline, and behavioural risk. Falls back to a rule-based summary if the key is absent.
 
-### 8. Summary & AI Insights
+### 8. Persona Quick Start (Streamlit only)
 
-The summary section provides a plain-English or Traditional Chinese portfolio review covering:
+Three preset investor personas auto-fill the watchlist, risk level, backtest parameters, and FIRE assumptions:
 
-- Portfolio structure
-- Drawdown meaning
-- FIRE timeline
-- Behavioral risk
-- Tail-risk caveats for crypto-heavy or high-risk portfolios
-
-If `GEMINI_API_KEY` is configured, Gemini 2.5 Flash generates concise strategic next steps.
+- **Young Professional** — medium-risk accumulation
+- **Pre-Retirement** — low-risk retirement sprint
+- **Aggressive Growth** — high-risk growth portfolio
 
 ---
 
@@ -161,12 +108,15 @@ If `GEMINI_API_KEY` is configured, Gemini 2.5 Flash generates concise strategic 
 
 | Layer | Tools |
 |---|---|
-| Dashboard | Streamlit, Streamlit-AgGrid |
-| Visualization | Plotly, Chart.js |
-| Data Processing | Pandas, NumPy |
+| Dashboard | Streamlit 1.35+, Streamlit-AgGrid |
+| Visualization | Plotly 5.18+, Chart.js 4.4 |
+| Data Processing | pandas 2.0+, NumPy 1.26+ |
 | Data Collection | Yahoo Finance v8 REST API, FRED API |
 | Storage | Google BigQuery |
 | AI | Google Gemini 2.5 Flash |
+| Static Web | HTML / CSS / JavaScript (React 18 via CDN) |
+| CI/CD | GitHub Actions (daily cron + GitHub Pages deploy) |
+| Testing | pytest 7.0+, pytest-mock 3.10+ |
 
 ---
 
@@ -175,38 +125,53 @@ If `GEMINI_API_KEY` is configured, Gemini 2.5 Flash generates concise strategic 
 ```text
 passive-portfolio-lab/
 ├── streamlit_dashboard/
-│   ├── app.py                        # Main Streamlit dashboard
-│   ├── requirements.txt              # Streamlit app dependencies
+│   ├── app.py                             # Main Streamlit dashboard (2,278 LOC)
+│   ├── requirements.txt                   # Streamlit app dependencies
 │   └── src/
 │       ├── data_collection/
-│       │   ├── fetch_prices.py       # Yahoo Finance REST price fetching
-│       │   └── fetch_macro.py        # FRED CPI fetching
+│       │   ├── fetch_prices.py            # Yahoo Finance v8 REST price fetching
+│       │   └── fetch_macro.py             # FRED CPI fetching
 │       └── processing/
-│           ├── screening.py          # Static asset universe + ticker whitelist
-│           ├── utils.py              # Shared BQ config helper
-│           ├── metrics.py            # Financial metric calculations
-│           ├── backtest.py           # Combined TWD backtesting engine
-│           ├── drawdown_events.py    # Drawdown episode detection and tagging
-│           └── fire_calculator.py    # FIRE projection logic
+│           ├── screening.py               # Static asset universe (37 assets)
+│           ├── utils.py                   # Shared BQ config + upload helper
+│           ├── metrics.py                 # CAGR, volatility, max DD, Sharpe, worst year
+│           ├── backtest.py                # Combined TWD backtesting engine
+│           ├── drawdown_events.py         # Drawdown episode detection and event tagging
+│           └── fire_calculator.py         # FIRE projection logic
 ├── github_web/
-│   ├── index.html                    # Static web dashboard for GitHub Pages
-│   ├── landing.html                  # Project landing / sales page
+│   ├── index.html                         # Static web dashboard (GitHub Pages)
+│   ├── landing.html                       # Project landing page
 │   ├── scripts/
-│   │   ├── export_web_data.py        # BigQuery export for static web data
-│   │   ├── validate_export.py        # Post-export data validation
+│   │   ├── export_web_data.py             # BigQuery → ppl-data.js export
+│   │   ├── validate_export.py             # Post-export data validation
 │   │   └── backfill_missing_web_assets.py
 │   └── src/
-│       ├── colors_and_type.css       # Web design tokens
-│       └── ppl-data.js               # Exported asset metrics and price history
+│       ├── colors_and_type.css            # Design tokens (shared with Streamlit)
+│       └── ppl-data.js                    # Exported asset metrics + price history (auto-generated)
+├── looker_studio/
+│   ├── export_portfolio_tables.py         # Generates 7 portfolio-level BigQuery tables
+│   ├── generate_bigquery_views.py         # Creates 4 asset-level semantic views
+│   └── generated/                         # CSV snapshots of Looker-facing tables
 ├── tests/
-│   └── processing/
-│       └── test_backtest.py          # Unit tests incl. ticker whitelist
+│   ├── conftest.py                        # Shared fixtures (no network calls)
+│   ├── processing/
+│   │   ├── test_metrics.py                # CAGR, volatility, max DD, Sharpe, worst year
+│   │   ├── test_backtest.py               # TWD backtest engine + ticker whitelist
+│   │   ├── test_fire_calculator.py        # FIRE projection logic
+│   │   └── test_drawdown_events.py        # Drawdown episode detection + event labeling
+│   └── export/
+│       └── test_export_web_data.py        # ppl-data.js schema + idempotency
+├── dashboard/
+│   └── Passive_Portfolio_Lab.py           # Streamlit Cloud entry point shim
+├── docs/
+│   └── project_report.pptx               # Technical project report (15 slides)
 ├── .github/
 │   └── workflows/
-│       └── update-and-deploy.yml     # Scheduled data refresh and Pages deploy
-├── CLAUDE.md                         # Claude Code project instructions
-├── requirements.txt                  # Compatibility wrapper for Streamlit Cloud
-├── .env.example                      # Environment variable template
+│       └── update-and-deploy.yml          # Daily data refresh + GitHub Pages deploy
+├── CLAUDE.md                              # Claude Code project instructions
+├── pytest.ini                             # pytest configuration
+├── requirements.txt                       # Root-level shim for Streamlit Cloud
+├── .env.example                           # Environment variable template
 └── README.md
 ```
 
@@ -220,16 +185,43 @@ Create a local `.env` file using `.env.example` as a template:
 GOOGLE_CLOUD_PROJECT=your-project-id
 BIGQUERY_DATASET=portfolio
 GOOGLE_APPLICATION_CREDENTIALS=credentials.json
-FRED_API_KEY=your-fred-api-key
-GEMINI_API_KEY=your-gemini-api-key
+FRED_API_KEY=your-fred-api-key          # optional; falls back to 2.5% inflation
+GEMINI_API_KEY=your-gemini-api-key      # optional; AI insights hidden if absent
+APP_PASSWORD=your-password              # optional; enables Streamlit password gate
 ```
 
-Notes:
+---
 
-- `GOOGLE_CLOUD_PROJECT`, `BIGQUERY_DATASET`, and credentials are required for BigQuery reads.
-- `FRED_API_KEY` is optional; the app falls back to 2.5% inflation if unavailable.
-- `GEMINI_API_KEY` is optional; AI insights are hidden if unavailable.
-- `APP_PASSWORD` can be configured in Streamlit secrets to enable the dashboard password gate.
+## Tests
+
+```bash
+pytest tests/
+```
+
+100 tests across 5 modules. All external I/O (BigQuery, Yahoo Finance, FRED, Gemini) is mocked — no network access required.
+
+| Module | Coverage |
+|---|---|
+| `test_metrics.py` | CAGR, volatility (equity vs crypto annualisation), max drawdown, Sharpe, worst year |
+| `test_backtest.py` | Combined TWD backtest engine, ticker whitelist, monthly contribution injection |
+| `test_fire_calculator.py` | Years-to-FIRE, weighted CAGR, inflation adjustment, 50-year cap |
+| `test_drawdown_events.py` | Episode detection, 12+ historical event labels, recovery period |
+| `test_export_web_data.py` | PPL_ASSETS schema, PPL_PRICE_HISTORY structure, TWD conversion, idempotency |
+
+---
+
+## Data Pipeline
+
+GitHub Actions runs daily at 01:00 Taiwan time (17:00 UTC):
+
+1. `fetch_prices.py` — pulls closing prices for all 37 assets from Yahoo Finance v8 REST API
+2. `fetch_macro.py` — pulls latest US CPI year-over-year from FRED
+3. `metrics.py` — calculates CAGR, volatility, max drawdown, Sharpe ratio, worst year per asset
+4. `export_web_data.py` — exports asset metrics + 3-year daily TWD price history to `ppl-data.js`
+5. `validate_export.py` — validates schema and value ranges before commit
+6. Git commit + GitHub Pages deploy
+
+Streamlit and Looker Studio read from BigQuery directly (real-time). GitHub Pages consumes the static `ppl-data.js` snapshot.
 
 ---
 
@@ -237,8 +229,8 @@ Notes:
 
 - Historical performance does not guarantee future results.
 - All portfolio-level backtests are calculated in TWD to reflect the experience of a Taiwan-based investor.
-- USD-denominated assets are converted using historical TWD/USD exchange rates.
-- The correlation engine is a diversification aid, not an optimization model.
-- Risk allocation uses annualized volatility as the primary risk proxy and does not fully model covariance.
-- Crypto metrics should be interpreted cautiously because of shorter history and extreme tail risk.
-- The 4% withdrawal rule is a baseline; conservative users may prefer 3.0-3.5%.
+- USD-denominated assets are converted using historical TWD/USD exchange rates from Yahoo Finance.
+- The correlation engine is a diversification aid, not a full covariance optimisation model.
+- Risk allocation uses annualized volatility as the primary risk proxy.
+- Crypto metrics should be interpreted cautiously due to shorter history and extreme tail risk.
+- The 4% withdrawal rule is a baseline; conservative investors may prefer 3.0–3.5%.
