@@ -1,5 +1,6 @@
 """Shared utilities for processing modules."""
 import os
+import re
 import pandas as pd
 import pandas_gbq
 from dotenv import load_dotenv
@@ -14,6 +15,15 @@ YAHOO_HEADERS: dict[str, str] = {"User-Agent": "Mozilla/5.0"}
 # prevailing rate environment shifts meaningfully.
 RISK_FREE_RATE: float = 0.02
 
+_VALID_BQ_IDENTIFIER = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def validate_bq_identifier(value: str, name: str) -> str:
+    """Validate a BigQuery project or dataset identifier before SQL assembly."""
+    if not value or not _VALID_BQ_IDENTIFIER.fullmatch(value):
+        raise ValueError(f"Invalid BigQuery {name}: {value!r}")
+    return value
+
 
 def get_bq_config() -> tuple[str, str]:
     """Return (project_id, dataset_id) from environment variables.
@@ -25,7 +35,10 @@ def get_bq_config() -> tuple[str, str]:
     dataset_id = os.getenv("BIGQUERY_DATASET")
     if not project_id or not dataset_id:
         raise ValueError("Missing GOOGLE_CLOUD_PROJECT or BIGQUERY_DATASET in .env")
-    return project_id, dataset_id
+    return (
+        validate_bq_identifier(project_id, "project id"),
+        validate_bq_identifier(dataset_id, "dataset id"),
+    )
 
 
 def upload_to_bq(df: pd.DataFrame, table_name: str, if_exists: str = "replace") -> None:

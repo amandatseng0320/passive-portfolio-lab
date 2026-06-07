@@ -88,7 +88,8 @@ def sql_string(value: str) -> str:
 
 def load_metrics() -> pd.DataFrame:
     project_id, dataset_id = get_bq_config()
-    query = f"SELECT * FROM `{dataset_id}.asset_metrics`"
+    # dataset_id is validated by get_bq_config() before SQL assembly.
+    query = f"SELECT * FROM `{dataset_id}.asset_metrics`"  # nosec B608
     print(f"Querying {project_id}.{dataset_id}.asset_metrics ...")
     df = pandas_gbq.read_gbq(query, project_id=project_id)
     print(f"  → {len(df)} rows loaded")
@@ -99,12 +100,8 @@ def load_raw_prices(tickers: list[str]) -> pd.DataFrame:
     """Load raw daily close prices for the web asset universe."""
     project_id, dataset_id = get_bq_config()
     tickers_sql = ", ".join(sql_string(t) for t in tickers)
-    query = f"""
-        SELECT date, ticker, close
-        FROM `{dataset_id}.raw_prices`
-        WHERE ticker IN ({tickers_sql})
-        ORDER BY ticker, date
-    """
+    # dataset_id is validated by get_bq_config(); tickers come from ASSET_POOL.
+    query = f"SELECT date, ticker, close FROM `{dataset_id}.raw_prices` WHERE ticker IN ({tickers_sql}) ORDER BY ticker, date"  # nosec B608
     print(f"Querying {project_id}.{dataset_id}.raw_prices ...")
     df = pandas_gbq.read_gbq(query, project_id=project_id)
     df["date"] = pd.to_datetime(df["date"]).dt.normalize()

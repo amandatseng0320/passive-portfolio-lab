@@ -1361,13 +1361,6 @@ const RiskAllocation = ({ t, watchlist, confirmed, riskLevel, setRiskLevel, allo
     if (confirmed && watchlist.length) setAllocation(computeAllocation(watchlist, riskLevel));
   }, [watchlist, riskLevel, confirmed]);
 
-  if (!confirmed || !watchlist.length) return (
-    <div>
-      <SectionTitle icon="⚖️" title={t.allocTitle} caption={t.allocCaption} />
-      <InfoBanner>{t.allocLocked}</InfoBanner>
-    </div>
-  );
-
   const { allItems, wCagr, wVol, wDD, wSh } = useMemo(() => {
     const items = Object.entries(allocation).map(([ticker, weight]) => {
       const a = assetMap.get(ticker);
@@ -1383,6 +1376,13 @@ const RiskAllocation = ({ t, watchlist, confirmed, riskLevel, setRiskLevel, allo
       wSh:   items.reduce((s,i) => s + i.weight*(i.sharpe||0), 0),
     };
   }, [allocation]);
+
+  if (!confirmed || !watchlist.length) return (
+    <div>
+      <SectionTitle icon="⚖️" title={t.allocTitle} caption={t.allocCaption} />
+      <InfoBanner>{t.allocLocked}</InfoBanner>
+    </div>
+  );
 
   const selectedItem = allItems.find(i => i.ticker === selectedTicker);
 

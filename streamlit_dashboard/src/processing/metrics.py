@@ -16,7 +16,8 @@ _CRYPTO_ANNUALISE  = np.sqrt(365)
 def load_prices_from_bq():
     project_id, dataset_id = get_bq_config()
         
-    query = f"SELECT * FROM `{dataset_id}.raw_prices` ORDER BY ticker, date"
+    # dataset_id is validated by get_bq_config() before SQL assembly.
+    query = f"SELECT * FROM `{dataset_id}.raw_prices` ORDER BY ticker, date"  # nosec B608
     df = pandas_gbq.read_gbq(query, project_id=project_id)
     df['date'] = pd.to_datetime(df['date'])
     return df
@@ -52,24 +53,24 @@ def calculate_metrics(df: pd.DataFrame) -> pd.DataFrame:
                 cagr = (end_price / start_price) ** (1 / years) - 1
                 
             # Volatility
-            daily_returns = t_df['close'].pct_change().dropna()
+            daily_returns = t_df['close'].pct_change(fill_method=None).dropna()
             vol = daily_returns.std()
             if category == 'CRYPTO':
                 volatility = vol * _CRYPTO_ANNUALISE
             else:
                 volatility = vol * _EQUITY_ANNUALISE
-                
+
             # Max Drawdown
             rolling_max = t_df['close'].cummax()
             drawdown = (t_df['close'] - rolling_max) / rolling_max
             max_drawdown = drawdown.min()
-            
+
             # Recovery Period
-            max_dd_idx = drawdown.idxmin()
-            if max_drawdown == 0:
+            if max_drawdown == 0 or pd.isna(max_drawdown):
                 recovery_period_days = 0
                 recovery_status = "Recovered"
             else:
+                max_dd_idx = drawdown.idxmin()
                 trough_date = t_df.loc[max_dd_idx, 'date']
                 rolling_max_at_trough = rolling_max.loc[max_dd_idx]
                 

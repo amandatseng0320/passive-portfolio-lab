@@ -203,3 +203,22 @@ class TestEdgeCases:
         required = {"ticker", "name", "category", "cagr", "volatility",
                     "max_drawdown", "sharpe_ratio", "worst_year", "worst_year_label"}
         assert required.issubset(set(row.index))
+
+    def test_empty_dataframe_returns_empty(self):
+        empty = pd.DataFrame(columns=["date", "ticker", "close", "category"])
+        result = calculate_metrics(empty)
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+
+    def test_all_nan_close_ticker_excluded(self):
+        df = _df("0050.TW", "TW_ETF", [np.nan, np.nan, np.nan])
+        result = calculate_metrics(df)
+        assert "0050.TW" not in (result["ticker"].values if not result.empty else [])
+
+    def test_valid_ticker_survives_alongside_all_nan_ticker(self):
+        df_valid = _df("0050.TW", "TW_ETF", [100.0, 110.0, 105.0, 115.0])
+        df_nan   = _df("SPY",     "US_ETF", [np.nan] * 4)
+        combined = pd.concat([df_valid, df_nan], ignore_index=True)
+        result = calculate_metrics(combined)
+        assert "0050.TW" in result["ticker"].values
+        assert "SPY" not in result["ticker"].values

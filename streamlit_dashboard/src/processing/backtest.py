@@ -32,7 +32,7 @@ def load_fx_rate(start_date: str, end_date: str) -> pd.Series:
         f'?interval=1d&period1={start_ts}&period2={end_ts}'
     )
     try:
-        r = requests.get(url, headers=headers, timeout=15, verify=False)
+        r = requests.get(url, headers=headers, timeout=15)
         data = r.json()
         result = data['chart']['result'][0]
         timestamps = result['timestamp']
@@ -64,12 +64,8 @@ def load_prices_for_tickers(tickers: list) -> pd.DataFrame:
     project_id, dataset_id = get_bq_config()
     tickers_sql = ", ".join(f"'{t}'" for t in tickers)
 
-    query = f"""
-        SELECT date, ticker, close
-        FROM `{dataset_id}.raw_prices`
-        WHERE ticker IN ({tickers_sql})
-        ORDER BY ticker, date
-    """
+    # dataset_id is validated by get_bq_config(); tickers are validated against ASSET_POOL.
+    query = f"SELECT date, ticker, close FROM `{dataset_id}.raw_prices` WHERE ticker IN ({tickers_sql}) ORDER BY ticker, date"  # nosec B608
     df = pandas_gbq.read_gbq(query, project_id=project_id)
     df['date'] = pd.to_datetime(df['date'])
     return df
@@ -101,6 +97,10 @@ def run_combined(
 
     valid_tickers = [t for t in tickers_weights if t in pivot.columns]
     pivot = pivot[valid_tickers]
+
+    if pivot.empty or not valid_tickers:
+        return pd.DataFrame(columns=['date', 'portfolio_value', 'total_invested',
+                                     'total_return_pct', 'strategy'])
 
     # Convert USD assets to TWD using daily FX rates.
     # TWD assets end with '.TW' (e.g. 0050.TW) or '.TWO' (e.g. 00937B.TWO).

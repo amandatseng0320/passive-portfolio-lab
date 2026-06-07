@@ -230,6 +230,35 @@ class TestOutputSchema:
         assert (result["portfolio_value"] > 0).all()
 
 
+# ── Edge cases ────────────────────────────────────────────────────────────────
+
+class TestBacktestEdgeCases:
+    def test_empty_prices_returns_empty_dataframe(self):
+        empty = pd.DataFrame(columns=["date", "ticker", "close"])
+        result = run_combined(empty, {"0050.TW": 1.0},
+                              "2021-01-04", "2021-01-13",
+                              initial_investment=10_000, monthly_contribution=0)
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+
+    def test_no_matching_tickers_returns_empty_dataframe(self):
+        # Prices exist but none match the requested tickers.
+        prices = _prices({"0050.TW": [100.0] * 10})
+        result = run_combined(prices, {"SPY": 1.0},
+                              "2021-01-04", "2021-01-13",
+                              initial_investment=10_000, monthly_contribution=0)
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+
+    def test_zero_investment_zero_contribution_gives_zero_values(self):
+        prices = _prices({"0050.TW": [100.0] * 10})
+        result = run_combined(prices, {"0050.TW": 1.0},
+                              "2021-01-04", "2021-01-13",
+                              initial_investment=0, monthly_contribution=0)
+        assert (result["portfolio_value"] == 0.0).all()
+        assert (result["total_return_pct"] == 0.0).all()
+
+
 class TestTickerWhitelist:
     """validate_tickers() must reject anything not in ASSET_POOL."""
 

@@ -14,11 +14,8 @@ def load_cagr_from_bq(tickers: list) -> dict:
     project_id, dataset_id = get_bq_config()
 
     tickers_sql = ", ".join(f"'{t}'" for t in tickers)
-    query = f"""
-        SELECT ticker, cagr
-        FROM `{dataset_id}.asset_metrics`
-        WHERE ticker IN ({tickers_sql})
-    """
+    # dataset_id is validated by get_bq_config(); tickers are validated against ASSET_POOL.
+    query = f"SELECT ticker, cagr FROM `{dataset_id}.asset_metrics` WHERE ticker IN ({tickers_sql})"  # nosec B608
     df = pandas_gbq.read_gbq(query, project_id=project_id)
     return dict(zip(df['ticker'], df['cagr']))
 

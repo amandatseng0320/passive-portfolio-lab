@@ -29,7 +29,8 @@ DEFAULT_TICKERS = ["00646.TW", "00955.TWO"]
 
 
 def load_existing_raw_prices(project_id, dataset_id):
-    query = f"SELECT * FROM `{dataset_id}.raw_prices`"
+    # dataset_id is validated by get_bq_config() before this helper is called.
+    query = f"SELECT * FROM `{dataset_id}.raw_prices`"  # nosec B608
     df = pandas_gbq.read_gbq(query, project_id=project_id)
     df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
     return df

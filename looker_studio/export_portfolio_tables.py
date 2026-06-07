@@ -34,6 +34,7 @@ sys.path.append(str(REPO_ROOT / "streamlit_dashboard"))
 
 from src.processing.backtest import load_fx_rate  # noqa: E402
 from src.processing.drawdown_events import identify_drawdown_events  # noqa: E402
+from src.processing.utils import validate_bq_identifier  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -193,7 +194,10 @@ def env() -> tuple[str, str]:
     dataset_id = os.getenv("BIGQUERY_DATASET")
     if not project_id or not dataset_id:
         raise SystemExit("Missing GOOGLE_CLOUD_PROJECT or BIGQUERY_DATASET.")
-    return project_id, dataset_id
+    return (
+        validate_bq_identifier(project_id, "project id"),
+        validate_bq_identifier(dataset_id, "dataset id"),
+    )
 
 
 def sql_string(value: str) -> str:
@@ -202,17 +206,10 @@ def sql_string(value: str) -> str:
 
 def load_bigquery_inputs(project_id: str, dataset_id: str, tickers: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
     tickers_sql = ", ".join(sql_string(t) for t in tickers)
-    prices_query = f"""
-        SELECT date, ticker, category, close
-        FROM `{dataset_id}.raw_prices`
-        WHERE ticker IN ({tickers_sql})
-        ORDER BY ticker, date
-    """
-    metrics_query = f"""
-        SELECT *
-        FROM `{dataset_id}.asset_metrics`
-        WHERE ticker IN ({tickers_sql})
-    """
+    # dataset_id is validated by get_bq_config(); tickers come from fixed portfolio presets.
+    prices_query = f"SELECT date, ticker, category, close FROM `{dataset_id}.raw_prices` WHERE ticker IN ({tickers_sql}) ORDER BY ticker, date"  # nosec B608
+    # dataset_id is validated by get_bq_config(); tickers come from fixed portfolio presets.
+    metrics_query = f"SELECT * FROM `{dataset_id}.asset_metrics` WHERE ticker IN ({tickers_sql})"  # nosec B608
     prices = pandas_gbq.read_gbq(prices_query, project_id=project_id)
     metrics = pandas_gbq.read_gbq(metrics_query, project_id=project_id)
     prices["date"] = pd.to_datetime(prices["date"]).dt.normalize()

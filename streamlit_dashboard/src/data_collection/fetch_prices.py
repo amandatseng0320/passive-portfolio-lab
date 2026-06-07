@@ -3,7 +3,6 @@ import sys
 import time
 import pandas as pd
 import requests
-import urllib3
 from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -14,21 +13,16 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.processing.screening import get_all_candidates
 from src.processing.utils import YAHOO_HEADERS, upload_to_bq
 
-# Silence the "InsecureRequestWarning" noise from verify=False calls below.
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Direct Yahoo Finance v8 chart API fetch.
 #
 # Why not yfinance?
-#   yfinance under-the-hood uses curl_cffi with browser fingerprinting and does
-#   not expose a clean way to disable SSL verification. In networks that do
-#   SSL interception (corporate VPN, custom root CA, school proxy) yfinance
-#   returns None for most tickers and surfaces a confusing
+#   yfinance under-the-hood uses curl_cffi with browser fingerprinting. In
+#   networks with custom proxy or CA setup, yfinance can return None for most
+#   tickers and surface a confusing
 #       TypeError: 'NoneType' object is not subscriptable
-#   which makes debugging hard. The direct REST API + verify=False mirrors the
-#   proven pattern used by load_fx_rate() in streamlit_dashboard/src/processing/backtest.py for
-#   TWD=X and is robust across network environments.
+#   which makes debugging hard. The direct REST API keeps normal TLS
+#   certificate verification enabled while making the request path explicit.
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -49,7 +43,7 @@ def fetch_ticker_prices_yahoo(ticker: str, timeout: int = 30, max_retries: int =
     last_err = None
     for attempt in range(max_retries):
         try:
-            r = requests.get(url, headers=YAHOO_HEADERS, timeout=timeout, verify=False)
+            r = requests.get(url, headers=YAHOO_HEADERS, timeout=timeout)
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP {r.status_code}")
             data = r.json()

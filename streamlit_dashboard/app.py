@@ -21,14 +21,12 @@ from src.processing.backtest import run_backtest, load_prices_for_tickers
 from src.processing.fire_calculator import calculate_fire
 from src.processing.drawdown_events import identify_drawdown_events, MARKET_EVENTS
 from src.data_collection.fetch_macro import get_latest_cpi_yoy
-from src.processing.utils import YAHOO_HEADERS, RISK_FREE_RATE
+from src.processing.utils import YAHOO_HEADERS, RISK_FREE_RATE, get_bq_config
 from google import genai
 import warnings
-from urllib3.exceptions import InsecureRequestWarning
 
 # Suppress annoying warnings from libraries
 warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings("ignore", category=InsecureRequestWarning)
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
 
@@ -52,9 +50,11 @@ try:
     # so os.getenv("GOOGLE_CLOUD_PROJECT") etc. still work. We only need to
     # read APP_PASSWORD explicitly for the password gate below.
     _app_password = st.secrets.get("APP_PASSWORD")
-except Exception:
-    # Local dev: no secrets.toml, skip silently.
+except FileNotFoundError:
+    # Local dev: no secrets.toml; production secrets live in Streamlit Cloud.
     pass
+except Exception as exc:
+    print(f"Warning: Streamlit secrets could not be initialized: {exc}")
 
 st.set_page_config(page_title="Passive Portfolio Lab", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 
@@ -69,7 +69,7 @@ LANG_OPTIONS = {
 
 ZH_TW = {
     "This dashboard is currently shared for project review. Please enter the access password.": "此儀表板目前供專案審閱使用，請輸入存取密碼。",
-    "Password": "密碼",
+    "Password": "密碼",  # nosec B105
     "Incorrect password.": "密碼不正確。",
     "Introduction": "介紹",
     "Asset Screening": "資產篩選",
@@ -370,9 +370,9 @@ def load_candidates():
 
 @st.cache_data(ttl=3600)
 def load_metrics():
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    dataset_id = os.getenv("BIGQUERY_DATASET")
-    query = f"SELECT * FROM `{dataset_id}.asset_metrics`"
+    project_id, dataset_id = get_bq_config()
+    # dataset_id is validated by get_bq_config() before SQL assembly.
+    query = f"SELECT * FROM `{dataset_id}.asset_metrics`"  # nosec B608
     return pandas_gbq.read_gbq(query, project_id=project_id)
 
 def fetch_price_and_volume(tickers: list) -> dict:
@@ -384,7 +384,7 @@ def fetch_price_and_volume(tickers: list) -> dict:
     for ticker in tickers:
         try:
             url = f'https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=5d'
-            r = requests.get(url, headers=YAHOO_HEADERS, timeout=10, verify=False)
+            r = requests.get(url, headers=YAHOO_HEADERS, timeout=10)
             data = r.json()
             close = data['chart']['result'][0]['indicators']['quote'][0]['close']
             volume = data['chart']['result'][0]['indicators']['quote'][0]['volume']
@@ -2264,7 +2264,7 @@ if st.button(btn_label, type="secondary", key="currency_toggle"):
     if st.session_state['display_usd']:
         try:
             url = 'https://query1.finance.yahoo.com/v8/finance/chart/TWD=X?interval=1d&range=5d'
-            r = requests.get(url, headers=YAHOO_HEADERS, timeout=10, verify=False)
+            r = requests.get(url, headers=YAHOO_HEADERS, timeout=10)
             data = r.json()
             closes = data['chart']['result'][0]['indicators']['quote'][0]['close']
             closes = [x for x in closes if x is not None]
