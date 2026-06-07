@@ -1,66 +1,109 @@
-# Looker Studio Dashboard
+# Looker Studio 說明
 
-This folder turns Passive Portfolio Lab's existing BigQuery tables into a
-Looker Studio-ready semantic layer. The dashboard is designed in Chinese first,
-with English financial labels as supporting context.
+`looker_studio/` 是 Passive Portfolio Lab 的 BI 報表資料層。它把 Streamlit / BigQuery 已有的價格與資產指標整理成 Looker Studio 可直接連接的 views、portfolio tables 與 CSV snapshots。
 
-Published report:
+已發布報表：
+
+```text
 https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67
+```
 
-## 1. Asset-Level Views
+## 目前交付狀態
 
-From the repo root:
+| 項目 | 狀態 |
+|---|---|
+| Asset-level BigQuery views | 已建立產生腳本與 SQL |
+| Portfolio-level BigQuery tables | 已建立產生腳本 |
+| CSV snapshots | 已產出於 `looker_studio/generated/` |
+| 預設 portfolios | 已內建 6 組 |
+| 報表幣別 | Portfolio-level 統一為 TWD |
+
+## 資料夾結構
+
+```text
+looker_studio/
+├── README.md
+├── bigquery_views.sql
+├── generate_bigquery_views.py
+├── export_portfolio_tables.py
+└── generated/
+    ├── looker_fire_projection.csv
+    ├── looker_fire_scenarios.csv
+    ├── looker_portfolio_allocations.csv
+    ├── looker_portfolio_annual_returns.csv
+    ├── looker_portfolio_drawdown_events.csv
+    ├── looker_portfolio_history.csv
+    └── looker_portfolio_metrics.csv
+```
+
+| 路徑 | 角色 | 必要性 |
+|---|---|---|
+| `generate_bigquery_views.py` | 產生 asset-level semantic views SQL | 必要 |
+| `bigquery_views.sql` | 已產出的 BigQuery SQL，可直接到 BigQuery 執行 | 保留 |
+| `export_portfolio_tables.py` | 產生 portfolio-level tables 與 CSV snapshots | 必要 |
+| `generated/` | 已產出的 CSV snapshots，方便檢查資料長相與交付展示 | 保留 |
+
+## Asset-level views
+
+`generate_bigquery_views.py` 會根據 `streamlit_dashboard/src/processing/screening.py` 的固定資產池，產出 BigQuery semantic layer SQL。
+
+重建指令：
 
 ```bash
 GOOGLE_CLOUD_PROJECT=your-project-id BIGQUERY_DATASET=portfolio \
 python3 looker_studio/generate_bigquery_views.py
 ```
 
-Then open `looker_studio/bigquery_views.sql` in BigQuery and run it.
+輸出檔案：
 
-The SQL creates four views:
+```text
+looker_studio/bigquery_views.sql
+```
 
-| View | Purpose |
+`bigquery_views.sql` 會建立四個 views：
+
+| View | 用途 |
 |---|---|
-| `looker_asset_metrics` | One row per asset with CAGR, volatility, max drawdown, Sharpe, recovery period, and metadata |
-| `looker_price_history` | Daily close, daily return, and cumulative return by ticker |
-| `looker_annual_returns` | Annual return by ticker and year |
-| `looker_category_summary` | Category-level average metrics |
+| `looker_asset_metrics` | 每個 asset 一列，包含 CAGR、volatility、max drawdown、Sharpe、recovery period 與 metadata |
+| `looker_price_history` | 每個 ticker 的 daily close、daily return、cumulative return |
+| `looker_annual_returns` | 每個 ticker / year 的年度報酬 |
+| `looker_category_summary` | 各 category 的平均指標 |
 
-## 2. Portfolio-Level Tables
+## Portfolio-level tables
 
-After the asset views exist, generate portfolio tables:
+`export_portfolio_tables.py` 會讀取 BigQuery 的 `raw_prices` 與 `asset_metrics`，再依照內建 portfolio presets 產出 portfolio-level 資料表。
+
+上傳 BigQuery：
 
 ```bash
 GOOGLE_CLOUD_PROJECT=your-project-id BIGQUERY_DATASET=portfolio \
 python3 looker_studio/export_portfolio_tables.py
 ```
 
-To preview CSVs without uploading to BigQuery:
+只產出 CSV、不上傳 BigQuery：
 
 ```bash
 GOOGLE_CLOUD_PROJECT=your-project-id BIGQUERY_DATASET=portfolio \
 python3 looker_studio/export_portfolio_tables.py --no-upload
 ```
 
-This creates these BigQuery tables:
+目前產出的 tables / CSV：
 
-| Table | Purpose |
+| Table / CSV | 用途 |
 |---|---|
-| `looker_portfolio_allocations` | Portfolio component weights and asset metadata |
-| `looker_portfolio_metrics` | Portfolio CAGR, volatility, max drawdown, Sharpe, FIRE assumptions |
-| `looker_portfolio_history` | Daily TWD portfolio value, invested amount, return, and drawdown |
-| `looker_portfolio_annual_returns` | Annual return by portfolio |
-| `looker_portfolio_drawdown_events` | Top drawdown episodes by portfolio |
-| `looker_fire_scenarios` | FIRE target and years-to-FIRE by portfolio |
-| `looker_fire_projection` | 50-year nominal and real FIRE projection by portfolio |
+| `looker_portfolio_allocations` | 投資組合成分權重與 asset metadata |
+| `looker_portfolio_metrics` | Portfolio CAGR、volatility、max drawdown、Sharpe、FIRE assumptions |
+| `looker_portfolio_history` | Daily TWD portfolio value、invested amount、return、drawdown |
+| `looker_portfolio_annual_returns` | 每個 portfolio 的年度報酬 |
+| `looker_portfolio_drawdown_events` | 每個 portfolio 的主要回撤事件 |
+| `looker_fire_scenarios` | FIRE target 與 years-to-FIRE |
+| `looker_fire_projection` | 50 年 nominal / real FIRE projection |
 
-The script converts USD-denominated assets to TWD using historical TWD/USD rates
-from the same Yahoo Finance helper used by the Streamlit dashboard.
+USD-denominated assets 會使用與 Streamlit dashboard 相同的 TWD/USD 歷史匯率 helper 轉換成 TWD。
 
-## 3. Portfolio Presets
+## 內建 portfolios
 
-The report compares six portfolios:
+目前 Looker Studio 報表使用 6 組 portfolio：
 
 | Portfolio | Type | Annual Expenses |
 |---|---|---:|
@@ -71,106 +114,65 @@ The report compares six portfolios:
 | 美股核心 / US Core | Core | NT$800,000 |
 | 加密貨幣核心 / Crypto Core | Core | NT$800,000 |
 
-Core portfolio weights:
+Core portfolio weights：
 
 | Portfolio | Weights |
 |---|---|
-| 台股核心 / Taiwan Core | `0050.TW` 27.78%, `0056.TW` 22.22%, `00679B.TWO` 16.67%, `0052.TW` 16.67%, `00646.TW` 16.67% |
-| 美股核心 / US Core | `VOO` 30%, `QQQ` 20%, `VEA` 15%, `VTV` 15%, `GLD` 10%, `BND` 10% |
-| 加密貨幣核心 / Crypto Core | `BTC-USD` 45%, `ETH-USD` 25%, `BNB-USD` 10%, `XRP-USD` 8%, `SOL-USD` 8%, `TRX-USD` 4% |
+| 台股核心 / Taiwan Core | `0050.TW` 27.78%、`0056.TW` 22.22%、`00679B.TWO` 16.67%、`0052.TW` 16.67%、`00646.TW` 16.67% |
+| 美股核心 / US Core | `VOO` 30%、`QQQ` 20%、`VEA` 15%、`VTV` 15%、`GLD` 10%、`BND` 10% |
+| 加密貨幣核心 / Crypto Core | `BTC-USD` 45%、`ETH-USD` 25%、`BNB-USD` 10%、`XRP-USD` 8%、`SOL-USD` 8%、`TRX-USD` 4% |
 
-## 4. Connect Looker Studio
+這些 presets 的 source of truth 在：
 
-1. Open [Looker Studio](https://lookerstudio.google.com/).
-2. Create a new report.
-3. Add a BigQuery data source.
-4. Select the project and dataset from your `.env`.
-5. Add these views and tables as data sources:
-   - `looker_asset_metrics`
-   - `looker_price_history`
-   - `looker_annual_returns`
-   - `looker_category_summary`
-   - `looker_portfolio_allocations`
-   - `looker_portfolio_metrics`
-   - `looker_portfolio_history`
-   - `looker_portfolio_annual_returns`
-   - `looker_portfolio_drawdown_events`
-   - `looker_fire_scenarios`
-   - `looker_fire_projection`
+```text
+looker_studio/export_portfolio_tables.py
+```
 
-Set field types:
+## Looker Studio 目前資料來源
+
+報表連接下列 BigQuery views / tables：
+
+```text
+looker_asset_metrics
+looker_price_history
+looker_annual_returns
+looker_category_summary
+looker_portfolio_allocations
+looker_portfolio_metrics
+looker_portfolio_history
+looker_portfolio_annual_returns
+looker_portfolio_drawdown_events
+looker_fire_scenarios
+looker_fire_projection
+```
+
+欄位型態：
 
 | Field | Type |
 |---|---|
 | `date` | Date |
 | `year` | Number |
-| `portfolio_id`, `portfolio_name_zh`, `portfolio_name_en`, `ticker`, `name`, `category`, `subcategory`, `currency` | Text |
-| `cagr`, `volatility`, `max_drawdown`, `sharpe_ratio`, `daily_return`, `cumulative_return`, `annual_return` | Number / Percent |
+| `portfolio_id`、`portfolio_name_zh`、`portfolio_name_en`、`ticker`、`name`、`category`、`subcategory`、`currency` | Text |
+| `cagr`、`volatility`、`max_drawdown`、`sharpe_ratio`、`daily_return`、`cumulative_return`、`annual_return` | Number / Percent |
 
-## 5. Recommended Dashboard Layout
+## 報表頁面
 
-### Page 1: 資產池與資產細節 / Asset Universe
+目前 Looker Studio 交付面涵蓋：
 
-- Scorecards: asset count, average CAGR, average volatility, average max drawdown, average Sharpe
-- Bar chart: `cagr_pct` by `ticker`
-- Scatter chart: `volatility_pct` vs `cagr_pct`, bubble dimension by `category`
-- Table: ticker, name, category, CAGR, volatility, max drawdown, Sharpe, worst year
-- Controls: category, subcategory, ticker
+| 頁面 | 內容 |
+|---|---|
+| 資產池與資產細節 / Asset Universe | 資產數量、CAGR、volatility、max drawdown、Sharpe、ticker table 與 category filter |
+| 投資組合比較與細節 / Portfolio Comparison | Portfolio value、annual return、allocation、CAGR、volatility、Sharpe、years to FIRE |
+| 投資組合的風險與回撤 / Risk & Drawdown | Max drawdown、drawdown time series、drawdown events、risk scatter |
+| FIRE 試算 / FIRE Calculator | FIRE target、nominal / real years to FIRE、50 年 projection |
+| Historical Returns | Ticker-level cumulative return、daily return、annual return |
+| Asset Risk And Drawdown | Asset-level max drawdown、Sharpe、worst year 與 category summary |
 
-Primary data source: `looker_asset_metrics`
+## Calculated fields
 
-### Page 2: 投資組合比較與細節 / Portfolio Comparison
+目前報表使用下列 calculated fields。
 
-- Scorecards: CAGR, volatility, max drawdown, Sharpe, years to FIRE
-- Time series: `portfolio_value_twd` by `date`, breakdown by `portfolio_name_zh`
-- Bar chart: `annual_return_pct` by `year`, breakdown by `portfolio_name_zh`
-- Pie or treemap: `weight_pct` by `ticker` filtered by selected portfolio
-- Table: portfolio allocation detail
-- Controls: portfolio name, portfolio type, risk level
-
-Primary data sources: `looker_portfolio_metrics`, `looker_portfolio_history`,
-`looker_portfolio_annual_returns`, `looker_portfolio_allocations`
-
-### Page 3: 投資組合的風險與回撤 / Risk & Drawdown
-
-- Bar chart: `max_drawdown_pct` by `portfolio_name_zh`
-- Time series: `drawdown_pct` by `date`, breakdown by `portfolio_name_zh`
-- Table: `looker_portfolio_drawdown_events`
-- Scatter chart: `volatility_pct` vs `cagr_pct`, dimension by portfolio, color by risk level
-
-Primary data sources: `looker_portfolio_metrics`,
-`looker_portfolio_history`, `looker_portfolio_drawdown_events`
-
-### Page 4: FIRE 試算 / FIRE Calculator
-
-- Scorecards: FIRE target, years to FIRE nominal, years to FIRE real
-- Time series: nominal and real portfolio projection by `year`
-- Bar chart: `years_to_fire_real` by `portfolio_name_zh`
-- Table: FIRE assumptions by portfolio
-
-Primary data sources: `looker_fire_scenarios`, `looker_fire_projection`
-
-### Optional: Historical Returns
-
-- Time series: `cumulative_return_pct` by `date`, breakdown by `ticker`
-- Time series: `daily_return_pct` by `date`, breakdown by `ticker`
-- Bar chart: `annual_return_pct` by `year`, breakdown by `ticker`
-- Controls: date range, ticker, category
-
-Primary data sources: `looker_price_history`, `looker_annual_returns`
-
-### Optional: Asset Risk And Drawdown
-
-- Table sorted by `max_drawdown_pct`
-- Scatter chart: `max_drawdown_pct` vs `sharpe_ratio`
-- Bar chart: `worst_year_pct` by `ticker`
-- Category summary table from `looker_category_summary`
-
-Primary data sources: `looker_asset_metrics`, `looker_category_summary`
-
-## 6. Suggested Looker Studio Calculated Fields
-
-Risk label:
+Risk label：
 
 ```text
 CASE
@@ -181,7 +183,7 @@ CASE
 END
 ```
 
-Drawdown severity:
+Drawdown severity：
 
 ```text
 CASE
@@ -192,14 +194,17 @@ CASE
 END
 ```
 
-Return/risk score:
+Return/risk score：
 
 ```text
 cagr / volatility
 ```
 
-## Notes
+## 維護規則
 
-- Asset-level views use native asset prices. Taiwan ETFs are TWD, while US ETFs
-  and crypto are USD.
-- Portfolio-level tables are calculated in TWD by `export_portfolio_tables.py`.
+- Asset-level views 使用原始資產幣別：台灣 ETF 為 TWD，美股 ETF 與 crypto 為 USD。
+- Portfolio-level tables 統一由 `export_portfolio_tables.py` 轉成 TWD。
+- 若修改 asset universe，需重新產生 `bigquery_views.sql` 與 portfolio tables。
+- 若修改 portfolio presets，需更新 `export_portfolio_tables.py`、CSV snapshots、Looker Studio data source 與 `CHANGELOG.md`。
+- 若修改 FIRE / backtest 公式，需同步更新 Streamlit、tests、Looker tables 與本 README。
+- `generated/` 是可重建的輸出物，但目前保留作為結案展示與資料契約檢查 snapshot。

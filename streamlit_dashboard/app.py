@@ -20,6 +20,7 @@ from src.processing.screening import get_all_candidates
 from src.processing.backtest import run_backtest, load_prices_for_tickers
 from src.processing.fire_calculator import calculate_fire
 from src.processing.drawdown_events import identify_drawdown_events, MARKET_EVENTS
+from src.asset_profiles.loader import get_asset_profile
 from src.data_collection.fetch_macro import get_latest_cpi_yoy
 from src.processing.utils import YAHOO_HEADERS, RISK_FREE_RATE, get_bq_config
 from google import genai
@@ -1324,6 +1325,7 @@ The achievable risk range is derived from the **annualized volatility** of the a
                     'radar': radar,
                     'yf_url': f"https://finance.yahoo.com/quote/{yf_ticker}",
                     'tv_url': f"https://www.tradingview.com/symbols/{tv_ticker}/",
+                    'profile': get_asset_profile(row['ticker']),
                 })
         treemap_data = json.dumps(treemap_data_list)
         st.markdown(f"### {tr('Portfolio Composition')}")
@@ -1342,9 +1344,9 @@ The achievable risk range is derived from the **annualized volatility** of the a
         <style>
             g.pathbar, .pathbar, .slice.pathbar {{ display: none !important; }}
         </style>
-        <div id="main-container" style="width:100%; height:460px; position:relative;">
-            <div id="treemap-container" style="width:100%; height:460px;"></div>
-            <div id="detail-card" style="display:none; width:100%; height:460px; box-sizing:border-box; padding:24px 28px; font-family:sans-serif; border-radius:8px; position:absolute; top:0; left:0;"></div>
+        <div id="main-container" style="width:100%; min-height:720px; position:relative;">
+            <div id="treemap-container" style="width:100%; height:560px;"></div>
+            <div id="detail-card" style="display:none; width:100%; min-height:700px; box-sizing:border-box; padding:24px 28px; font-family:sans-serif; border-radius:8px; position:absolute; top:0; left:0;"></div>
         </div>
         <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1387,6 +1389,60 @@ The achievable risk range is derived from the **annualized volatility** of the a
         function luminance(c) {{
             return 0.299*c.r + 0.587*c.g + 0.114*c.b;
         }}
+        function escapeHtml(value) {{
+            return String(value || '').replace(/[&<>"']/g, function(ch) {{
+                return ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}})[ch];
+            }});
+        }}
+        function profileRows(profile) {{
+            if (!profile) return '';
+            var isCrypto = profile.assetType === 'Crypto';
+            var expenseText = profile.managementFee && profile.custodianFee
+                ? `${{profile.expenseRatio}}（包含經理費 ${{profile.managementFee}} 及保管費 ${{profile.custodianFee}}）`
+                : profile.expenseRatio;
+            var rows = isCrypto ? [
+                ['類型', profile.assetType],
+                ['類別', profile.cryptoCategory || profile.category],
+                ['區塊鏈', profile.blockchain],
+                ['發行商', profile.issuer],
+                ['共識機制', profile.consensus]
+            ] : [
+                ['類型', profile.assetType],
+                ['類別', profile.category],
+                ['發行商', profile.issuer],
+                ['費用率', expenseText],
+                ['配息政策', profile.dividendPolicy]
+            ];
+            return rows.filter(function(row) {{ return row[1]; }}).map(function(row) {{
+                return `<div style="background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.24); border-radius:7px; padding:8px 10px;">
+                    <div style="font-size:11px; font-weight:700; opacity:0.75; margin-bottom:3px;">${{escapeHtml(row[0])}}</div>
+                    <div style="font-size:13px; font-weight:600;">${{escapeHtml(row[1])}}</div>
+                </div>`;
+            }}).join('');
+        }}
+        function profileBlock(d, textColor, subTextColor, borderColor, btnBg) {{
+            var profile = d.profile || null;
+            if (!profile) {{
+            return `<div style="color:${{textColor}};">目前尚無補充資訊。</div>`;
+            }}
+            var sourceLabel = profile.collectionMethod === 'web_scraping'
+                ? `網頁爬蟲來源：${{escapeHtml(profile.sourceName || '公開資料頁')}}`
+                : `補充來源：${{escapeHtml(profile.sourceName || '公開資料頁')}}`;
+            var source = profile.sourceUrl ? `<a href="${{escapeHtml(profile.sourceUrl)}}" target="_blank" style="color:${{textColor}}; font-weight:700; text-decoration:none;">${{sourceLabel}}</a>` : '';
+            var expenseSource = profile.expenseRatioSourceUrl && profile.expenseRatioSourceUrl !== profile.sourceUrl
+                ? `<a href="${{escapeHtml(profile.expenseRatioSourceUrl)}}" target="_blank" style="color:${{textColor}}; font-weight:700; text-decoration:none;">費率來源：${{escapeHtml(profile.expenseRatioSourceName || '公開資料頁')}}</a>`
+                : '';
+            return `<div style="color:${{textColor}}; display:flex; flex-direction:column;">
+                <div style="font-size:15px; font-weight:700; margin-bottom:6px;">資產補充資訊</div>
+                <div style="font-size:13px; line-height:1.55; color:${{subTextColor}}; margin-bottom:10px;">${{escapeHtml(profile.summary)}}</div>
+                <div style="display:grid; grid-template-columns:1fr; gap:8px; margin-bottom:10px;">${{profileRows(profile)}}</div>
+                <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:12px; color:${{subTextColor}};">
+                    <span>更新時間：${{escapeHtml(profile.fetchedAt || 'N/A')}}</span>
+                    ${{source}}
+                    ${{expenseSource}}
+                </div>
+            </div>`;
+        }}
         function showDetail(ticker) {{
             var d = dataMap[ticker];
             if (!d) return;
@@ -1402,47 +1458,53 @@ The achievable risk range is derived from the **annualized volatility** of the a
             var btnBg = lum > 160 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)';
             var radarColor = lum > 160 ? 'rgba(107,158,159,0.35)' : 'rgba(255,255,255,0.35)';
             var radarBorder = lum > 160 ? '#6B9E9F' : '#ffffff';
+            var panelStyle = `min-height:560px; min-width:0; padding:16px; border:1px solid ${{borderColor}}; border-radius:8px; background:${{btnBg}}; box-sizing:border-box; overflow:visible;`;
             card.style.background = bgColor;
             card.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
                     <span style="font-size:22px; font-weight:700; color:${{textColor}};">${{d.ticker}} — ${{d.name}}</span>
                     <button onclick="hideDetail()" style="background:${{btnBg}}; border:1px solid ${{borderColor}}; border-radius:6px; padding:6px 16px; cursor:pointer; font-size:14px; color:${{textColor}}; white-space:nowrap; margin-left:12px;">← Back</button>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0; height:370px;">
-                    <div style="padding-right:32px; border-right:1px solid ${{borderColor}}; display:flex; flex-direction:column; justify-content:space-between;">
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px 24px;">
-                            <div>
-                                <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Ann. Return (CAGR)</div>
-                                <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.cagr}}</div>
-                            </div>
-                            <div>
-                                <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Volatility</div>
-                                <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.vol}}</div>
-                            </div>
-                            <div>
-                                <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Max Drawdown</div>
-                                <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.maxdd}}</div>
-                            </div>
-                            <div>
-                                <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Sharpe Ratio</div>
-                                <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.sharpe}}</div>
-                            </div>
-                            <div>
-                                <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Worst Year Return</div>
-                                <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.worst_ret}}</div>
-                            </div>
-                            <div>
-                                <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Worst Year</div>
-                                <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.worst_yr}}</div>
+                <div style="display:grid; grid-template-columns:minmax(280px, 0.95fr) minmax(260px, 0.9fr) minmax(300px, 1.15fr); gap:24px; align-items:stretch;">
+                    <div style="${{panelStyle}} display:flex; flex-direction:column; justify-content:flex-start;">
+                        <div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px 22px;">
+                                <div>
+                                    <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Ann. Return (CAGR)</div>
+                                    <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.cagr}}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Volatility</div>
+                                    <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.vol}}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Max Drawdown</div>
+                                    <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.maxdd}}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Sharpe Ratio</div>
+                                    <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.sharpe}}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Worst Year Return</div>
+                                    <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.worst_ret}}</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:13px; color:${{subTextColor}}; margin-bottom:4px;">Worst Year</div>
+                                    <div style="font-size:32px; font-weight:700; color:${{textColor}}; line-height:1;">${{d.worst_yr}}</div>
+                                </div>
                             </div>
                         </div>
-                        <div style="display:flex; gap:10px;">
+                        <div style="display:flex; gap:10px; margin-top:24px;">
                             <a href="${{d.yf_url}}" target="_blank" style="flex:1; text-align:center; padding:14px 8px; border:1px solid ${{borderColor}}; border-radius:8px; text-decoration:none; color:${{textColor}}; font-size:15px; font-weight:600; background:${{btnBg}};">Yahoo Finance</a>
                             <a href="${{d.tv_url}}" target="_blank" style="flex:1; text-align:center; padding:14px 8px; border:1px solid ${{borderColor}}; border-radius:8px; text-decoration:none; color:${{textColor}}; font-size:15px; font-weight:600; background:${{btnBg}};">TradingView</a>
                         </div>
                     </div>
-                    <div style="padding-left:32px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                        <div style="width:100%; flex:1; display:flex; align-items:center; justify-content:center;">
+                    <div style="${{panelStyle}}">
+                        ${{profileBlock(d, textColor, subTextColor, borderColor, btnBg)}}
+                    </div>
+                    <div style="${{panelStyle}} display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+                        <div style="width:100%; flex:1; min-height:410px; display:flex; align-items:center; justify-content:center;">
                             <canvas id="radarCanvas" style="max-width:340px; max-height:340px;"></canvas>
                         </div>
                         <div style="text-align:center; font-size:12px; color:${{subTextColor}}; margin-top:10px;">Scores relative to all assets. Higher = better.</div>
@@ -1528,7 +1590,7 @@ The achievable risk range is derived from the **annualized volatility** of the a
         }});
         </script>
         """
-        components.html(html_code, height=480)
+        components.html(html_code, height=780)
 
 st.divider()
 

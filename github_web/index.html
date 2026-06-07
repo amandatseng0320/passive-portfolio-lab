@@ -78,6 +78,22 @@
       background: rgba(0,0,0,0.45);
       z-index: 299;
     }
+    .ppl-asset-detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+    .ppl-asset-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .ppl-profile-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
 
     /* Prevent any element from pushing past the viewport width */
     html, body { overflow-x: hidden; max-width: 100vw; }
@@ -144,6 +160,13 @@
       .ppl-grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
       .ppl-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
       .ppl-grid-5 { grid-template-columns: repeat(2, 1fr) !important; }
+      .ppl-asset-detail-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .ppl-asset-metric-grid,
+      .ppl-profile-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
 
       /* Any element with explicit wide inline width: cap it */
       #ppl-main > * { max-width: 100vw; }
@@ -154,7 +177,9 @@
       .ppl-grid-2,
       .ppl-grid-3,
       .ppl-grid-4,
-      .ppl-grid-5 {
+      .ppl-grid-5,
+      .ppl-asset-metric-grid,
+      .ppl-profile-grid {
         grid-template-columns: 1fr !important;
       }
     }
@@ -227,6 +252,7 @@
     }
   </script>
   <script src="src/ppl-data.js"></script>
+  <script src="src/ppl-asset-profiles.js"></script>
 
   <script type="text/babel">
 // ─────────────────────────────────────────────────────────────────────────────
@@ -265,6 +291,81 @@ const MetricCard = ({ label, value, delta, deltaPositive, sub }) => (
     {sub && <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{sub}</div>}
   </div>
 );
+
+const getAssetProfile = ticker => {
+  if (typeof PPL_ASSET_PROFILES === 'undefined') return null;
+  return PPL_ASSET_PROFILES[ticker] || null;
+};
+
+const AssetProfilePanel = ({ profile, t }) => {
+  if (!profile) {
+    return (
+      <div style={{ height:'100%', padding:'14px 16px', border:'1px solid #e8edf3',
+        borderRadius:8, background:'#f8fafc', color:'#687385', fontSize:13 }}>
+        {t.assetProfileEmpty}
+      </div>
+    );
+  }
+  const isCrypto = profile.assetType === 'Crypto';
+  const sourceLabel = profile.collectionMethod === 'web_scraping'
+    ? `${t.profileScrapedSource}: ${profile.sourceName || t.profileSource}`
+    : `${t.profileSource}: ${profile.sourceName || ''}`;
+  const expenseText = profile.managementFee && profile.custodianFee
+    ? `${profile.expenseRatio}（${t.profileExpenseIncludes} ${t.profileManagementFee} ${profile.managementFee} ${t.profileExpenseAnd} ${t.profileCustodianFee} ${profile.custodianFee}）`
+    : profile.expenseRatio;
+  const rows = isCrypto
+    ? [
+        [t.profileType, profile.assetType],
+        [t.profileCategory, profile.cryptoCategory || profile.category],
+        [t.profileBlockchain, profile.blockchain],
+        [t.profileIssuer, profile.issuer],
+        [t.profileConsensus, profile.consensus],
+      ]
+    : [
+        [t.profileType, profile.assetType],
+        [t.profileCategory, profile.category],
+        [t.profileIssuer, profile.issuer],
+        [t.profileExpense, expenseText],
+        [t.profileDividend, profile.dividendPolicy],
+      ];
+  return (
+    <div style={{ height:'100%', padding:'14px 16px', border:'1px solid #d7e6f5',
+      borderRadius:8, background:'#f8fbff' }}>
+      <div style={{ fontSize:14, fontWeight:700, color:'#0d1f3c', marginBottom:8 }}>
+        {t.assetProfileTitle}
+      </div>
+      <div style={{ fontSize:13, color:'#344256', lineHeight:1.55, marginBottom:10 }}>
+        {profile.summary}
+      </div>
+      <div className="ppl-profile-grid" style={{ marginBottom:10 }}>
+        {rows.filter(([, value]) => value).map(([label, value]) => (
+          <div key={label} style={{ background:'#fff', border:'1px solid #e8edf3',
+            borderRadius:7, padding:'8px 10px' }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'#69758a',
+              textTransform:'uppercase', marginBottom:3 }}>{label}</div>
+            <div style={{ fontSize:13, color:'#111827' }}>{value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:'flex', justifyContent:'space-between', gap:10,
+        flexWrap:'wrap', fontSize:12, color:'#69758a' }}>
+        <span>{t.profileUpdated}: {profile.fetchedAt || 'N/A'}</span>
+        {profile.sourceUrl && (
+          <a href={profile.sourceUrl} target="_blank" rel="noreferrer"
+            style={{ color:'#1e5a96', fontWeight:700, textDecoration:'none' }}>
+            {sourceLabel}
+          </a>
+        )}
+        {profile.expenseRatioSourceUrl && profile.expenseRatioSourceUrl !== profile.sourceUrl && (
+          <a href={profile.expenseRatioSourceUrl} target="_blank" rel="noreferrer"
+            style={{ color:'#1e5a96', fontWeight:700, textDecoration:'none' }}>
+            {t.profileExpenseSource}: {profile.expenseRatioSourceName || t.profileSource}
+          </a>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const SectionTitle = ({ icon, title, caption }) => (
   <div style={{ marginBottom:28 }}>
@@ -684,6 +785,23 @@ const T = {
     wMaxDD:'Weighted Max DD', wSharpe:'Weighted Sharpe',
     target:'Target:', riskLow:'Low', riskMed:'Medium', riskHigh:'High', riskXH:'Extreme High',
     detailWeight:'Weight', detailClose:'Close',
+    assetProfileTitle:'Asset Profile',
+    assetProfileEmpty:'No supplemental profile is available for this asset yet.',
+    profileType:'Type',
+    profileCategory:'Category',
+    profileIssuer:'Issuer',
+    profileExpense:'Expense Ratio',
+    profileManagementFee:'Management Fee',
+    profileCustodianFee:'Custodian Fee',
+    profileExpenseIncludes:'includes',
+    profileExpenseAnd:'and',
+    profileExpenseSource:'Fee source',
+    profileDividend:'Dividend Policy',
+    profileBlockchain:'Blockchain',
+    profileConsensus:'Consensus',
+    profileUpdated:'Updated',
+    profileSource:'Source',
+    profileScrapedSource:'Scraped source',
 
     btTitle:'Backtest & Pain Index',
     btCaption:'How would your TWD-based portfolio have behaved historically — and could you endure the downturns?',
@@ -799,6 +917,23 @@ const T = {
     wMaxDD:'加權最大回撤', wSharpe:'加權 Sharpe',
     target:'目標：', riskLow:'低', riskMed:'中', riskHigh:'高', riskXH:'極高',
     detailWeight:'配比', detailClose:'關閉',
+    assetProfileTitle:'資產補充資訊',
+    assetProfileEmpty:'目前尚無此資產的補充資訊。',
+    profileType:'類型',
+    profileCategory:'類別',
+    profileIssuer:'發行商',
+    profileExpense:'費用率',
+    profileManagementFee:'經理費',
+    profileCustodianFee:'保管費',
+    profileExpenseIncludes:'包含',
+    profileExpenseAnd:'及',
+    profileExpenseSource:'費率來源',
+    profileDividend:'配息政策',
+    profileBlockchain:'區塊鏈',
+    profileConsensus:'共識機制',
+    profileUpdated:'更新時間',
+    profileSource:'資料來源',
+    profileScrapedSource:'網頁爬蟲來源',
 
     btTitle:'回測與痛苦指數',
     btCaption:'組合的歷史表現如何？你能承受那些回撤嗎？',
@@ -1385,6 +1520,7 @@ const RiskAllocation = ({ t, watchlist, confirmed, riskLevel, setRiskLevel, allo
   );
 
   const selectedItem = allItems.find(i => i.ticker === selectedTicker);
+  const selectedProfile = selectedItem ? getAssetProfile(selectedItem.ticker) : null;
 
   return (
     <div>
@@ -1423,12 +1559,15 @@ const RiskAllocation = ({ t, watchlist, confirmed, riskLevel, setRiskLevel, allo
               ✕ {t.detailClose}
             </button>
           </div>
-          <div className="ppl-grid-5" style={{ display:'grid', gap:10 }}>
-            <MetricCard label={t.detailWeight} value={`${(selectedItem.weight*100).toFixed(1)}%`} />
-            <MetricCard label={t.colCagr}      value={`${selectedItem.cagr?.toFixed(1)}%`} />
-            <MetricCard label={t.colVol}       value={`${selectedItem.vol?.toFixed(1)}%`} />
-            <MetricCard label={t.colMaxDD}     value={`${selectedItem.maxDD?.toFixed(1)}%`} />
-            <MetricCard label={t.colSharpe}    value={selectedItem.sharpe?.toFixed(2)} />
+          <div className="ppl-asset-detail-grid">
+            <div className="ppl-asset-metric-grid">
+              <MetricCard label={t.detailWeight} value={`${(selectedItem.weight*100).toFixed(1)}%`} />
+              <MetricCard label={t.colCagr}      value={`${selectedItem.cagr?.toFixed(1)}%`} />
+              <MetricCard label={t.colVol}       value={`${selectedItem.vol?.toFixed(1)}%`} />
+              <MetricCard label={t.colMaxDD}     value={`${selectedItem.maxDD?.toFixed(1)}%`} />
+              <MetricCard label={t.colSharpe}    value={selectedItem.sharpe?.toFixed(2)} />
+            </div>
+            <AssetProfilePanel profile={selectedProfile} t={t} />
           </div>
         </div>
       )}

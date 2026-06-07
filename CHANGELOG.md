@@ -558,6 +558,83 @@ def test_cagr_stored_as_percentage_not_fraction(self, minimal_metrics_df):
 
 ## 版本更新紀錄
 
+## [0.12.0] - 2026-06-08
+
+### 新增
+
+- 新增 Asset Profiles / Web Scraping Showcase 第一版資料線：
+  - `data/asset_profiles/asset_profiles.json`
+  - `github_web/src/ppl-asset-profiles.js`
+  - `github_web/scripts/asset_intelligence/`
+  - `streamlit_dashboard/src/asset_profiles/loader.py`
+- 新增 ETF / crypto profile schema，涵蓋基本簡介、發行商、費用率、配息政策、
+  crypto 類別、區塊鏈、共識機制、資料來源與更新時間。
+- 新增 `tests/export/test_asset_profiles_schema.py`、
+  `tests/export/test_asset_profiles_export.py`、
+  `tests/streamlit/test_asset_profiles_loader.py`。
+
+### 變更
+
+- GitHub Web 載入 `ppl-asset-profiles.js`，並在「組合配置」資產詳情中顯示
+  資產補充資訊。
+- GitHub Web 資產詳情改為左右並排：左側保留原本績效數值卡，右側顯示
+  資產補充資訊，避免補充資訊被推到頁面下方。
+- Streamlit Dashboard 在「投資組合組成」treemap 資產詳情中顯示同一份
+  asset profile 資料。
+- Streamlit Dashboard 資產詳情改為三欄一致透明框：績效數值、資產補充資訊、
+  雷達圖，並讓雷達圖在右欄置中。
+- 修正 Streamlit Dashboard 三欄詳情卡的排版溢出問題：原本資產補充資訊卡用
+  `margin-top:auto` 將「更新時間 / 來源」推到卡片底部，內容較長時會掉出
+  外層藍色區塊；修正後三欄統一使用透明框、提高 HTML component 高度，並讓
+  資料來源 footer 回到正常文字流，雷達圖則以 flex 水平與垂直置中。
+- Asset profile 來源改為官方或公開 HTML 頁面爬蟲：台股 ETF 使用 TWSE ETF
+  資訊頁，美股 ETF 使用 Vanguard / iShares / SPDR / Invesco 等官方頁，
+  crypto 使用官方網站或官方公開資料頁。
+- 修正 asset profile 費用率佔位問題：29 檔 ETF 皆輸出可顯示的費用率文字，
+  GitHub Web 與 Streamlit 共同讀取同一份 `asset_profiles.json` /
+  `ppl-asset-profiles.js`；8 檔 crypto 不再套用 ETF 費用率欄位。
+- 重定義 ETF 費用率資料契約：台股 ETF 的 `expenseRatio` 改由爬蟲取得的
+  `managementFee + custodianFee` 計算，並新增 `managementFee`、`custodianFee`、
+  `expenseRatioFormula`、`expenseRatioSourceName`、`expenseRatioSourceUrl` 與
+  `expenseRatioCollectionMethod`；前端改為只顯示單一「費用率」欄位，台股 ETF
+  以括號標注其包含的經理費與保管費，不再額外拆出「經理費」、「保管費」或
+  「計算方式」欄位，也不再使用 `約` 或 `+` 這類模糊 wording。
+- Landing page 新增「資產補充資訊 / Web Scraping Showcase」功能亮點。
+- GitHub Actions workflow 新增 asset profile JSON / JS 產生、驗證、artifact 與
+  自動 commit 流程。
+- `github_web/scripts/validate_export.py` 新增 `PPL_ASSET_PROFILES` 檢查。
+
+### 資安
+
+- 新增來源 allowlist，僅允許固定公開來源 URL。
+- `validate_export.py` 與 schema tests 會阻擋 Yahoo Finance quote page、
+  CoinMarketCap 交易頁或行情 API 成為 asset profile 來源。
+- 新增文字 sanitize，移除 HTML tag / script-like 內容後才輸出到前端。
+- fetcher 設定固定 user-agent 與 request timeout。
+- raw 爬蟲資料維持 ignored，只追蹤正規化後的安全 JSON / JS。
+
+### 驗證
+
+- `python3 -m pytest tests/`：121 passed。
+- `python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'`：No issues identified。
+- `python3 github_web/scripts/validate_export.py`：Export validation passed。
+
+## [0.11.0] - 2026-06-08
+
+### 變更
+
+- Streamlit Cloud 已重新部署並直接使用 `streamlit_dashboard/app.py` 作為正式
+  entry point。
+- 移除舊的 `dashboard/Passive_Portfolio_Lab.py` compatibility shim，讓 repo
+  結構更集中於 `streamlit_dashboard/`。
+- 更新 README 與 `SECURITY_REVIEW.md`，將 Streamlit 部署入口與 shim 移除狀態
+  改為目前實際狀態。
+
+### 修正
+
+- 移除 Streamlit shim 後，原本 Bandit B102 `exec_used` 的部署相容層不再存在，
+  不需再以 `# nosec B102` 排除。
+
 ## [0.10.0] - 2026-06-07
 
 ### 新增

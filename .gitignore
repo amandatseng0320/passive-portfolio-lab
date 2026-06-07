@@ -33,13 +33,18 @@ venv/
 
 # Streamlit secrets (local dev only; production secrets live in Streamlit Cloud)
 .streamlit/secrets.toml
-secrets.template.toml
-
-# Local tool configuration
-.claude/
 
 # Data
-data/
+data/*
+!data/README.md
+!data/asset_profiles/
+!data/asset_profiles/asset_profiles.json
+data/asset_profiles/raw/**
+!data/asset_profiles/raw/
+!data/asset_profiles/raw/etf/
+!data/asset_profiles/raw/etf/.gitkeep
+!data/asset_profiles/raw/crypto/
+!data/asset_profiles/raw/crypto/.gitkeep
 looker_studio/generated/
 
 # OS generated files

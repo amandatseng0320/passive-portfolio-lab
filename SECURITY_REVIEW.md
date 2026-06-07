@@ -7,7 +7,7 @@
 ## 0. 修正後狀態摘要
 
 修正日期：2026-06-07  
-修正方式：保留原始掃描紀錄，新增本節與第 9 節作為修正後紀錄。
+修正方式：保留原始掃描紀錄，新增本節、第 9 節與第 10 節作為修正後紀錄。
 
 | 項目 | 原始掃描 | 修正後狀態 |
 |---|---:|---:|
@@ -17,25 +17,27 @@
 | `verify=False` | 5 處 | 0 處 |
 | Python dependency known vulnerabilities | 0 | 0 |
 | 測試依賴 known vulnerabilities | 0 | 0 |
-| 核心測試 | 未於原始掃描執行 | 63 passed |
+| 核心測試 | 未於原始掃描執行 | 121 passed |
 
 已完成修正：
 
 - 移除所有 `requests.get(..., verify=False)`，恢復正常 TLS certificate validation。
 - 移除不再需要的 `InsecureRequestWarning` suppression 與相關註解。
 - 新增 BigQuery project / dataset identifier validation。
-- Streamlit Cloud entry point shim 保留，但補上固定 repo-local source 說明與 `# nosec B102`。
+- Streamlit Cloud entry point shim 已於重新部署後移除，正式入口改為 `streamlit_dashboard/app.py`。
 - Streamlit secrets 初始化從完全靜默 `except/pass` 改為 local fallback + warning。
 - 對已審查且安全來源固定的 SQL f-string 加入精準 `# nosec B608` 與理由。
 - 對 UI 翻譯字串 `"Password": "密碼"` 的 Bandit 誤判加入精準 `# nosec B105`。
+- 新增 Asset Profiles / Web Scraping Showcase 時，已加入來源 allowlist、timeout、
+  sanitize、raw data ignore 與 schema/export/loader 測試。
 
 修正後仍保留的風險/注意事項：
 
 - Bandit 已無 High / Medium / Low findings。
-- 部分固定來源 SQL 與 Streamlit shim 使用 `# nosec` 註記；這些註記均附有安全理由，避免靜態掃描誤報干擾結案報告。
+- 部分固定來源 SQL 使用 `# nosec` 註記；這些註記均附有安全理由，避免靜態掃描誤報干擾結案報告。
 - `.env` 與 `credentials.json` 仍存在於本機，但未被 git 追蹤，且已由 `.gitignore` 排除。
 
-以下第 1 到第 8 節保留原始掃描結果，作為修正前基準與稽核紀錄；第 9 節記錄修正後重掃結果。
+以下第 1 到第 8 節保留原始掃描結果，作為修正前基準與稽核紀錄；第 9 節記錄原始發現修正後重掃結果；第 10 節記錄新增 Web Scraping Showcase 後的補充資安檢查。
 
 ## 1. 掃描摘要
 
@@ -107,7 +109,7 @@ git check-ignore -v .env credentials.json .DS_Store .pytest_cache || true
 ### 2.4 Bandit Python SAST
 
 ```bash
-python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio dashboard -x '*/__pycache__/*'
+python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'
 ```
 
 結果摘要：
@@ -196,7 +198,11 @@ requests.get(url, timeout=10, verify=certifi.where())
 位置：`dashboard/Passive_Portfolio_Lab.py:17`  
 狀態：可接受但需紀錄原因
 
-目前用途：
+後續處理狀態：已移除。Streamlit Cloud 重新部署後已直接指定
+`streamlit_dashboard/app.py` 作為正式 entry point，因此不再需要
+`dashboard/Passive_Portfolio_Lab.py` shim。
+
+原始用途：
 
 - `dashboard/Passive_Portfolio_Lab.py` 是 Streamlit Cloud entry point shim。
 - 目的在於讓 Streamlit Cloud 可從固定入口載入 `streamlit_dashboard/app.py`，避免重新部署造成 secrets 設定流失。
@@ -323,7 +329,7 @@ requests.get(url, timeout=10, verify=certifi.where())
 | P1 | 移除 `verify=False` | 改用預設 TLS 驗證或 `certifi.where()` |
 | P2 | BigQuery identifier validation | 集中驗證 project/dataset/table identifier |
 | P2 | SQL ticker query parameterization | ticker list 改用 BigQuery query parameters 或保留 whitelist 並加測試 |
-| P3 | Streamlit shim `exec` | 若可行改直接 entry point；否則補註解 |
+| P3 | Streamlit shim `exec` | 已移除；正式 entry point 改為 `streamlit_dashboard/app.py` |
 | P3 | secrets exception handling | 改成 debug log 或更窄的 exception handling |
 
 ## 8. 結論
@@ -416,7 +422,7 @@ def get_bq_config() -> tuple[str, str]:
 - `streamlit_dashboard/app.py` 的 `load_metrics()` 改用共用 `get_bq_config()`，避免自行讀 env 繞過驗證。
 - ticker list 仍維持 `validate_tickers()` whitelist 防線。
 
-#### 修正 3: Streamlit Cloud shim 補安全註解與 nosec
+#### 修正 3: Streamlit Cloud shim 移除，改用正式 entry point
 
 原始風險：
 
@@ -425,23 +431,21 @@ def get_bq_config() -> tuple[str, str]:
 
 修正檔案：
 
-- `dashboard/Passive_Portfolio_Lab.py`
+- `dashboard/Passive_Portfolio_Lab.py` 已刪除
+- Streamlit Cloud entry point 已改為 `streamlit_dashboard/app.py`
 
 修正後：
 
-```python
-# This file re-executes a fixed repo-local app file so Streamlit Cloud can find
-# its entry point without requiring a full redeployment (which would lose all
-# saved secrets). It never executes user-provided input.
-with open(_app) as _f:
-    exec(compile(_f.read(), _app, "exec"), {"__file__": _app, "__name__": "__main__"})  # nosec B102
+```text
+Streamlit Cloud entry point:
+streamlit_dashboard/app.py
 ```
 
 修正說明：
 
-- 保留 shim，因為它是 Streamlit Cloud 既有 entry point 相容用途。
-- 明確記錄 `exec()` 的來源是固定 repo-local `streamlit_dashboard/app.py`，不是使用者輸入。
-- 使用 `# nosec B102` 讓 Bandit 不再將此已審查 shim 視為未處理問題。
+- 重新部署 Streamlit Cloud app，直接使用正式主程式作為入口。
+- 移除 shim 後，`exec()` 不再存在於部署入口路徑。
+- 專案結構更乾淨，也不再需要針對 shim 保留 `# nosec B102`。
 
 #### 修正 4: Streamlit secrets 初始化不再完全靜默
 
@@ -484,7 +488,7 @@ except Exception as exc:
 指令：
 
 ```bash
-python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio dashboard -x '*/__pycache__/*'
+python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'
 ```
 
 修正後結果：
@@ -498,7 +502,7 @@ python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio dashbo
 說明：
 
 - 原始 5 個 High 全部消除。
-- `exec()` shim 已標註 `# nosec B102`，Bandit 不再列為 unresolved issue。
+- `exec()` shim 已移除，Bandit 不再列為 unresolved issue。
 - `try/except/pass` 已消除。
 - 原始剩餘的 11 個 Bandit B608 SQL f-string 提示已逐項處理：
   - BigQuery project / dataset 先經 `validate_bq_identifier()` 驗證。
@@ -513,7 +517,7 @@ python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio dashbo
 指令：
 
 ```bash
-rg -n "verify=False|InsecureRequestWarning|disable_warnings|urllib3" streamlit_dashboard github_web looker_studio dashboard -g '!*.pyc'
+rg -n "verify=False|InsecureRequestWarning|disable_warnings|urllib3" streamlit_dashboard github_web looker_studio -g '!*.pyc'
 ```
 
 結果：
@@ -574,3 +578,104 @@ python3 -m pytest tests/processing/test_backtest.py tests/processing/test_metric
 
 - 無 Bandit High / Medium / Low findings。
 - 後續若新增 BigQuery 查詢，仍應優先使用 `get_bq_config()` / `validate_bq_identifier()`，並確保 ticker 來源經 whitelist 或固定資料集約束。
+
+## 10. Asset Profiles / Web Scraping Showcase 補充資安紀錄
+
+本節記錄 2026-06-08 新增 Asset Profiles / Web Scraping Showcase 後的資安設計與重掃結果。原始掃描與第 9 節修正紀錄保留不刪除。
+
+### 10.1 新增功能範圍
+
+新增檔案與資料線：
+
+- `data/asset_profiles/asset_profiles.json`
+- `github_web/src/ppl-asset-profiles.js`
+- `github_web/scripts/asset_intelligence/sources.py`
+- `github_web/scripts/asset_intelligence/schema.py`
+- `github_web/scripts/asset_intelligence/fetch_etf_profiles.py`
+- `github_web/scripts/asset_intelligence/fetch_crypto_profiles.py`
+- `github_web/scripts/asset_intelligence/normalize_profiles.py`
+- `github_web/scripts/asset_intelligence/export_asset_profiles.py`
+- `streamlit_dashboard/src/asset_profiles/loader.py`
+- `tests/export/test_asset_profiles_schema.py`
+- `tests/export/test_asset_profiles_export.py`
+- `tests/streamlit/test_asset_profiles_loader.py`
+
+展示面：
+
+- GitHub Web「組合配置」資產詳情。
+- Streamlit Dashboard「投資組合組成」treemap 資產詳情。
+- Landing page 功能亮點。
+
+### 10.2 主要風險與防護
+
+| 風險 | 防護方式 |
+|---|---|
+| SSRF / 任意 URL 抓取 | `sources.py` 使用固定 allowlist，只允許 TWSE、官方 ETF 發行商頁與 crypto 官方公開頁 |
+| XSS / HTML 注入 | `schema.py` 的 `sanitize_text()` 會移除 HTML tag 與 script-like 內容；測試確認文字欄位不含 `<` 或 `script` |
+| 行情 API 誤用 | Asset profile pipeline 使用 `requests.get(sourceUrl)` 抓公開 HTML 頁面並用 HTML parser 擷取摘要，不使用 Yahoo Finance REST API、CoinMarketCap API 或其他行情 API |
+| 前端白屏 | GitHub Web 與 Streamlit loader 都有 fallback；缺資料時顯示「目前尚無補充資訊」 |
+| request hang | fetcher 使用 `REQUEST_TIMEOUT_SECONDS = 12` |
+| secrets 外洩 | 此功能不需要 API key；`.env`、`credentials.json`、Streamlit secrets 仍由 `.gitignore` 排除 |
+| raw 爬蟲資料誤提交 | `.gitignore` 忽略 `data/asset_profiles/raw/**`，只保留 `.gitkeep` |
+| schema drift | 新增 schema / export / loader 測試，並把 profile export 加入 `validate_export.py` |
+| ETF 費用率退回佔位或模糊文字 | 測試與 `validate_export.py` 會檢查 29 檔 ETF 不得輸出 `See source profile`、`約` 或 `+`，且 8 檔 crypto 不套用 ETF 費用率欄位 |
+| 台股 ETF 費率來源不透明 | asset profile schema 新增 `managementFee`、`custodianFee`、`expenseRatioFormula`、`expenseRatioSourceUrl`，並要求台股 ETF 以 `managementFee + custodianFee` 計算 |
+
+### 10.3 重掃指令與結果
+
+#### Bandit SAST
+
+指令：
+
+```bash
+python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'
+```
+
+結果：
+
+```text
+No issues identified.
+```
+
+#### Regression tests
+
+指令：
+
+```bash
+python3 -m pytest tests/
+```
+
+結果：
+
+```text
+121 passed, 2 warnings
+```
+
+警告說明：
+
+- 2 個 warnings 來自 pandas `Series.idxmin` future behavior warning。
+- 該 warning 與新增 Web Scraping Showcase 無關。
+
+#### Export validation
+
+指令：
+
+```bash
+python3 github_web/scripts/validate_export.py
+```
+
+結果：
+
+```text
+Export validation passed (37 assets, FX=31.57)
+```
+
+### 10.4 補充結論
+
+新增 Web Scraping Showcase 後，專案仍維持：
+
+- Bandit High / Medium / Low findings：0。
+- 無已追蹤的 `.env`、`credentials.json` 或 API key。
+- 資產 profile 來源受 allowlist 約束。
+- 前端只讀靜態正規化資料，不在使用者瀏覽時即時爬取。
+- GitHub Web、Streamlit Dashboard 與 tests 已共用同一份資料契約。

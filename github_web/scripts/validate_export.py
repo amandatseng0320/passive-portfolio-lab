@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validate that ppl-data.js was exported correctly.
+Validate that static GitHub Web data files were exported correctly.
 Exits with code 1 if any check fails so GitHub Actions marks the step as failed.
 
 Checks:
@@ -9,12 +9,14 @@ Checks:
   3. Export timestamp is fresh (< 25 hours old)
   4. FX rate is within plausible TWD/USD range (20–50)
 """
+import json
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 OUTPUT = Path(__file__).resolve().parents[1] / "src" / "ppl-data.js"
+PROFILE_OUTPUT = Path(__file__).resolve().parents[1] / "src" / "ppl-asset-profiles.js"
 EXPECTED_MIN_ASSETS = 30   # alert if fewer than 30 assets exported
 # Keep EXPECTED_ASSETS in sync with ASSET_POOL in screening.py when adding/removing assets
 EXPECTED_ASSETS = 37
@@ -63,6 +65,63 @@ def main() -> None:
             errors.append(f"FX RATE: {fx} is outside plausible 20–50 TWD/USD range")
     else:
         errors.append("FX RATE: PPL_FX_RATE not found or not parseable")
+
+    # 5. Optional asset profile export. Required once the web scraping showcase
+    # pipeline has generated the static profile file.
+    if PROFILE_OUTPUT.exists():
+        profile_content = PROFILE_OUTPUT.read_text(encoding="utf-8")
+        if "const PPL_ASSET_PROFILES" not in profile_content:
+            errors.append("PROFILE: const PPL_ASSET_PROFILES missing")
+        profile_match = re.search(r"const PPL_ASSET_PROFILES = (\{.*\});", profile_content, re.DOTALL)
+        if profile_match:
+            try:
+                profiles = json.loads(profile_match.group(1))
+            except json.JSONDecodeError as exc:
+                errors.append(f"PROFILE: PPL_ASSET_PROFILES is not valid JSON ({exc})")
+            else:
+                if len(profiles) != EXPECTED_ASSETS:
+                    errors.append(
+                        f"PROFILE COUNT: {len(profiles)} profiles exported (expected {EXPECTED_ASSETS})"
+                    )
+                for ticker, profile in profiles.items():
+                    if profile.get("ticker") != ticker:
+                        errors.append(f"PROFILE: key/ticker mismatch for {ticker}")
+                    if not profile.get("summary"):
+                        errors.append(f"PROFILE: missing summary for {ticker}")
+                    if profile.get("collectionMethod") != "web_scraping":
+                        errors.append(f"PROFILE: {ticker} was not collected by web scraping")
+                    if not profile.get("sourceSummary"):
+                        errors.append(f"PROFILE: missing sourceSummary for {ticker}")
+                    source_url = str(profile.get("sourceUrl", ""))
+                    if not source_url.startswith("https://"):
+                        errors.append(f"PROFILE: invalid sourceUrl for {ticker}: {source_url}")
+                    if any(
+                        blocked in source_url
+                        for blocked in ("finance.yahoo.com", "tw.stock.yahoo.com", "coinmarketcap.com")
+                    ):
+                        errors.append(f"PROFILE: disallowed profile source for {ticker}: {source_url}")
+                    if profile.get("assetType") != "Crypto":
+                        expense_ratio = str(profile.get("expenseRatio", ""))
+                        if (
+                            "See source profile" in expense_ratio
+                            or "%" not in expense_ratio
+                            or "約" in expense_ratio
+                            or "+" in expense_ratio
+                        ):
+                            errors.append(f"PROFILE: missing ETF expense ratio for {ticker}")
+                        if not str(profile.get("expenseRatioSourceUrl", "")).startswith("https://"):
+                            errors.append(f"PROFILE: missing expenseRatioSourceUrl for {ticker}")
+                        if profile.get("expenseRatioCollectionMethod") != "web_scraping":
+                            errors.append(f"PROFILE: invalid expense ratio collection for {ticker}")
+                        if ticker.endswith((".TW", ".TWO")):
+                            if profile.get("expenseRatioFormula") != "managementFee + custodianFee":
+                                errors.append(f"PROFILE: invalid TW ETF expense formula for {ticker}")
+                            if not profile.get("managementFee") or not profile.get("custodianFee"):
+                                errors.append(f"PROFILE: missing TW ETF fee component for {ticker}")
+                    elif "expenseRatio" in profile:
+                        errors.append(f"PROFILE: crypto should not expose ETF expenseRatio for {ticker}")
+        else:
+            errors.append("PROFILE: PPL_ASSET_PROFILES JSON block not parseable")
 
     if errors:
         print("Export validation FAILED:")
