@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 import json
 import sys
 from datetime import date
@@ -17,11 +18,12 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from src.processing.screening import ASSET_POOL
 from fetch_etf_profiles import fetch_expense_ratio_components, fetch_source_summary
-from schema import SCHEMA_VERSION, sanitize_text, validate_profiles
+from schema import SCHEMA_VERSION, sanitize_text, validate_profile, validate_profiles
 from sources import source_for_asset
 
 
 OUTPUT = REPO_ROOT / "data" / "asset_profiles" / "asset_profiles.json"
+REUSE_REASON_MAX_LEN = 240
 
 
 ISSUER_RULES = [
@@ -48,6 +50,95 @@ CRYPTO_DETAILS = {
     "DOGE-USD": {"blockchain": "Dogecoin", "issuer": "None / decentralized", "consensus": "Proof of Work"},
     "ADA-USD": {"blockchain": "Cardano", "issuer": "Cardano Foundation / Input Output ecosystem", "consensus": "Ouroboros Proof of Stake"},
 }
+
+
+def export_readiness_errors(profile: dict[str, Any]) -> list[str]:
+    """Return profile issues that would fail the GitHub Web export gate."""
+    ticker = str(profile.get("ticker", "<unknown>"))
+    errors: list[str] = []
+
+    if profile.get("collectionMethod") != "web_scraping":
+        errors.append(f"{ticker} collectionMethod is not web_scraping")
+    if not profile.get("sourceSummary"):
+        errors.append(f"{ticker} sourceSummary is empty")
+    if not str(profile.get("sourceUrl", "")).startswith("https://"):
+        errors.append(f"{ticker} sourceUrl is not https")
+
+    if profile.get("assetType") == "Crypto":
+        if "expenseRatio" in profile:
+            errors.append(f"{ticker} crypto profile exposes ETF expenseRatio")
+        return errors
+
+    expense_ratio = str(profile.get("expenseRatio", ""))
+    if (
+        "See source profile" in expense_ratio
+        or "%" not in expense_ratio
+        or "約" in expense_ratio
+        or "+" in expense_ratio
+    ):
+        errors.append(f"{ticker} ETF expenseRatio is not materialized")
+    if not str(profile.get("expenseRatioSourceUrl", "")).startswith("https://"):
+        errors.append(f"{ticker} expenseRatioSourceUrl is missing")
+    if profile.get("expenseRatioCollectionMethod") != "web_scraping":
+        errors.append(f"{ticker} expenseRatioCollectionMethod is not web_scraping")
+    if ticker.endswith((".TW", ".TWO")):
+        if profile.get("expenseRatioFormula") != "managementFee + custodianFee":
+            errors.append(f"{ticker} TW ETF expenseRatioFormula is not fee component based")
+        if not profile.get("managementFee") or not profile.get("custodianFee"):
+            errors.append(f"{ticker} TW ETF fee component is missing")
+    return errors
+
+
+def load_previous_profiles(path: Path = OUTPUT) -> dict[str, dict[str, Any]]:
+    """Load prior export-ready profiles so transient source failures can recover."""
+    if not path.exists():
+        return {}
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Previous asset profile fallback unavailable: {exc}", file=sys.stderr)
+        return {}
+
+    if payload.get("schemaVersion") != SCHEMA_VERSION:
+        return {}
+
+    allowed_tickers = {asset["ticker"] for asset in ASSET_POOL}
+    profiles: dict[str, dict[str, Any]] = {}
+    for profile in payload.get("profiles", []):
+        ticker = str(profile.get("ticker", ""))
+        if ticker not in allowed_tickers or ticker in profiles:
+            continue
+        try:
+            validate_profile(profile)
+        except ValueError:
+            continue
+        if not export_readiness_errors(profile):
+            profiles[ticker] = deepcopy(profile)
+    return profiles
+
+
+def reuse_previous_profile_if_needed(
+    profile: dict[str, Any],
+    previous_profiles: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Return a prior good profile when the new scrape fails export requirements."""
+    errors = export_readiness_errors(profile)
+    if not errors:
+        return profile
+
+    ticker = str(profile.get("ticker", ""))
+    previous = previous_profiles.get(ticker)
+    if previous is None:
+        return profile
+
+    reused = deepcopy(previous)
+    reused["schemaVersion"] = SCHEMA_VERSION
+    reused["reusedFromPreviousExport"] = True
+    reused["reuseReason"] = sanitize_text("; ".join(errors), max_len=REUSE_REASON_MAX_LEN)
+    print(f"Reused previous asset profile for {ticker}: {reused['reuseReason']}", file=sys.stderr)
+    return reused
+
 
 def infer_issuer(name: str) -> str:
     for marker, issuer in ISSUER_RULES:
@@ -175,20 +266,31 @@ def build_profile(asset: dict[str, Any], fetched_at: str) -> dict[str, Any]:
     return base
 
 
-def build_payload(fetched_at: str | None = None) -> dict[str, Any]:
+def build_payload(
+    fetched_at: str | None = None,
+    previous_profiles: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     fetched_at = fetched_at or date.today().isoformat()
+    previous_profiles = previous_profiles or {}
+    profiles = [
+        reuse_previous_profile_if_needed(build_profile(asset, fetched_at), previous_profiles)
+        for asset in ASSET_POOL
+    ]
     payload = {
         "schemaVersion": SCHEMA_VERSION,
         "generatedAt": fetched_at,
         "status": "web_scraping_completed",
-        "profiles": [build_profile(asset, fetched_at) for asset in ASSET_POOL],
+        "profiles": profiles,
     }
     validate_profiles(payload, {asset["ticker"] for asset in ASSET_POOL})
     return payload
 
 
 def write_payload(output: Path = OUTPUT, fetched_at: str | None = None) -> None:
-    payload = build_payload(fetched_at=fetched_at)
+    payload = build_payload(
+        fetched_at=fetched_at,
+        previous_profiles=load_previous_profiles(output),
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",

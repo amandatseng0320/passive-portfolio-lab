@@ -56,11 +56,24 @@ jobs:
           python github_web/scripts/asset_intelligence/normalize_profiles.py
           python github_web/scripts/asset_intelligence/export_asset_profiles.py
 
-      # ── 6. Validate exported data (before commit so bad data never lands) ──
+      # ── 6. Upload static data artifacts for 7-day debugging window ────────
+      - name: Upload export artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppl-static-data-${{ github.run_id }}
+          path: |
+            github_web/src/ppl-data.js
+            github_web/src/ppl-asset-profiles.js
+            data/asset_profiles/asset_profiles.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      # ── 7. Validate exported data (before commit so bad data never lands) ──
       - name: Validate export
         run: python github_web/scripts/validate_export.py
 
-      # ── 7. Commit updated static data if anything changed ─────────────────
+      # ── 8. Commit updated static data if anything changed ─────────────────
       - name: Commit data update
         run: |
           git config user.name  "github-actions[bot]"
@@ -73,7 +86,7 @@ jobs:
             git push
           fi
 
-      # ── 8. Write job summary ───────────────────────────────────────────────
+      # ── 9. Write job summary ───────────────────────────────────────────────
       - name: Export summary
         run: |
           echo "## Export Summary" >> $GITHUB_STEP_SUMMARY
@@ -88,17 +101,6 @@ jobs:
           echo "| Assets exported | $ASSET_COUNT |" >> $GITHUB_STEP_SUMMARY
           echo "| FX rate (TWD/USD) | $FX |" >> $GITHUB_STEP_SUMMARY
           echo "| Asset profiles | $PROFILE_COUNT |" >> $GITHUB_STEP_SUMMARY
-
-      # ── 9. Upload static data artifacts for 7-day debugging window ────────
-      - name: Upload export artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ppl-static-data-${{ github.run_id }}
-          path: |
-            github_web/src/ppl-data.js
-            github_web/src/ppl-asset-profiles.js
-            data/asset_profiles/asset_profiles.json
-          retention-days: 7
 
       # ── 10. Deploy github_web/ to GitHub Pages ─────────────────────────────
       - name: Configure GitHub Pages
