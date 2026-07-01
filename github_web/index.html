@@ -408,6 +408,15 @@ const formatMoney = (value, displayCurrency = 'TWD', compact = false) => {
   return symbol + Math.round(converted).toLocaleString();
 };
 
+const COST_SCENARIO_RATES = [0.005, 0.01];
+const costAdjustedCagr = (cagr, annualCost) => Math.max(cagr - annualCost, -0.99);
+const formatPercent = value => `${(value * 100).toFixed(2)}%`;
+const formatCostRate = rate => `${(rate * 100).toFixed(1)}%`;
+const formatCostCagrReference = cagr => COST_SCENARIO_RATES
+  .map(rate => `${formatCostRate(rate)} -> ${formatPercent(costAdjustedCagr(cagr, rate))}`)
+  .join(' / ');
+const formatFireYears = (years, t) => years != null ? `${years} ${t.fireYearUnit}` : t.fireYrsPlus;
+
 const Btn = ({ children, onClick, variant = 'primary', disabled = false, small = false }) => {
   const variants = {
     primary:   { bg:'#4182b9', color:'#fff',   border:'#4182b9',  hbg:'#1e5a96', hborder:'#1e5a96' },
@@ -716,6 +725,11 @@ const T = {
     disclaimer:'Data for illustration only. Not financial advice.',
     currencyLabel:'Display Currency',
     currencyDisplayNote:'Display only. Inputs and calculations remain in TWD.',
+    costScenarioTitle:'Cost scenario reference',
+    costScopeNote:'Backtests use adjusted close prices and historical TWD/USD exchange rates. They do not model individual trading costs, taxes, brokerage fees, FX spreads, or other personal account-level costs.',
+    costCagrReference:cagrText=>`If trading, tax, and FX-related costs are estimated at 0.5% / 1.0% per year, reference CAGR would be approximately ${cagrText}.`,
+    fireCostReference:items=>`If annual costs are estimated at 0.5% / 1.0%, the FIRE timeline reference becomes: ${items}.`,
+    fireCostItem:({ rate, cagr, nominal, real })=>`${rate} scenario: CAGR ${cagr}, nominal ${nominal}, real ${real}`,
     btSourceHistory:'Using true daily historical prices synced from BigQuery.',
     btSourceProjection:'Historical price data is not loaded yet, so this view is temporarily using a metric-based projection.',
     nav:{ intro:'Introduction', screening:'Asset Screening', correlation:'Correlation Analysis',
@@ -832,7 +846,7 @@ const T = {
     fireCagrFrom:'from portfolio', fireCagrManual:'manual',
     fireProjection:'Portfolio Growth Projection',
     fireNominal:'Nominal Value', fireReal:'Real Value (Inflation-adj.)', fireTargetLine:'FIRE Target',
-    fireYrsPlus:'50+ yrs',
+    fireYrsPlus:'50+ yrs', fireYearUnit:'yrs',
 
     summaryTitle:'Summary', summaryCaption:'A snapshot of your portfolio based on the selections above.',
     summaryLocked:'Complete the Risk Allocation section to see your portfolio summary.',
@@ -848,6 +862,11 @@ const T = {
     disclaimer:'資料僅供說明，非投資建議。',
     currencyLabel:'顯示幣別',
     currencyDisplayNote:'僅切換顯示。輸入與底層計算皆維持 TWD。',
+    costScenarioTitle:'成本情境參考',
+    costScopeNote:'回測使用調整後收盤價與歷史 TWD/USD 匯率計算，未逐筆模擬個人交易、稅務、券商手續費、換匯價差或其他帳戶層級成本。',
+    costCagrReference:cagrText=>`若交易、稅務與換匯等成本以年化 0.5% / 1.0% 估算，參考 CAGR 約為 ${cagrText}。`,
+    fireCostReference:items=>`若以年化 0.5% / 1.0% 成本情境估算，FIRE 年數參考為：${items}。`,
+    fireCostItem:({ rate, cagr, nominal, real })=>`${rate} 情境：CAGR ${cagr}，名目 ${nominal}，實質 ${real}`,
     btSourceHistory:'使用 BigQuery 同步的真實每日歷史價格。',
     btSourceProjection:'尚未載入歷史價格資料，因此暫時使用指標推估。',
     nav:{ intro:'介紹', screening:'資產篩選', correlation:'相關性分析',
@@ -964,7 +983,7 @@ const T = {
     fireCagrFrom:'來自組合', fireCagrManual:'手動輸入',
     fireProjection:'資產成長預測',
     fireNominal:'名目價值', fireReal:'實質價值（通膨調整後）', fireTargetLine:'FIRE 目標',
-    fireYrsPlus:'50年以上',
+    fireYrsPlus:'50年以上', fireYearUnit:'年',
 
     summaryTitle:'總結', summaryCaption:'根據以上設定的組合快照。',
     summaryLocked:'請先完成「風險配置」以查看組合總結。',
@@ -1660,6 +1679,10 @@ const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, 
           delta={(bt.finalVal>=bt.totalInv?'+':'')+fmtMoneyFull(bt.finalVal-bt.totalInv)} deltaPositive={bt.finalVal>=bt.totalInv} />
         <MetricCard label={t.btCagr} value={(bt.cagr*100).toFixed(2)+'%'} sub={periodSub} />
       </div>
+      <InfoBanner>
+        <strong>{t.costScenarioTitle}:</strong> {t.costCagrReference(formatCostCagrReference(bt.cagr))}
+        <br />{t.costScopeNote}
+      </InfoBanner>
       <div style={{ ...CARD, padding:'20px 20px 16px', marginBottom:14 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
           <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c' }}>{t.btPortValue}</div>
@@ -1744,10 +1767,25 @@ const FireSection = ({ t, confirmed, btCagr, displayCurrency }) => {
 
   useEffect(() => { if (btCagr) setCagrInput((btCagr*100).toFixed(1)); }, [btCagr]);
 
+  const cagrPct = Number.parseFloat(cagrInput);
+  const cagrRate = Number.isFinite(cagrPct) ? cagrPct / 100 : 0;
   const fire = useMemo(() => calculateFIRE({
-    cagr:cagrInput/100, currentSavings:savings, monthlyContrib:contrib,
+    cagr:cagrRate, currentSavings:savings, monthlyContrib:contrib,
     annualExpenses:expenses, withdrawalRate:withdraw/100, inflation:inflation/100,
-  }), [cagrInput, savings, contrib, expenses, withdraw, inflation]);
+  }), [cagrRate, savings, contrib, expenses, withdraw, inflation]);
+  const fireCostScenarioText = useMemo(() => COST_SCENARIO_RATES.map(rate => {
+    const adjustedCagr = costAdjustedCagr(cagrRate, rate);
+    const adjustedFire = calculateFIRE({
+      cagr:adjustedCagr, currentSavings:savings, monthlyContrib:contrib,
+      annualExpenses:expenses, withdrawalRate:withdraw/100, inflation:inflation/100,
+    });
+    return t.fireCostItem({
+      rate: formatCostRate(rate),
+      cagr: formatPercent(adjustedCagr),
+      nominal: formatFireYears(adjustedFire.yearsNominal, t),
+      real: formatFireYears(adjustedFire.yearsReal, t),
+    });
+  }).join(' / '), [cagrRate, savings, contrib, expenses, withdraw, inflation, t]);
 
   const fmtDisplay = v => formatMoney(v, displayCurrency, true);
 
@@ -1784,11 +1822,15 @@ const FireSection = ({ t, confirmed, btCagr, displayCurrency }) => {
         <div>
           <div className="ppl-grid-2" style={{ display:'grid', gap:12, marginBottom:16 }}>
             <MetricCard label={t.fireTarget}    value={fmtDisplay(fire.target)} sub={`${formatMoney(expenses, displayCurrency)} ÷ ${withdraw}%`} />
-            <MetricCard label={t.fireYearsNom}  value={fire.yearsNominal!=null?fire.yearsNominal+' yrs':t.fireYrsPlus} />
-            <MetricCard label={t.fireYearsReal} value={fire.yearsReal!=null?fire.yearsReal+' yrs':t.fireYrsPlus} />
-            <MetricCard label={t.fireCagrUsed}  value={parseFloat(cagrInput).toFixed(1)+'%'}
+            <MetricCard label={t.fireYearsNom}  value={formatFireYears(fire.yearsNominal, t)} />
+            <MetricCard label={t.fireYearsReal} value={formatFireYears(fire.yearsReal, t)} />
+            <MetricCard label={t.fireCagrUsed}  value={`${(Number.isFinite(cagrPct) ? cagrPct : 0).toFixed(1)}%`}
               sub={btCagr?t.fireCagrFrom:t.fireCagrManual} />
           </div>
+          <InfoBanner>
+            <strong>{t.costScenarioTitle}:</strong> {t.fireCostReference(fireCostScenarioText)}
+            <br />{t.costScopeNote}
+          </InfoBanner>
           <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'16px 20px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
             <div style={{ fontWeight:600, fontSize:14, color:'#0d1f3c', marginBottom:14 }}>{t.fireProjection}</div>
             <ChartLine labels={fire.labels}

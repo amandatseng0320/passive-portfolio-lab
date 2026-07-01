@@ -209,8 +209,60 @@ def risk_label(value: str) -> str:
 
 def fmt_years(value) -> str:
     if st.session_state.get('lang') == "zh-TW":
-        return f"{value} 年" if value else "50+ 年"
-    return f"{value} yrs" if value else "50+ yrs"
+        return f"{value} 年" if value is not None else "50+ 年"
+    return f"{value} yrs" if value is not None else "50+ yrs"
+
+COST_SCENARIO_RATES: tuple[float, float] = (0.005, 0.01)
+
+def cost_adjusted_cagr(cagr: float, annual_cost: float) -> float:
+    """Return a conservative reference CAGR after a generic annual cost scenario."""
+    return max(cagr - annual_cost, -0.99)
+
+def estimate_fire_years_for_cagr(
+    cagr: float,
+    current_savings: float,
+    monthly_contribution: float,
+    target_amount: float,
+    inflation_rate: float,
+    max_years: int = 50,
+) -> tuple[int | None, int | None]:
+    """Estimate nominal and inflation-adjusted FIRE years for a supplied CAGR."""
+    if target_amount <= 0:
+        return None, None
+
+    monthly_rate = (1 + cagr) ** (1 / 12) - 1
+    value = float(current_savings)
+    nominal_year = None
+    real_year = None
+
+    for month in range(1, max_years * 12 + 1):
+        value = value * (1 + monthly_rate) + monthly_contribution
+        if month % 12 == 0:
+            year = month // 12
+            real_value = value / ((1 + inflation_rate) ** year)
+            if nominal_year is None and value >= target_amount:
+                nominal_year = year
+            if real_year is None and real_value >= target_amount:
+                real_year = year
+            if nominal_year is not None and real_year is not None:
+                break
+
+    return nominal_year, real_year
+
+def format_cost_cagr_reference(cagr: float) -> str:
+    parts = [
+        f"{rate * 100:.1f}% → {cost_adjusted_cagr(cagr, rate):.2%}"
+        for rate in COST_SCENARIO_RATES
+    ]
+    return " / ".join(parts)
+
+def cost_scope_note() -> str:
+    return tr(
+        "Note: Backtests use adjusted close prices and historical TWD/USD exchange rates. "
+        "They do not model individual trading costs, taxes, brokerage fees, FX spreads, "
+        "or other personal account-level costs.",
+        "備註：回測使用調整後收盤價與歷史 TWD/USD 匯率計算，未逐筆模擬個人交易、稅務、券商手續費、換匯價差或其他帳戶層級成本。",
+    )
 
 # ── Portfolio risk constants ───────────────────────────────────────────────────
 # Maps risk tier names to a sort order and to the allocation optimizer's target
@@ -1679,6 +1731,16 @@ else:
                      "so currency fluctuations are included. This may differ from the Weighted CAGR shown "
                      "in Risk Allocation, which uses each asset's native-currency historical average."
             )
+            st.caption(
+                tr(
+                    f"Cost scenario reference: if trading, tax, and FX-related costs are estimated at "
+                    f"0.5% / 1.0% per year, reference CAGR would be approximately "
+                    f"{format_cost_cagr_reference(cagr_bt)}.",
+                    f"成本情境參考：若交易、稅務與換匯等成本以年化 0.5% / 1.0% 估算，"
+                    f"參考 CAGR 約為 {format_cost_cagr_reference(cagr_bt)}。",
+                )
+            )
+            st.caption(cost_scope_note())
 
             # ── Top-5 drawdown episodes (shared by both charts + table below) ───
             dd_events_df = identify_drawdown_events(
@@ -2053,6 +2115,31 @@ with st.spinner(tr("Calculating FIRE projection...")):
         f2.metric(tr("Years to FIRE (Nominal)"), fmt_years(years_to_fire))
         f3.metric(tr("Years to FIRE (Real)"), fmt_years(real_fire_year))
         f4.metric(tr("Inflation Applied"), f"{inflation_rate:.1%}")
+        fire_cost_rows = []
+        for rate in COST_SCENARIO_RATES:
+            adjusted_cagr = cost_adjusted_cagr(display_cagr, rate)
+            nominal_year, real_year = estimate_fire_years_for_cagr(
+                adjusted_cagr,
+                current_savings=initial_capital,
+                monthly_contribution=monthly_contribution,
+                target_amount=target_amount,
+                inflation_rate=inflation_rate,
+            )
+            fire_cost_rows.append(
+                tr(
+                    f"{rate * 100:.1f}% scenario: CAGR {adjusted_cagr:.2%}, "
+                    f"nominal {fmt_years(nominal_year)}, real {fmt_years(real_year)}",
+                    f"{rate * 100:.1f}% 情境：CAGR {adjusted_cagr:.2%}，"
+                    f"名目 {fmt_years(nominal_year)}，實質 {fmt_years(real_year)}",
+                )
+            )
+        st.caption(
+            tr(
+                "Cost scenario reference: " + " / ".join(fire_cost_rows),
+                "成本情境參考：" + " / ".join(fire_cost_rows),
+            )
+        )
+        st.caption(cost_scope_note())
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(

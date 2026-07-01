@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>被動投資組合實驗室 — Passive Portfolio Lab</title>
-<meta name="description" content="以真實歷史數據回答你的投資問題：回測、FIRE 試算、相關性分析，37 個精選 ETF 與加密貨幣，三大平台一次整合。" />
+<title>被動投資組合實驗室 | Passive Portfolio Lab</title>
+<meta name="description" content="專為台灣長期投資人設計的投資組合分析工具。以 TWD 歷史資料比較台股 ETF、美股 ETF 與加密貨幣，檢查報酬、風險、回撤、相關性與 FIRE 進度。" />
+<meta property="og:title" content="Passive Portfolio Lab | 被動投資組合實驗室" />
+<meta property="og:description" content="用歷史數據檢查你的被動投資組合。支援以 TWD 為基準的歷史回測、相關性分析、資產篩選、回撤觀察與 FIRE 試算；美元計價資產會以歷史匯率轉為台幣。" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>" />
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -65,16 +67,29 @@
   /* ── Hero ───────────────────────────────────────────── */
   .hero {
     background: linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 60%, #0d1f3c 100%);
-    padding: 96px 48px 80px;
+    padding: 96px 48px 72px;
     text-align: center;
     position: relative; overflow: hidden;
+    min-height: 640px;
+    display: flex; flex-direction: column; justify-content: center;
   }
   .hero::before {
     content: '';
-    position: absolute; inset: 0;
-    background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(65,130,185,0.18) 0%, transparent 70%);
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      linear-gradient(180deg, rgba(13,31,60,0.84) 0%, rgba(13,31,60,0.68) 52%, rgba(13,31,60,0.92) 100%),
+      radial-gradient(ellipse 70% 50% at 50% 100%, rgba(65,130,185,0.24) 0%, transparent 70%);
     pointer-events: none;
   }
+  .hero-bg-image {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.42;
+    filter: saturate(1.08) contrast(1.03);
+    transform: scale(1.02);
+  }
+  .hero > :not(.hero-bg-image) { position: relative; z-index: 2; }
   .hero-kicker {
     display: inline-block;
     font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
@@ -125,6 +140,41 @@
   .section-sub {
     font-size: 16px; color: var(--muted); max-width: 580px; margin-bottom: 56px;
     line-height: 1.8;
+  }
+  .visual-panel {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,249,252,0.92));
+    box-shadow: 0 18px 48px rgba(13,31,60,0.08);
+    padding: 32px;
+  }
+  .visual-panel::before {
+    content: '';
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0.68) 42%, rgba(247,249,252,0.88) 100%),
+      radial-gradient(ellipse 70% 55% at 50% 0%, rgba(114,168,212,0.12) 0%, transparent 72%);
+    pointer-events: none;
+  }
+  .visual-bg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.24;
+    filter: saturate(1.04) contrast(1.02);
+  }
+  .visual-content { position: relative; z-index: 2; }
+  .asset-panel { margin-top: -18px; }
+  .asset-panel .visual-bg {
+    object-position: center 34%;
+    opacity: 0.28;
+  }
+  .workflow-panel { margin-top: -18px; }
+  .workflow-panel .visual-bg {
+    object-position: center 58%;
+    opacity: 0.20;
   }
 
   /* ── 問題卡片 ────────────────────────────────────────── */
@@ -198,6 +248,13 @@
     border: 1px solid var(--border); border-radius: 12px;
     padding: 24px 22px; background: var(--bg);
   }
+  .visual-panel .asset-why-card,
+  .visual-panel .criteria-card,
+  .visual-panel .metric-cell {
+    background: rgba(255,255,255,0.84);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 26px rgba(13,31,60,0.04);
+  }
   .asset-why-card h4 { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
   .asset-why-card p  { font-size: 13px; color: var(--muted); line-height: 1.7; }
 
@@ -242,6 +299,9 @@
   .surface-card.card-streamlit { background: linear-gradient(135deg, #1e3a5f 0%, #0d2240 100%); }
   .surface-card.card-web       { background: linear-gradient(135deg, #1a3a6b 0%, #0d1f3c 100%); }
   .surface-card.card-looker    { background: linear-gradient(135deg, #1f3b5c 0%, #0f2540 100%); }
+  .visual-panel .surface-card {
+    box-shadow: 0 18px 44px rgba(13,31,60,0.18);
+  }
   .surface-card .pill {
     display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
     text-transform: uppercase; padding: 3px 10px; border-radius: 20px; margin-bottom: 20px;
@@ -326,6 +386,25 @@
   .cta-section {
     background: linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%);
     padding: 96px 48px; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      linear-gradient(180deg, rgba(13,31,60,0.72) 0%, rgba(13,31,60,0.86) 100%),
+      radial-gradient(ellipse 60% 70% at 50% 15%, rgba(114,168,212,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cta-bg-image {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.46;
+    filter: saturate(1.05) contrast(1.04);
+  }
+  .cta-section > :not(.cta-bg-image) {
+    position: relative; z-index: 2;
   }
   .cta-section h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; color: #fff; margin-bottom: 16px; }
   .cta-section p  { font-size: 16px; color: rgba(255,255,255,0.65); max-width: 500px; margin: 0 auto 40px; line-height: 1.8; }
@@ -344,8 +423,10 @@
     nav { padding: 0 20px; }
     .nav-links a:not(.nav-cta) { display: none; }
     section { padding: 64px 20px; }
-    .hero { padding: 72px 20px 60px; }
+    .hero { padding: 72px 20px 60px; min-height: auto; }
+    .hero-bg-image { opacity: 0.28; object-position: center; }
     .cta-section { padding: 64px 20px; }
+    .cta-bg-image { opacity: 0.30; object-position: center; }
     footer { padding: 24px 20px; flex-direction: column; text-align: center; }
     .question-grid  { grid-template-columns: 1fr; }
     .stat-row       { grid-template-columns: 1fr; }
@@ -354,6 +435,9 @@
     .criteria-grid  { grid-template-columns: 1fr 1fr; }
     .faq-grid       { grid-template-columns: 1fr; }
     .section-sub    { max-width: 100%; }
+    .visual-panel { border-radius: 12px; padding: 20px; }
+    .asset-panel, .workflow-panel { margin-top: -24px; }
+    .visual-bg { opacity: 0.18; }
   }
 </style>
 </head>
@@ -361,70 +445,77 @@
 
 <!-- 導覽列 -->
 <nav>
-  <a href="#" class="nav-brand">
+  <a href="#top" class="nav-brand">
     <span class="badge">PPL</span>
     <span class="name">被動投資組合實驗室</span>
   </a>
   <div class="nav-links">
-    <a href="#why">為什麼被動投資</a>
-    <a href="#assets">精選標的</a>
-    <a href="#live-demo">三大平台</a>
+    <a href="#questions">投資問題</a>
+    <a href="#assets">資產池</a>
+    <a href="#live-demo">使用方式</a>
     <a href="#faq">常見問題</a>
-    <a href="#live-demo" class="nav-cta">立即體驗 →</a>
+    <a href="#live-demo" class="nav-cta">開始分析</a>
   </div>
 </nav>
 
 <!-- Hero -->
-<div class="hero">
-  <div class="hero-kicker">Passive Portfolio Lab · 資料驅動的被動投資工具</div>
-  <h1>用數據投資，<br /><span>而不是靠感覺。</span></h1>
+<div id="top" class="hero">
+  <img class="hero-bg-image" src="assets/landing/hero-data-lab.webp" width="1672" height="941" alt="" aria-hidden="true" />
+  <div class="hero-kicker">Passive Portfolio Lab · TWD 投資組合分析</div>
+  <h1>用歷史數據，<br /><span>檢查你的被動投資組合。</span></h1>
   <p class="hero-sub">
-    專為台灣投資人設計的全端被動投資分析工具。<br />
-    以新台幣計算的歷史回測、財務自由試算，<br />
-    加上 37 個精選 ETF 與加密貨幣篩選，<br />
-    三大平台一次整合。
+    把台股 ETF、美股 ETF 與加密貨幣放在同一個 TWD 視角下，<br />
+    比較報酬、風險、最大回撤、相關性與 FIRE 時間軸。<br />
+    債券、黃金等配置主題會透過 ETF 類標的呈現，<br />
+    讓不同曝險可以在同一套資料中被檢查。
   </p>
   <div class="hero-btns">
     <a href="#live-demo" class="btn-primary">
-      立即體驗 →
+      開始分析
+    </a>
+    <a href="#assets" class="btn-secondary">
+      查看資產池
     </a>
   </div>
+  <p style="margin-top:22px; color:rgba(255,255,255,0.62); font-size:14px;">
+    涵蓋 37 個策展資產，資料每日更新，所有計算邏輯可追溯。
+  </p>
 </div>
 
 <!-- 這些問題都有答案了 -->
 <section id="questions" class="section-white">
   <div class="container">
-    <div class="section-kicker">你是否曾想過</div>
-    <h2 class="section-title">這些問題，現在都有答案了。</h2>
-    <p class="section-sub">用真實歷史數據，回答你一直沒辦法確切回答的投資問題。</p>
+    <div class="section-kicker">投資問題</div>
+    <h2 class="section-title">把模糊的投資問題，變成可以檢查的數字。</h2>
+    <p class="section-sub">
+      不用猜哪個組合比較好。<br />
+      先用同一套歷史資料看清楚過去表現、下跌幅度與資產重疊。<br />
+      再回頭調整自己的配置與 FIRE 進度。
+    </p>
     <div class="question-grid">
       <div class="question-card">
-        <div class="q">「如果我從三年前開始每月投入 5,000 元，現在有多少？」</div>
-        <div class="a"><span class="feature-tag">歷史回測</span>：以每日真實收盤價模擬一次性投入或定期定額，呈現完整報酬曲線。</div>
+        <div class="q">「如果我過去三年每月投入 5,000 元，現在會累積多少？」</div>
+        <div class="a"><span class="feature-tag">歷史回測</span>：用每日歷史價格模擬一次投入或定期定額，查看完整資產曲線、累積投入、最終價值與總報酬。</div>
       </div>
       <div class="question-card">
-        <div class="q">「2020 年 COVID 崩盤，我的組合最多會跌幾成？要多久才恢復？」</div>
-        <div class="a"><span class="feature-tag">回撤分析</span>：自動標記五大歷史回撤事件，顯示最大跌幅與恢復所需天數——「痛苦指數」。</div>
+        <div class="q">「市場大跌時，我的組合最多可能跌多少？多久才恢復？」</div>
+        <div class="a"><span class="feature-tag">回撤分析</span>：自動標記主要回撤事件，顯示最大跌幅、低點日期與恢復所需時間，幫助你理解自己是否能承受歷史上的下跌。</div>
       </div>
       <div class="question-card">
-        <div class="q">「我持有的 ETF 真的有分散嗎？還是在漲跌同一件事？」</div>
-        <div class="a"><span class="feature-tag">相關性分析</span>：熱力圖顯示資產間連動程度，自動識別高相關群組（≥0.85）並建議移除重複標的。</div>
+        <div class="q">「我持有的標的真的有分散，還是其實都在跟同一個市場波動？」</div>
+        <div class="a"><span class="feature-tag">相關性分析</span>：用相關性熱力圖檢查資產連動程度，找出可能重疊過高的 ETF 或加密貨幣配置。</div>
       </div>
       <div class="question-card">
-        <div class="q">「照這個速度投資，我幾歲可以退休？」</div>
-        <div class="a"><span class="feature-tag">FIRE 試算</span>：輸入現有存款、每月投入與目標退休支出，根據組合歷史 CAGR 推估財務獨立時間軸。</div>
+        <div class="q">「照目前投入速度，我距離財務自由還有多久？」</div>
+        <div class="a"><span class="feature-tag">FIRE 試算</span>：輸入目前資產、每月投入、年度支出與提領率，用組合歷史 CAGR 推估名目與實質 FIRE 時間軸。</div>
       </div>
       <div class="question-card">
-        <div class="q">「高股息還是市值型？0050 和 VTI 哪個更好？」</div>
-        <div class="a"><span class="feature-tag">資產篩選</span>：依 CAGR、Sharpe 比率、最大回撤並排比較，讓數字說話。</div>
+        <div class="q">「0050、VTI、高股息 ETF、美債 ETF、黃金 ETF 和加密貨幣，該怎麼放在一起比較？」</div>
+        <div class="a"><span class="feature-tag">資產篩選</span>：用同一套指標並排比較 CAGR、波動率、Sharpe、最大回撤、最差年度與資產補充資訊。</div>
       </div>
       <div class="question-card">
-        <div class="q">「我該如何分配比例？應該承擔多少風險？」</div>
-        <div class="a"><span class="feature-tag">風險配置</span>：選擇風險等級，以年化波動率為代理指標，自動生成投資比例，可手動微調。</div>
-      </div>
-      <div class="question-card">
-        <div class="q">「每個資產背後到底是什麼？費用率、發行商、區塊鏈從哪裡來？」</div>
-        <div class="a"><span class="feature-tag">資產補充資訊</span>：透過網頁爬蟲與資料正規化流程，整理 ETF 發行商、費用率、配息政策，以及加密貨幣類別、區塊鏈與資料來源。</div>
+        <div class="q">「每個資產背後到底是什麼？費用率、發行商與資料來源從哪裡來？」</div>
+        <div class="a"><span class="feature-tag">資產補充資訊</span>：整理 ETF 與加密貨幣的基本資料，包含發行商、費用率、配息政策、區塊鏈、資料來源與更新時間。</div>
       </div>
     </div>
   </div>
@@ -434,39 +525,38 @@
 <section id="why">
   <div class="container">
     <div class="section-kicker">投資哲學</div>
-    <h2 class="section-title">打敗大盤的人，比你想的少得多。</h2>
+    <h2 class="section-title">被動投資的核心，不是預測市場，而是控制自己能控制的事。</h2>
     <div class="stat-row">
       <div class="stat-card">
-        <div class="stat-val">&gt; 90%</div>
-        <div class="stat-desc">S&amp;P SPIVA 報告：過去 15 年超過九成主動型基金落後對應指數</div>
+        <div class="stat-val">長期</div>
+        <div class="stat-desc">多數主動型基金在長期期間內很難穩定超越對應指數。與其預測誰會勝出，不如先確認自己是否用低成本、分散化的方式參與市場。</div>
       </div>
       <div class="stat-card">
-        <div class="stat-val">1.5% <span style="font-size:20px; font-weight:400; color:var(--muted);">vs</span> 0.1%</div>
-        <div class="stat-desc">主動基金年費中位數 vs ETF 年費——費用是唯一確定的損失</div>
+        <div class="stat-val">費用率</div>
+        <div class="stat-desc">看似很小的年化費用差距，經過十年、二十年累積後，會明顯改變最後留下來的資產。</div>
       </div>
       <div class="stat-card">
-        <div class="stat-val">~20%</div>
-        <div class="stat-desc">每年少付 1% 費用，20 年後資產多出約 20%（以 100 萬本金試算）</div>
+        <div class="stat-val">紀律</div>
+        <div class="stat-desc">長期投資最困難的地方，往往不是找到最佳標的，而是在市場下跌時仍能理解自己的配置，並持續執行原本的計畫。</div>
       </div>
     </div>
     <div class="why-cols">
       <div class="why-prose">
-        <p>主動投資聽起來很誘人——精選個股、抓住漲勢。但研究一再顯示，長期而言，主動型基金的平均績效跑輸指數。原因不神秘：交易成本、管理費用、頻繁換股，一點一滴吃掉超額報酬。</p>
-        <p>被動投資的邏輯很簡單：買下整個市場，長期持有，讓複利做它該做的事。不需要預測漲跌，不需要盯盤，也不需要相信哪位分析師的目標價。</p>
-        <p>PPL 不告訴你要買什麼——它幫你看清楚你選的資產在歷史上表現如何、風險有多高，以及什麼時候你才能真正財務自由。</p>
+        <p>主動選股與擇時看起來很有吸引力，但長期績效往往會受到費用、交易成本與情緒決策影響。被動投資的重點，是用低成本、分散化與長期持有，讓市場報酬有時間發揮作用。</p>
+        <p>Passive Portfolio Lab 不提供買賣建議，也不承諾未來績效。它做的事更單純：把你選的資產放進同一套歷史資料裡，讓你看見過去的報酬、風險、回撤與分散效果。</p>
       </div>
       <div class="pull-quotes">
         <div class="pull-quote">
-          <div class="quote-text">「別想找那根針，直接買下整個草堆。」</div>
-          <div class="quote-attr">Jack Bogle — 《共同基金必勝法則》</div>
+          <div class="quote-text">「不要找那根針，直接買下整個草堆。」</div>
+          <div class="quote-attr">Jack Bogle</div>
         </div>
         <div class="pull-quote">
-          <div class="quote-text">「一個被蒙住眼睛的猴子隨機擲飛鏢，選出的組合往往和專家精選的一樣好。」</div>
-          <div class="quote-attr">Burton Malkiel — 《漫步華爾街》</div>
+          <div class="quote-text">「投資成功不需要預測每一次市場轉折，而是建立一套自己能長期遵守的規則。」</div>
+          <div class="quote-attr">被動投資原則</div>
         </div>
         <div class="pull-quote">
-          <div class="quote-text">「成功投資的四根支柱：理論、歷史、心理學，以及極低的成本。」</div>
-          <div class="quote-attr">William Bernstein — 《投資金律》</div>
+          <div class="quote-text">「費用、分散與紀律，是長期投資人少數真正能事先控制的變數。」</div>
+          <div class="quote-attr">Passive Portfolio Lab</div>
         </div>
       </div>
     </div>
@@ -477,48 +567,51 @@
 <section id="assets" class="section-white">
   <div class="container">
     <div class="section-kicker">資產池</div>
-    <h2 class="section-title">37 個精選標的，覆蓋台股、全球與加密貨幣市場。</h2>
+    <h2 class="section-title">37 個策展資產，分為台股 ETF、美股 ETF 與主流加密貨幣三大類。</h2>
     <p class="section-sub">
-      同一套篩選邏輯，選出每個市場區段最具代表性的標的——<br />
-      不多選，也不重複。
+      資產池不是越多越好。這裡保留具代表性、流動性足夠、資料可追溯的標的。<br />
+      債券、黃金等曝險不另外拆成獨立資產類別，而是透過 ETF 類標的呈現。
     </p>
+    <div class="visual-panel asset-panel">
+      <img class="visual-bg" src="assets/landing/asset-clusters.webp" width="1672" height="941" loading="lazy" alt="" aria-hidden="true" />
+      <div class="visual-content">
     <div class="asset-why-grid">
       <div class="asset-why-card">
         <h4>台股 ETF（14 檔）</h4>
-        <p>追蹤本土市場。從大盤指數（0050）到高股息（00878），涵蓋不同台股投資策略，讓你在熟悉的市場中也能真正分散。</p>
+        <p>涵蓋市值型、高股息、債券型、科技主題與海外市場連結型標的。適合想用台幣投資、熟悉台灣市場，或希望保留本地資產曝險的投資人。</p>
       </div>
       <div class="asset-why-card">
         <h4>美股 ETF（15 檔）</h4>
-        <p>曝險於全球最大市場。股票（SPY、VTI、QQQ）、債券（BND、TLT）、黃金（GLD）、REITs、新興市場——一套組合覆蓋全球資產類別。</p>
+        <p>涵蓋美國大盤、全市場、成長股、價值股、國際市場、債券型 ETF、黃金 ETF 與新興市場 ETF。適合想建立全球化配置，或比較不同市場曝險的投資人。</p>
       </div>
       <div class="asset-why-card">
         <h4>加密貨幣（8 個）</h4>
-        <p>與傳統資產相關性較低，少量配置可提升分散效果。僅納入市值前段的主流幣種，排除低流動性的長尾風險。</p>
+        <p>用於觀察高波動資產在投資組合中的歷史行為與分散效果。這類資產波動較高，適合用小比例情境來觀察對整體組合的影響。</p>
       </div>
     </div>
     <div class="criteria-grid">
       <div class="criteria-card">
         <div class="criteria-icon">🔄</div>
-        <div class="criteria-title">流動性充足</div>
-        <div class="criteria-desc">日成交量符合一般投資人進出需求，不受市場深度限制</div>
+        <div class="criteria-title">代表性</div>
+        <div class="criteria-desc">每個市場區段保留具代表性的標的，避免資產池過度膨脹</div>
       </div>
       <div class="criteria-card">
         <div class="criteria-icon">💰</div>
-        <div class="criteria-title">費用率低</div>
-        <div class="criteria-desc">優先選低費用標的；費用是投資中唯一確定的損失</div>
+        <div class="criteria-title">流動性</div>
+        <div class="criteria-desc">優先選擇一般投資人較容易進出的 ETF 與主流加密貨幣標的</div>
       </div>
       <div class="criteria-card">
         <div class="criteria-icon">🎯</div>
-        <div class="criteria-title">覆蓋不重疊</div>
-        <div class="criteria-desc">每個細分市場只選最具代表性的 1–2 檔，避免偽分散</div>
+        <div class="criteria-title">資料完整</div>
+        <div class="criteria-desc">需要有足夠且可追溯的歷史價格資料，才能支撐回測與風險分析</div>
       </div>
       <div class="criteria-card">
         <div class="criteria-icon">📅</div>
-        <div class="criteria-title">資料完整</div>
-        <div class="criteria-desc">至少 3 年可靠收盤價，支撐具有意義的歷史回測分析</div>
+        <div class="criteria-title">成本意識</div>
+        <div class="criteria-desc">ETF 會呈現費用率與發行商資訊，讓投資人除了看報酬，也能檢查長期持有成本</div>
       </div>
     </div>
-    <div style="background:var(--bg); border-radius:12px; padding:24px 22px; border:1px solid var(--border);">
+    <div style="background:rgba(255,255,255,0.84); backdrop-filter:blur(10px); border-radius:12px; padding:24px 22px; border:1px solid var(--border); box-shadow:0 10px 26px rgba(13,31,60,0.04);">
       <div style="font-size:12px; font-weight:700; color:var(--blue); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:12px;">資產池</div>
       <div class="asset-chips">
         <span class="chip chip-tw">0050.TW 大盤</span>
@@ -548,71 +641,67 @@
         <div class="lbl">加密貨幣</div>
       </div>
     </div>
+      </div>
+    </div>
   </div>
 </section>
 
 <!-- 三大平台 -->
 <section id="live-demo" class="section-white">
   <div class="container">
-    <div class="section-kicker">三種使用方式</div>
-    <h2 class="section-title">同一份資料，三個平台。</h2>
+    <div class="section-kicker">使用方式</div>
+    <h2 class="section-title">同一份資料，依你的需求選擇使用方式。</h2>
     <p class="section-sub">
-      依使用情境選擇最適合的工具——<br />互動分析、精緻靜態介面，或可分享的 BI 報表。
+      想在桌機完整操作、使用支援手機的精美網頁版，或分享固定報表。<br />
+      三個入口使用同一套資料流程，只是適合的使用情境不同。
     </p>
-    <div class="surface-grid">
+    <div class="visual-panel workflow-panel">
+      <img class="visual-bg" src="assets/landing/analysis-workflow.webp" width="1672" height="941" loading="lazy" alt="" aria-hidden="true" />
+      <div class="visual-content surface-grid">
       <div class="surface-card card-streamlit">
-        <div class="pill">完整功能版</div>
+        <div class="pill">完整桌機操作</div>
         <h3>Streamlit 互動儀表板</h3>
-        <p>功能最完整的平台，也是本專案的核心分析工具。從篩選標的到試算退休，六個步驟在同一介面中依序解鎖，整合 AI 分析洞見。</p>
-        <ol class="step-list">
-          <li><span class="snum">1</span><span><span class="step-name">資產篩選 — </span>從 37 個資產中選擇標的，依任一指標排序</span></li>
-          <li><span class="snum">2</span><span><span class="step-name">相關性分析 — </span>識別高相關群組，移除重複資產</span></li>
-          <li><span class="snum">3</span><span><span class="step-name">風險配置 — </span>選擇風險等級，自動生成比例，可手動微調</span></li>
-          <li><span class="snum">4</span><span><span class="step-name">歷史回測 — </span>模擬一次性投入與定期定額，含最大回撤</span></li>
-          <li><span class="snum">5</span><span><span class="step-name">FIRE 試算 — </span>輸入存款與目標支出，推估財務獨立時間軸</span></li>
-          <li><span class="snum">6</span><span><span class="step-name">總覽摘要 — </span>單頁快照，可截圖或列印留存</span></li>
-        </ol>
+        <p>適合在桌機上完整操作分析流程。可逐步調整資產、風險與 FIRE 參數，檢查篩選、相關性、回測與總覽摘要。</p>
         <ul class="feature-list">
-          <li>每日真實價格的 BigQuery 回測</li>
-          <li>回撤事件自動標記（COVID、升息等）</li>
-          <li>投資組合組成資產詳情與補充資訊</li>
-          <li>Gemini 2.5 Flash AI 投資組合摘要</li>
-          <li>可選密碼保護（預設公開）</li>
+          <li>六步驟完整分析流程</li>
+          <li>自訂資產配置與風險比例</li>
+          <li>一次投入與定期定額回測</li>
+          <li>FIRE 試算與總覽摘要</li>
         </ul>
         <br/>
         <a href="https://passive-portfolio-lab-tw.streamlit.app" class="surface-link" target="_blank" rel="noopener">
-          開啟儀表板 →
+          開啟互動儀表板 →
         </a>
       </div>
       <div class="surface-card card-web">
-        <div class="pill">精緻介面版</div>
-        <h3>GitHub Pages 靜態網頁</h3>
-        <p>Streamlit 的精緻版——同樣的資料，更精緻的介面設計。資產瀏覽、相關性熱力圖、組合配置圖，以更清爽的視覺呈現，手機上也能流暢使用。</p>
+        <div class="pill">精美網頁版</div>
+        <h3>GitHub Web 網頁版</h3>
+        <p>適合多數使用者日常使用。保留 Streamlit 的主要分析，介面更精美且支援手機，方便查看資產、跑回測與分享畫面。</p>
         <ul class="feature-list">
-          <li>中英雙語切換（EN / 中文）</li>
-          <li>手機側邊欄導覽</li>
-          <li>多維度資產排序與篩選</li>
-          <li>Asset profile web scraping showcase</li>
-          <li>清爽視覺設計，適合截圖分享</li>
+          <li>完整資產篩選與排序</li>
+          <li>相關性、配置與回測視覺化</li>
+          <li>FIRE 試算與 AI 摘要</li>
+          <li>中英雙語與手機導覽</li>
         </ul>
         <br/>
         <a href="https://amandatseng0320.github.io/passive-portfolio-lab" class="surface-link" target="_blank" rel="noopener">
-          開啟網頁版 →
+          開啟 GitHub Web →
         </a>
       </div>
       <div class="surface-card card-looker">
-        <div class="pill">BI 報表 · 可分享</div>
+        <div class="pill">分享報表</div>
         <h3>Looker Studio 報表</h3>
-        <p>六個預建的投資組合視圖，整合為結構完整的 BI 報表。資產配置、年化報酬、歷史回測與 FIRE 試算，所有關鍵指標一覽無遺。</p>
+        <p>適合查看固定情境與分享報表。用預建視圖呈現配置、報酬、回測與 FIRE 指標，方便簡報、討論或快速展示。</p>
         <ul class="feature-list">
-          <li>六個預建視圖，開箱即用</li>
-          <li>投資組合配置比例圖</li>
-          <li>年化報酬率比較圖</li>
-          <li>FIRE 情境試算表</li>
+          <li>固定情境報表，開箱即用</li>
+          <li>配置比例與報酬比較圖</li>
+          <li>回測結果與 FIRE 指標</li>
+          <li>適合分享、簡報與討論</li>
         </ul>
         <br/>
         <a href="https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67" class="surface-link" target="_blank" rel="noopener">查看報表 →</a>
       </div>
+    </div>
     </div>
   </div>
 </section>
@@ -621,14 +710,14 @@
 <section id="compare">
   <div class="container">
     <div class="section-kicker">功能比較</div>
-    <h2 class="section-title">依你的情境，選擇適合的工具。</h2>
+    <h2 class="section-title">哪個入口最適合你？</h2>
     <div class="compare-table-wrap">
       <table class="compare-table">
         <thead>
           <tr>
             <th>功能</th>
             <th>Streamlit<br/>互動儀表板</th>
-            <th>GitHub Pages<br/>靜態網頁</th>
+            <th>GitHub Web<br/>網頁版</th>
             <th>Looker Studio<br/>報表</th>
           </tr>
         </thead>
@@ -636,50 +725,50 @@
           <tr>
             <td>六步驟完整分析流程</td>
             <td><span class="check">✓</span></td>
-            <td><span class="dash">—</span></td>
-            <td><span class="dash">—</span></td>
+            <td><span class="check">✓</span></td>
+            <td><span class="note">固定報表</span></td>
           </tr>
           <tr>
-            <td>即時資料連線</td>
+            <td>資產篩選與排序</td>
             <td><span class="check">✓</span></td>
-            <td><span class="dash">—</span></td>
+            <td><span class="check">✓</span></td>
             <td><span class="check">✓</span></td>
           </tr>
           <tr>
-            <td>AI 投資組合摘要</td>
+            <td>相關性分析與配置視覺化</td>
             <td><span class="check">✓</span></td>
-            <td><span class="dash">—</span></td>
-            <td><span class="dash">—</span></td>
+            <td><span class="check">✓</span></td>
+            <td><span class="note">固定報表</span></td>
           </tr>
           <tr>
-            <td>歷史回測</td>
+            <td>歷史回測與回撤</td>
             <td><span class="check">✓</span></td>
-            <td><span class="dash">—</span></td>
+            <td><span class="check">✓</span></td>
             <td><span class="check">✓</span></td>
           </tr>
           <tr>
             <td>FIRE 退休試算</td>
             <td><span class="check">✓</span></td>
-            <td><span class="dash">—</span></td>
+            <td><span class="check">✓</span></td>
             <td><span class="check">✓</span></td>
           </tr>
           <tr>
-            <td>資產瀏覽與排序</td>
+            <td>AI 投資組合摘要</td>
             <td><span class="check">✓</span></td>
             <td><span class="check">✓</span></td>
-            <td><span class="check">✓</span></td>
+            <td><span class="dash">—</span></td>
           </tr>
           <tr>
             <td>手機友善</td>
             <td><span class="note">尚可</span></td>
-            <td><span class="check">✓</span></td>
-            <td><span class="check">✓</span></td>
+            <td><span class="note">最適合</span></td>
+            <td><span class="note">可使用</span></td>
           </tr>
           <tr class="best-row">
             <td>最適情境</td>
-            <td>完整建立分析組合</td>
-            <td>快速查閱與視覺瀏覽</td>
-            <td>分享報告給他人</td>
+            <td>桌機完整操作</td>
+            <td>精美網頁與手機瀏覽</td>
+            <td>分享固定報告</td>
           </tr>
         </tbody>
       </table>
@@ -690,32 +779,32 @@
 <!-- 常見問題 -->
 <section id="faq" class="section-white">
   <div class="container">
-    <div class="section-kicker">FAQ</div>
-    <h2 class="section-title">還有問題？</h2>
+    <div class="section-kicker">常見問題</div>
+    <h2 class="section-title">你可能會想先確認的事。</h2>
     <div class="faq-grid">
       <div class="faq-item">
-        <div class="faq-q">需要建立帳號嗎？</div>
-        <div class="faq-a">不需要。三個平台均可直接使用，無需任何帳號或登入。Streamlit 版預設公開，可選擇加密碼保護。</div>
+        <div class="faq-q">這是投資建議嗎？</div>
+        <div class="faq-a">不是。所有資料、試算與分析都僅供說明及教育用途，不構成任何投資建議、買賣建議或財務規劃建議。</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">資料多久更新一次？</div>
-        <div class="faq-a">每晚自動抓取前一交易日收盤價。Streamlit 與 Looker Studio 即時連線資料庫；GitHub Pages 版每天自動推送更新。</div>
+        <div class="faq-a">資料自動化流程會每日更新歷史價格與靜態網頁資料。不同入口的資料呈現方式不同，但都以同一套資料流程為基礎。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q">這是投資建議嗎？</div>
-        <div class="faq-a">不是。所有資料與分析僅供說明及教育用途，不構成任何投資建議。過去績效不代表未來結果。</div>
+        <div class="faq-q">所有金額都用新台幣嗎？</div>
+        <div class="faq-a">主要分析以 TWD 為基準。美元計價資產會用歷史 TWD/USD 匯率轉換成台幣後，再進行投資組合層級比較；部分介面可切換顯示幣別。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q">可以用手機瀏覽嗎？</div>
-        <div class="faq-a">GitHub Pages 版和 Looker Studio 完整支援手機瀏覽。Streamlit 版在手機上可使用，但體驗較桌機版簡化。</div>
+        <div class="faq-q">支援哪些資產類別？</div>
+        <div class="faq-a">目前支援台股 ETF、美股 ETF 與加密貨幣三大類。債券、黃金、REITs 或其他市場曝險，會透過 ETF 類標的呈現，不另外拆成獨立資產類別。</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">資料來源是什麼？</div>
-        <div class="faq-a">股票與 ETF 收盤價來自 Yahoo Finance，每日自動抓取並儲存至 Google BigQuery。加密貨幣同樣透過 Yahoo Finance 取得。</div>
+        <div class="faq-a">股票與 ETF 收盤價來自 Yahoo Finance，每日自動抓取並儲存至 Google BigQuery。加密貨幣同樣透過 Yahoo Finance 取得歷史價格資料。</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">程式碼是開源的嗎？</div>
-        <div class="faq-a">是。完整原始碼發布於 <a href="https://github.com/amandatseng0320/passive-portfolio-lab" target="_blank" rel="noopener" style="color:var(--blue);">GitHub</a>，包含自動化測試，所有金融公式均有跡可循。</div>
+        <div class="faq-a">是。專案原始碼、資料處理流程、計算邏輯與測試都放在 <a href="https://github.com/amandatseng0320/passive-portfolio-lab" target="_blank" rel="noopener" style="color:var(--blue);">GitHub 儲存庫</a>。</div>
       </div>
     </div>
   </div>
@@ -727,14 +816,9 @@
     <div class="disclaimer-box">
       <div style="font-size:13px; font-weight:700; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.1em;">免責聲明</div>
       <p style="font-size:14px; color:var(--muted); line-height:1.85;">
-        本工具提供之所有資料與分析，<strong>僅供說明及教育用途，不構成任何投資建議</strong>。<br />
-        過去績效不代表未來結果。<br />
-        加密貨幣相關指標因歷史較短且波動極端，請特別審慎參考。<br />
-        所有金額除另有標示外，均以新台幣（TWD）計算。
-      </p>
-      <p style="font-size:14px; color:var(--muted); margin-top:12px; line-height:1.85;">
-        All data and analysis is for informational and educational purposes only and does not constitute investment advice.
-        Historical performance does not guarantee future results.
+        本工具提供的所有資料、視覺化、回測與試算，僅供說明及教育用途，不構成任何投資建議、買賣建議或財務規劃建議。<br />
+        歷史績效不代表未來結果。加密貨幣歷史較短且波動較高，請特別審慎參考。<br />
+        所有金額除另有標示外，均以新台幣 TWD 計算。
       </p>
     </div>
   </div>
@@ -742,17 +826,18 @@
 
 <!-- CTA -->
 <div class="cta-section">
-  <h2>準備好開始建立你的<br />被動投資組合了嗎？</h2>
-  <p>從互動儀表板開始，或先瀏覽靜態網頁版——無需建立帳號。</p>
+  <img class="cta-bg-image" src="assets/landing/fire-path.webp" width="1672" height="941" loading="lazy" alt="" aria-hidden="true" />
+  <h2>開始用同一套資料，<br />檢查你的投資組合。</h2>
+  <p>從 Streamlit 互動儀表板開始，或使用更精美且支援手機的 GitHub Web 網頁版。也可以使用 Looker Studio 報表查看固定情境與分享結果。</p>
   <div class="hero-btns">
     <a href="https://passive-portfolio-lab-tw.streamlit.app" class="btn-primary" target="_blank" rel="noopener">
-      🚀 互動儀表板
+      開啟互動儀表板
     </a>
     <a href="https://amandatseng0320.github.io/passive-portfolio-lab" class="btn-secondary" target="_blank" rel="noopener">
-      📊 靜態網頁版
+      開啟 GitHub Web
     </a>
     <a href="https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67" class="btn-secondary" target="_blank" rel="noopener">
-      📋 Looker 報表
+      查看 Looker 報表
     </a>
   </div>
 </div>
@@ -761,12 +846,12 @@
 <footer>
   <div>
     <strong style="color:rgba(255,255,255,0.72);">被動投資組合實驗室</strong>
-    &nbsp;·&nbsp; Passive Portfolio Lab &nbsp;·&nbsp; 最後更新：2026-05-25
+    &nbsp;·&nbsp; Passive Portfolio Lab &nbsp;·&nbsp; 資料由自動化流程定期更新
   </div>
   <div style="display:flex; gap:20px; flex-wrap:wrap;">
     <a href="https://github.com/amandatseng0320/passive-portfolio-lab" target="_blank" rel="noopener">GitHub</a>
     <a href="https://passive-portfolio-lab-tw.streamlit.app" target="_blank" rel="noopener">互動儀表板</a>
-    <a href="https://amandatseng0320.github.io/passive-portfolio-lab" target="_blank" rel="noopener">靜態網頁版</a>
+    <a href="https://amandatseng0320.github.io/passive-portfolio-lab" target="_blank" rel="noopener">GitHub Web</a>
     <a href="https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67" target="_blank" rel="noopener">Looker 報表</a>
   </div>
 </footer>
