@@ -1,5 +1,7 @@
 # GitHub Web 說明
 
+最後更新：2026-07-02
+
 這個資料夾是 Passive Portfolio Lab 的 GitHub Pages 靜態網頁版。它提供免登入、免後端的前端展示介面，讓使用者可以瀏覽資產指標、套用 persona、做靜態資料下的 TWD-based portfolio 分析。
 
 ## 入口檔案
@@ -152,6 +154,7 @@ python github_web/scripts/export_web_data.py
 - GitHub Web 是靜態版本，不直接呼叫 BigQuery。
 - 資料新鮮度取決於最近一次 GitHub Actions export。
 - 所有輸入與計算仍以 TWD 為主。
+- 歷史回測年化報酬採 MWRR，會納入每月投入的時間點；年度報酬扣除投入影響後計算。
 - TWD / USD toggle 只影響顯示，不改變底層計算。
 
 ## 維護注意事項

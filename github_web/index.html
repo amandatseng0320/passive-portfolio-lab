@@ -727,9 +727,9 @@ const T = {
     currencyDisplayNote:'Display only. Inputs and calculations remain in TWD.',
     costScenarioTitle:'Cost scenario reference',
     costScopeNote:'Backtests use adjusted close prices and historical TWD/USD exchange rates. They do not model individual trading costs, taxes, brokerage fees, FX spreads, or other personal account-level costs.',
-    costCagrReference:cagrText=>`If trading, tax, and FX-related costs are estimated at 0.5% / 1.0% per year, reference CAGR would be approximately ${cagrText}.`,
+    costCagrReference:cagrText=>`If trading, tax, and FX-related costs are estimated at 0.5% / 1.0% per year, reference annual return would be approximately ${cagrText}.`,
     fireCostReference:items=>`If annual costs are estimated at 0.5% / 1.0%, the FIRE timeline reference becomes: ${items}.`,
-    fireCostItem:({ rate, cagr, nominal, real })=>`${rate} scenario: CAGR ${cagr}, nominal ${nominal}, real ${real}`,
+    fireCostItem:({ rate, cagr, nominal, real })=>`${rate} scenario: annual return ${cagr}, nominal ${nominal}, real ${real}`,
     btSourceHistory:'Using true daily historical prices synced from BigQuery.',
     btSourceProjection:'Historical price data is not loaded yet, so this view is temporarily using a metric-based projection.',
     nav:{ intro:'Introduction', screening:'Asset Screening', correlation:'Correlation Analysis',
@@ -743,7 +743,7 @@ const T = {
       { icon:'🔍', title:'Asset Screening', desc:'37-asset curated universe: 14 TW ETFs, 15 US ETFs, 8 crypto — with CAGR, volatility, drawdown, and AUM metrics.' },
       { icon:'⚖️', title:'Risk Allocation', desc:'Auto-allocate weights to match your target risk tier (Low → Extreme High) using annualized volatility as the primary proxy.' },
       { icon:'📈', title:'Backtest & Pain Index', desc:'Run TWD-based historical backtests using BigQuery-synced daily prices, including drawdown episodes you would need to endure.' },
-      { icon:'🔥', title:'FIRE Calculator', desc:"Estimate your financial independence timeline based on your portfolio's historical CAGR, savings rate, and spending assumptions." },
+      { icon:'🔥', title:'FIRE Calculator', desc:"Estimate your financial independence timeline based on your portfolio's historical annual return, savings rate, and spending assumptions." },
     ],
     introPhiloTitle:'Why Passive Investing?',
     introPhiloBody:[
@@ -756,7 +756,7 @@ const T = {
       { step:1, title:'Asset Screening',       desc:'Browse a curated list of passive ETFs across Taiwan, US, international, and bond markets. Filter by category, sort by any column, and check the assets you want to include. Start broad; you can narrow later.' },
       { step:2, title:'Correlation Analysis',  desc:'See which of your selected ETFs move together. Highly correlated assets add duplication without diversification benefit. Use the group recommendations to keep one representative per cluster and remove the rest.' },
       { step:3, title:'Risk Allocation',       desc:'Assign portfolio weights to each asset you kept. The total must sum to 100%. Use the presets as a starting point, or enter weights manually to reflect your own risk tolerance.' },
-      { step:4, title:'Backtest',              desc:'Run a TWD-based historical backtest on your weighted portfolio. Review annualized return, volatility, max drawdown, and Sharpe ratio. Adjust weights in Step 3 and re-run as many times as you like.' },
+      { step:4, title:'Backtest',              desc:'Run a TWD-based historical backtest on your weighted portfolio. Review money-weighted annual return, volatility, max drawdown, and Sharpe ratio. Adjust weights in Step 3 and re-run as many times as you like.' },
       { step:5, title:'FIRE Calculator',       desc:'Enter your current savings, monthly contribution, expected retirement age, and spending target. The calculator estimates whether your portfolio is on track to support financial independence.' },
       { step:6, title:'Summary',               desc:'Review your final portfolio at a glance — asset list, weights, key metrics, and FIRE readiness. You can screenshot or print this page as a personal reference.' },
     ],
@@ -828,7 +828,7 @@ const T = {
     btAnnualReturns:'Annual Returns', btTopEpisodes:'Top Drawdown Episodes',
     btPeakDD:'Peak Drawdown', btRecovery:'Recovery',
     btFinalVal:'Final Value', btTotalInv:'Total Invested',
-    btTotalReturn:'Total Return', btCagr:'CAGR (TWD)', btSince:'Jan 2010 – Apr 2025',
+    btTotalReturn:'Total Return', btCagr:'MWRR (TWD)', btSince:'Jan 2010 – Apr 2025',
     btEpisodes:[
       { label:'COVID Crash',        period:'Feb–Apr 2020',  recovery:'7 months'  },
       { label:'2022 Bear Market',   period:'Jan–Oct 2022',  recovery:'14 months' },
@@ -840,9 +840,9 @@ const T = {
     fireParams:'Parameters',
     fireAnnualExp:'Annual Expenses (NT$)', fireCurrentSav:'Current Savings (NT$)',
     fireMonthlyContrib:'Monthly Contribution (NT$)',
-    fireCagr:'CAGR (%)', fireWithdraw:'Withdrawal Rate (%)', fireInflation:'Inflation (%)',
+    fireCagr:'Annual Return (%)', fireWithdraw:'Withdrawal Rate (%)', fireInflation:'Inflation (%)',
     fireTarget:'FIRE Target', fireYearsNom:'Years to FIRE (Nominal)',
-    fireYearsReal:'Years to FIRE (Real)', fireCagrUsed:'CAGR Used',
+    fireYearsReal:'Years to FIRE (Real)', fireCagrUsed:'Annual Return Used',
     fireCagrFrom:'from portfolio', fireCagrManual:'manual',
     fireProjection:'Portfolio Growth Projection',
     fireNominal:'Nominal Value', fireReal:'Real Value (Inflation-adj.)', fireTargetLine:'FIRE Target',
@@ -851,7 +851,7 @@ const T = {
     summaryTitle:'Summary', summaryCaption:'A snapshot of your portfolio based on the selections above.',
     summaryLocked:'Complete the Risk Allocation section to see your portfolio summary.',
     summaryStructure:'Portfolio Structure',
-    summaryRisk:'Risk Level:', summaryAssets:'Assets:', summaryTop:'Top Holdings:', summaryCagr:'Historical CAGR (TWD):',
+    summaryRisk:'Risk Level:', summaryAssets:'Assets:', summaryTop:'Top Holdings:', summaryCagr:'Historical MWRR (TWD):',
     summaryNote:'📌 <strong>Note:</strong> All backtests are simulated in TWD with monthly contributions. Historical performance does not guarantee future results. Crypto metrics should be interpreted with caution due to shorter history and extreme tail risk.',
     summaryAI:'AI Insights', summaryAITagline:'Auto-generated portfolio analysis',
   },
@@ -864,9 +864,9 @@ const T = {
     currencyDisplayNote:'僅切換顯示。輸入與底層計算皆維持 TWD。',
     costScenarioTitle:'成本情境參考',
     costScopeNote:'回測使用調整後收盤價與歷史 TWD/USD 匯率計算，未逐筆模擬個人交易、稅務、券商手續費、換匯價差或其他帳戶層級成本。',
-    costCagrReference:cagrText=>`若交易、稅務與換匯等成本以年化 0.5% / 1.0% 估算，參考 CAGR 約為 ${cagrText}。`,
+    costCagrReference:cagrText=>`若交易、稅務與換匯等成本以年化 0.5% / 1.0% 估算，參考年化報酬約為 ${cagrText}。`,
     fireCostReference:items=>`若以年化 0.5% / 1.0% 成本情境估算，FIRE 年數參考為：${items}。`,
-    fireCostItem:({ rate, cagr, nominal, real })=>`${rate} 情境：CAGR ${cagr}，名目 ${nominal}，實質 ${real}`,
+    fireCostItem:({ rate, cagr, nominal, real })=>`${rate} 情境：年化報酬 ${cagr}，名目 ${nominal}，實質 ${real}`,
     btSourceHistory:'使用 BigQuery 同步的真實每日歷史價格。',
     btSourceProjection:'尚未載入歷史價格資料，因此暫時使用指標推估。',
     nav:{ intro:'介紹', screening:'資產篩選', correlation:'相關性分析',
@@ -880,7 +880,7 @@ const T = {
       { icon:'🔍', title:'資產篩選', desc:'37 個精選資產：14 檔台股 ETF、15 檔美股 ETF、8 個加密貨幣，附 CAGR、波動率、最大回撤與 AUM 指標。' },
       { icon:'⚖️', title:'風險配置', desc:'依目標風險等級（低→極高）自動分配權重，以年化波動率為主要代理指標。' },
       { icon:'📈', title:'回測與痛苦指數', desc:'使用 BigQuery 同步的每日價格進行台幣計價歷史回測，呈現需要忍受的回撤幅度與時間。' },
-      { icon:'🔥', title:'財務自由試算', desc:'根據組合的歷史 CAGR、儲蓄率與支出假設，推估達到財務自由的時間軸。' },
+      { icon:'🔥', title:'財務自由試算', desc:'根據組合的歷史年化報酬、儲蓄率與支出假設，推估達到財務自由的時間軸。' },
     ],
     introPhiloTitle:'為什麼選擇被動投資？',
     introPhiloBody:[
@@ -893,7 +893,7 @@ const T = {
       { step:1, title:'資產篩選',     desc:'從台灣、美國、國際及債券市場的精選被動 ETF 清單中挑選標的。可依分類篩選、依任一欄位排序，勾選你想納入的資產。初期可以選廣一點，後續再縮減。' },
       { step:2, title:'相關性分析',   desc:'查看你所選的 ETF 之間的連動性。高度相關的資產重複配置，卻沒有分散效果。利用本工具提供的分組建議，每個高相關群組保留一個代表標的即可。' },
       { step:3, title:'風險配置',     desc:'為每個留下的資產設定投資比例，合計須達 100%。可從預設的風格配置出發，再依自身風險承受度手動調整。' },
-      { step:4, title:'回測分析',     desc:'對你的加權組合進行歷史模擬回測，查看年化報酬、波動率、最大回撤與 Sharpe 比率。可隨時回到第三步調整比例後重新回測。' },
+      { step:4, title:'回測分析',     desc:'對你的加權組合進行歷史模擬回測，查看資金加權年化報酬、波動率、最大回撤與 Sharpe 比率。可隨時回到第三步調整比例後重新回測。' },
       { step:5, title:'FIRE 計算機',  desc:'輸入現有存款、每月定期投入金額、預計退休年齡與退休後支出目標，計算機將估算你的投資組合是否有機會達成財務獨立。' },
       { step:6, title:'總覽摘要',     desc:'一頁總覽你的最終投資組合：標的清單、配置比例、關鍵績效指標與 FIRE 達成狀況，可截圖或列印作為個人參考。' },
     ],
@@ -965,7 +965,7 @@ const T = {
     btAnnualReturns:'年度報酬', btTopEpisodes:'主要回撤事件',
     btPeakDD:'最大回撤幅度', btRecovery:'恢復時間',
     btFinalVal:'最終價值', btTotalInv:'累計投入',
-    btTotalReturn:'總報酬', btCagr:'CAGR（TWD）', btSince:'2010年1月 – 2025年4月',
+    btTotalReturn:'總報酬', btCagr:'MWRR（TWD）', btSince:'2010年1月 – 2025年4月',
     btEpisodes:[
       { label:'COVID 崩盤',   period:'2020年2–4月',   recovery:'7 個月'  },
       { label:'2022 年熊市',  period:'2022年1–10月',  recovery:'14 個月' },
@@ -977,9 +977,9 @@ const T = {
     fireParams:'參數設定',
     fireAnnualExp:'年度支出（NT$）', fireCurrentSav:'目前存款（NT$）',
     fireMonthlyContrib:'每月定期投入（NT$）',
-    fireCagr:'CAGR (%)', fireWithdraw:'提領率 (%)', fireInflation:'通膨率 (%)',
+    fireCagr:'年化報酬 (%)', fireWithdraw:'提領率 (%)', fireInflation:'通膨率 (%)',
     fireTarget:'FIRE 目標資產', fireYearsNom:'達到 FIRE 年數（名目）',
-    fireYearsReal:'達到 FIRE 年數（實質）', fireCagrUsed:'使用 CAGR',
+    fireYearsReal:'達到 FIRE 年數（實質）', fireCagrUsed:'使用年化報酬',
     fireCagrFrom:'來自組合', fireCagrManual:'手動輸入',
     fireProjection:'資產成長預測',
     fireNominal:'名目價值', fireReal:'實質價值（通膨調整後）', fireTargetLine:'FIRE 目標',
@@ -988,7 +988,7 @@ const T = {
     summaryTitle:'總結', summaryCaption:'根據以上設定的組合快照。',
     summaryLocked:'請先完成「風險配置」以查看組合總結。',
     summaryStructure:'組合結構',
-    summaryRisk:'風險等級：', summaryAssets:'資產數：', summaryTop:'主要持倉：', summaryCagr:'歷史 CAGR（TWD）：',
+    summaryRisk:'風險等級：', summaryAssets:'資產數：', summaryTop:'主要持倉：', summaryCagr:'歷史 MWRR（TWD）：',
     summaryNote:'📌 <strong>注意：</strong>所有回測均以台幣計算並含每月定期投入。歷史績效不保證未來結果。加密貨幣指標因歷史較短且尾部風險極大，解讀時請特別謹慎。',
     summaryAI:'AI 洞察', summaryAITagline:'根據你的配置自動生成的投資組合分析',
   },
@@ -1951,11 +1951,19 @@ const App = () => {
 
   // Show popup on first visit
   useEffect(() => {
-    if (!localStorage.getItem('ppl_help_seen')) setShowHelp(true);
+    try {
+      if (!localStorage.getItem('ppl_help_seen')) setShowHelp(true);
+    } catch {
+      setShowHelp(true);
+    }
   }, []);
 
   const closeHelp = () => {
-    localStorage.setItem('ppl_help_seen', '1');
+    try {
+      localStorage.setItem('ppl_help_seen', '1');
+    } catch {
+      // Continue without persistence when storage is blocked.
+    }
     setShowHelp(false);
   };
 

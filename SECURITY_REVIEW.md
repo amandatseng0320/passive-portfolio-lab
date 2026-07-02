@@ -1,13 +1,15 @@
 # Passive Portfolio Lab 資安與弱點掃描報告
 
+最後更新：2026-07-02
+
 掃描日期：2026-06-07  
 掃描範圍：本機 repo `/Users/at/Documents/GitHub/passive-portfolio-lab`  
 報告目的：確認專案在交付前的主要資安風險、依賴弱點、秘密資訊暴露風險與部署安全性。
 
 ## 0. 修正後狀態摘要
 
-修正日期：2026-06-07  
-修正方式：保留原始掃描紀錄，新增本節、第 9 節與第 10 節作為修正後紀錄。
+修正日期：2026-07-02
+修正方式：保留原始掃描紀錄，新增本節、第 9 節、第 10 節與第 11 節作為修正後紀錄。
 
 | 項目 | 原始掃描 | 修正後狀態 |
 |---|---:|---:|
@@ -17,7 +19,7 @@
 | `verify=False` | 5 處 | 0 處 |
 | Python dependency known vulnerabilities | 0 | 0 |
 | 測試依賴 known vulnerabilities | 0 | 0 |
-| 核心測試 | 未於原始掃描執行 | 121 passed |
+| 核心測試 | 未於原始掃描執行 | 136 passed |
 
 已完成修正：
 
@@ -30,6 +32,7 @@
 - 對 UI 翻譯字串 `"Password": "密碼"` 的 Bandit 誤判加入精準 `# nosec B105`。
 - 新增 Asset Profiles / Web Scraping Showcase 時，已加入來源 allowlist、timeout、
   sanitize、raw data ignore 與 schema/export/loader 測試。
+- 2026-07-02 修正回測 MWRR、年度報酬與 worst-year FutureWarning，並補上相關測試。
 
 修正後仍保留的風險/注意事項：
 
@@ -37,7 +40,7 @@
 - 部分固定來源 SQL 使用 `# nosec` 註記；這些註記均附有安全理由，避免靜態掃描誤報干擾結案報告。
 - `.env` 與 `credentials.json` 仍存在於本機，但未被 git 追蹤，且已由 `.gitignore` 排除。
 
-以下第 1 到第 8 節保留原始掃描結果，作為修正前基準與稽核紀錄；第 9 節記錄原始發現修正後重掃結果；第 10 節記錄新增 Web Scraping Showcase 後的補充資安檢查。
+以下第 1 到第 8 節保留原始掃描結果，作為修正前基準與稽核紀錄；第 9 節記錄原始發現修正後重掃結果；第 10 節記錄新增 Web Scraping Showcase 後的補充資安檢查；第 11 節記錄 2026-07-02 的最終修正與重掃結果。
 
 ## 1. 掃描摘要
 
@@ -553,13 +556,13 @@ python3 -m pytest tests/processing/test_backtest.py tests/processing/test_metric
 結果：
 
 ```text
-63 passed, 2 warnings
+68 passed
 ```
 
 警告說明：
 
-- 2 個 warnings 來自 pandas `Series.idxmin` future behavior warning。
-- 該 warning 與本次資安修正無關，測試全部通過。
+- 無 pandas `Series.idxmin` FutureWarning。
+- 核心金融計算與 web export schema 測試全部通過。
 
 ### 9.3 修正後結論
 
@@ -648,13 +651,13 @@ python3 -m pytest tests/
 結果：
 
 ```text
-121 passed, 2 warnings
+136 passed
 ```
 
 警告說明：
 
-- 2 個 warnings 來自 pandas `Series.idxmin` future behavior warning。
-- 該 warning 與新增 Web Scraping Showcase 無關。
+- 無 pandas `Series.idxmin` FutureWarning。
+- 全測試套件通過。
 
 #### Export validation
 
@@ -678,4 +681,27 @@ Export validation passed (37 assets, FX=31.57)
 - 無已追蹤的 `.env`、`credentials.json` 或 API key。
 - 資產 profile 來源受 allowlist 約束。
 - 前端只讀靜態正規化資料，不在使用者瀏覽時即時爬取。
+
+## 11. 2026-07-02 最終修正與重掃紀錄
+
+### 11.1 修正範圍
+
+- Backtest 年化報酬改用 MWRR，避免 monthly contribution 情境下以期末價值除以累計投入造成誤導。
+- Backtest 年度報酬改為扣除投入影響後計算。
+- Python backtest DCA 日期改為該月第一個可用價格日期，避免月初非交易日跳過投入。
+- `metrics.py` worst-year 計算先排除 NA / inf，修正 pandas `Series.idxmin` FutureWarning。
+- GitHub Web help popup 對 `localStorage` 加上 try/catch，storage 被封鎖時仍可關閉。
+- `.env.example` 補齊選用設定，`outputs/` 加入 `.gitignore`。
+
+### 11.2 重掃結果
+
+```text
+python3 -m pytest tests/processing/test_backtest.py tests/processing/test_metrics.py tests/export/test_export_web_data.py
+68 passed
+
+python3 -m pytest tests/
+136 passed
+```
+
+目前未再出現 pandas `Series.idxmin` FutureWarning。
 - GitHub Web、Streamlit Dashboard 與 tests 已共用同一份資料契約。

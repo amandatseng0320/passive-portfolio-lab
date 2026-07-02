@@ -116,6 +116,64 @@ function mulberry32(a) {
   };
 }
 
+function calculatePeriodReturns(invested, portVals) {
+  return portVals.map((value, i) => {
+    if (i === 0) return 0;
+    const previousValue = portVals[i - 1];
+    const contribution = invested[i] - invested[i - 1];
+    if (!Number.isFinite(previousValue) || previousValue <= 0) return 0;
+    const periodReturn = (value - contribution) / previousValue - 1;
+    return Number.isFinite(periodReturn) ? periodReturn : 0;
+  });
+}
+
+function calculateAnnualReturns(labels, invested, portVals) {
+  const returns = calculatePeriodReturns(invested, portVals);
+  const byYear = {};
+  labels.forEach((date, i) => {
+    const year = date.slice(0, 4);
+    if (!byYear[year]) byYear[year] = [];
+    byYear[year].push(returns[i]);
+  });
+  return Object.entries(byYear)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([year, values]) => {
+      const compounded = values.reduce((acc, value) => acc * (1 + value), 1) - 1;
+      return { year:Number(year), ret:parseFloat((compounded * 100).toFixed(1)) };
+    });
+}
+
+function calculateMoneyWeightedAnnualReturn(labels, invested, portVals) {
+  if (labels.length < 2 || invested.length !== portVals.length) return 0;
+  const cashflows = invested.map((amount, i) => -(amount - (i > 0 ? invested[i - 1] : 0)));
+  cashflows[cashflows.length - 1] += portVals[portVals.length - 1];
+  if (!cashflows.some(v => v < 0) || !cashflows.some(v => v > 0)) return 0;
+
+  const startDate = new Date(labels[0]);
+  const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
+  const elapsedYears = labels.map(label => (new Date(label) - startDate) / msPerYear);
+  const npv = rate => cashflows.reduce((sum, flow, i) => sum + flow / Math.pow(1 + rate, elapsedYears[i]), 0);
+
+  let low = -0.999999;
+  let high = 1;
+  let npvLow = npv(low);
+  let npvHigh = npv(high);
+  while (npvHigh > 0 && high < 1000000) {
+    high *= 2;
+    npvHigh = npv(high);
+  }
+  if (!Number.isFinite(npvLow) || !Number.isFinite(npvHigh) || npvLow * npvHigh > 0) return 0;
+
+  for (let i = 0; i < 100; i++) {
+    const mid = (low + high) / 2;
+    const npvMid = npv(mid);
+    if (Math.abs(npvMid) < 1e-7) return mid;
+    if (npvMid > 0) low = mid;
+    else high = mid;
+  }
+  return (low + high) / 2;
+}
+
 // ── Metric-based projection fallback ───────────────────────────────────────────
 function generateMetricProjection(allocation, initial = 300000, monthly = 15000) {
   const tickers = Object.keys(allocation);
@@ -159,14 +217,7 @@ function generateMetricProjection(allocation, initial = 300000, monthly = 15000)
     }
   }
 
-  const annualReturns = [];
-  for (let yr = 2010; yr <= 2024; yr++) {
-    const idxStart = labels.indexOf(`${yr}-01`);
-    const idxEnd   = labels.indexOf(`${yr}-12`);
-    if (idxStart < 0 || idxEnd < 0) continue;
-    const ret = (portVals[idxEnd] / portVals[idxStart] - 1) * 100;
-    annualReturns.push({ year: yr, ret: parseFloat(ret.toFixed(1)) });
-  }
+  const annualReturns = calculateAnnualReturns(labels, invested, portVals).filter(r => r.year <= 2024);
 
   const finalVal  = portVals[portVals.length - 1];
   const totalInv  = invested[invested.length - 1];
@@ -246,24 +297,12 @@ function generateBacktest(allocation, initial = 300000, monthly = 15000) {
 
   if (labels.length < 2) return generateMetricProjection(allocation, initial, monthly);
 
-  const annualReturns = [];
-  const byYear = {};
-  labels.forEach((date, i) => {
-    const year = date.slice(0, 4);
-    if (!byYear[year]) byYear[year] = { first:i, last:i };
-    byYear[year].last = i;
-  });
-  Object.entries(byYear).forEach(([year, idx]) => {
-    if (idx.last <= idx.first) return;
-    const ret = (portVals[idx.last] / portVals[idx.first] - 1) * 100;
-    annualReturns.push({ year:Number(year), ret:parseFloat(ret.toFixed(1)) });
-  });
+  const annualReturns = calculateAnnualReturns(labels, invested, portVals);
 
   const finalVal = portVals[portVals.length - 1];
   const totalInv = invested[invested.length - 1];
   const maxDD = Math.min(...drawdowns);
-  const years = Math.max(1 / 365, (new Date(labels[labels.length - 1]) - new Date(labels[0])) / (365.25 * 24 * 60 * 60 * 1000));
-  const cagr = totalInv > 0 ? Math.pow(finalVal / totalInv, 1 / years) - 1 : 0;
+  const cagr = calculateMoneyWeightedAnnualReturn(labels, invested, portVals);
 
   return {
     labels, portVals, invested, drawdowns, annualReturns,

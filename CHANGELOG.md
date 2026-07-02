@@ -1,8 +1,31 @@
 # Passive Portfolio Lab 版本修訂紀錄
 
+最後更新：2026-07-02
+
 本文件記錄 Passive Portfolio Lab 的主要版本變更。格式參考
 Keep a Changelog，但目前專案尚未建立正式 Git tag，因此先以「里程碑版本」
 整理開發歷程。
+
+## [0.13.0] - 2026-07-02
+
+### 修正
+
+- 修正 TWD-based 回測年化報酬：有 monthly contribution 時改用 MWRR，不再以期末價值除以累計投入計算。
+- 修正回測年度報酬圖，改為扣除每月投入影響後再複利計算。
+- 修正 Python 回測 DCA 日期，月初非交易日時改用該月第一個可用價格日期。
+- 修正 `metrics.py` worst-year 計算的 pandas FutureWarning，避免未來 pandas 版本升級時因全 NA 年度報酬而失效。
+- 修正 GitHub Web help popup 的 `localStorage` 防護，storage 被封鎖時仍可正常關閉。
+- 將 `outputs/` 加入 `.gitignore`，並移除空的 `.sixth/skills` 本機目錄。
+- 補齊 `.env.example` 的 `GEMINI_API_KEY` 與 `APP_PASSWORD` 選用設定。
+
+### 文件
+
+- 更新 README、子系統 README、測試說明、資料說明與資安掃描報告的測試數字與更新日期。
+
+### 驗證
+
+- `python3 -m pytest tests/processing/test_backtest.py tests/processing/test_metrics.py tests/export/test_export_web_data.py`：68 passed。
+- `python3 -m pytest tests/`：136 passed。
 
 ## 重大程式碼變更詳解 Top 10
 
@@ -615,7 +638,7 @@ def test_cagr_stored_as_percentage_not_fraction(self, minimal_metrics_df):
 
 ### 驗證
 
-- `python3 -m pytest tests/`：121 passed。
+- `python3 -m pytest tests/`：136 passed。
 - `python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'`：No issues identified。
 - `python3 github_web/scripts/validate_export.py`：Export validation passed。
 
@@ -697,7 +720,7 @@ def test_cagr_stored_as_percentage_not_fraction(self, minimal_metrics_df):
 
 - 新增專案 landing page，作為 GitHub Pages 上的展示與導覽入口。
 - 重新整理 landing page 內容，改成以使用者問題與三個平台交付價值為主軸。
-- 新增專案報告簡報檔 `docs/project_report.pptx`，作為技術與成果展示素材。
+- 新增專案報告簡報檔，作為技術與成果展示素材；目前交付版為本機 ignored 的 `outputs/passive-portfolio-lab-final-report-deliverable-style.pptx`。
 
 ### 變更
 

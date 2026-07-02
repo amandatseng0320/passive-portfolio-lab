@@ -4,6 +4,105 @@ import pandas_gbq
 from .screening import validate_tickers
 from .utils import get_bq_config
 
+
+def _first_observed_date_per_month(index: pd.DatetimeIndex) -> list[pd.Timestamp]:
+    """Return the first available row date for each month in an observed price index."""
+    if index.empty:
+        return []
+    dates = pd.Series(index, index=index)
+    return list(dates.groupby(index.to_period('M')).first())
+
+
+def calculate_period_returns(result_df: pd.DataFrame) -> pd.Series:
+    """Calculate portfolio period returns after neutralising new contributions."""
+    if result_df.empty:
+        return pd.Series(dtype=float)
+
+    df = result_df.sort_values('date').reset_index(drop=True)
+    portfolio_value = df['portfolio_value'].astype(float)
+    total_invested = df['total_invested'].astype(float)
+    contributions = total_invested.diff().fillna(total_invested)
+    previous_value = portfolio_value.shift(1)
+
+    with np.errstate(invalid='ignore', divide='ignore'):
+        period_returns = (portfolio_value - contributions) / previous_value - 1
+
+    period_returns = period_returns.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+    return period_returns
+
+
+def calculate_annual_returns(result_df: pd.DataFrame) -> pd.DataFrame:
+    """Return contribution-adjusted annual returns as percentages."""
+    if result_df.empty:
+        return pd.DataFrame(columns=['year', 'annual_return'])
+
+    df = result_df.sort_values('date').reset_index(drop=True).copy()
+    df['year'] = pd.to_datetime(df['date']).dt.year
+    df['period_return'] = calculate_period_returns(df)
+    annual = (
+        df.groupby('year', as_index=False)['period_return']
+        .agg(lambda x: (1 + x).prod() - 1)
+        .rename(columns={'period_return': 'annual_return'})
+    )
+    annual['annual_return'] = annual['annual_return'] * 100
+    return annual.replace([np.inf, -np.inf], np.nan).dropna(subset=['annual_return'])
+
+
+def calculate_money_weighted_annual_return(result_df: pd.DataFrame) -> float:
+    """
+    Calculate a money-weighted annual return for a backtest with contributions.
+
+    The cash-flow convention is investor perspective: contributions are negative
+    cash flows, and the final portfolio value is a positive terminal cash flow.
+    """
+    if result_df.empty:
+        return 0.0
+
+    df = result_df.sort_values('date').reset_index(drop=True)
+    if df['portfolio_value'].empty:
+        return 0.0
+
+    dates = pd.to_datetime(df['date'])
+    portfolio_value = df['portfolio_value'].astype(float)
+    total_invested = df['total_invested'].astype(float)
+    contributions = total_invested.diff().fillna(total_invested)
+
+    cashflows = -contributions.to_numpy(dtype=float)
+    cashflows[-1] += float(portfolio_value.iloc[-1])
+
+    if not np.any(cashflows < 0) or not np.any(cashflows > 0):
+        return 0.0
+
+    elapsed_years = (dates - dates.iloc[0]).dt.days.to_numpy(dtype=float) / 365.25
+
+    def npv(rate: float) -> float:
+        return float(np.sum(cashflows / np.power(1 + rate, elapsed_years)))
+
+    low = -0.999999
+    high = 1.0
+    npv_low = npv(low)
+    npv_high = npv(high)
+
+    while npv_high > 0 and high < 1_000_000:
+        high *= 2
+        npv_high = npv(high)
+
+    if not np.isfinite(npv_low) or not np.isfinite(npv_high) or npv_low * npv_high > 0:
+        return 0.0
+
+    for _ in range(100):
+        mid = (low + high) / 2
+        npv_mid = npv(mid)
+        if abs(npv_mid) < 1e-7:
+            return mid
+        if npv_mid > 0:
+            low = mid
+        else:
+            high = mid
+
+    return (low + high) / 2
+
+
 def load_fx_rate(start_date: str, end_date: str) -> pd.Series:
     """
     Fetch daily TWD/USD exchange rate using Yahoo Finance REST API.
@@ -116,10 +215,7 @@ def run_combined(
 
     # Determine monthly DCA dates (first trading day of each month, excluding day one)
     first_day = pivot.index[0]
-    monthly_dates = (
-        pivot.resample('MS').first().index
-    )
-    monthly_dates = [d for d in monthly_dates if d in pivot.index and d != first_day]
+    monthly_dates = [d for d in _first_observed_date_per_month(pivot.index) if d != first_day]
 
     shares = {ticker: 0.0 for ticker in valid_tickers}
     total_invested = 0.0

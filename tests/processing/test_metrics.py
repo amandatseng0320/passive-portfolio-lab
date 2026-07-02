@@ -7,6 +7,8 @@ Sharpe ratio, worst year, and edge cases.
 All tests use local DataFrames — no BigQuery calls.
 """
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -214,6 +216,13 @@ class TestEdgeCases:
         df = _df("0050.TW", "TW_ETF", [np.nan, np.nan, np.nan])
         result = calculate_metrics(df)
         assert "0050.TW" not in (result["ticker"].values if not result.empty else [])
+
+    def test_all_nan_close_does_not_emit_futurewarning(self):
+        df = _df("0050.TW", "TW_ETF", [np.nan, np.nan, np.nan])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            result = calculate_metrics(df)
+        assert result.empty
 
     def test_valid_ticker_survives_alongside_all_nan_ticker(self):
         df_valid = _df("0050.TW", "TW_ETF", [100.0, 110.0, 105.0, 115.0])

@@ -46,6 +46,7 @@ data/asset_profiles/raw/**
 !data/asset_profiles/raw/crypto/
 !data/asset_profiles/raw/crypto/.gitkeep
 looker_studio/generated/
+outputs/
 
 # OS generated files
 .DS_Store

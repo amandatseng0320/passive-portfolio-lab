@@ -1,5 +1,7 @@
 # Looker Studio 說明
 
+最後更新：2026-07-02
+
 `looker_studio/` 是 Passive Portfolio Lab 的 BI 報表資料層。它把 Streamlit / BigQuery 已有的價格與資產指標整理成 Looker Studio 可直接連接的 views、portfolio tables 與 CSV snapshots。
 
 已發布報表：

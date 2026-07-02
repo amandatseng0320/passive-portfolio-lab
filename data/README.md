@@ -1,5 +1,7 @@
 # Data 說明
 
+最後更新：2026-07-02
+
 `data/` 是專案內用來放「跨交付面共用資料」的資料夾。目前主要用途是 Asset Profiles / Web Scraping Showcase，也就是透過網頁爬蟲資料管線與資料正規化流程整理 ETF 與加密貨幣補充資訊，供 GitHub Web、Streamlit Dashboard 與 landing page 共用。
 
 目前狀態：**已完成第一版，已接入 GitHub Web、Streamlit Dashboard、landing page、測試與 GitHub Actions workflow。**
@@ -122,7 +124,7 @@ official / gross expense ratio，則 `expenseRatioFormula` 會標示為
 
 驗證結果：
 
-- `python3 -m pytest tests/`：121 passed。
+- `python3 -m pytest tests/`：136 passed。
 - `python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'`：No issues identified。
 - `python3 github_web/scripts/validate_export.py`：Export validation passed。
 

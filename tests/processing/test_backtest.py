@@ -14,7 +14,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.processing.backtest import run_combined
+from src.processing.backtest import (
+    calculate_annual_returns,
+    calculate_money_weighted_annual_return,
+    run_combined,
+)
 from src.processing.screening import validate_tickers
 
 
@@ -113,6 +117,54 @@ class TestDCATiming:
                               monthly_contribution=5_000)
         invested = result["total_invested"].values
         assert (np.diff(invested) >= 0).all()
+
+    def test_monthly_contribution_uses_first_observed_trading_day(self):
+        prices = _prices({"0050.TW": [100.0] * 4}, start="2021-04-30", freq="B")
+        result = run_combined(prices, {"0050.TW": 1.0},
+                              "2021-04-30", "2021-05-05",
+                              initial_investment=10_000,
+                              monthly_contribution=5_000)
+
+        # 2021-05-01 was not in the business-day index, so the May DCA should
+        # land on the first observed row in May: 2021-05-03.
+        may_first = result[result["date"] == pd.Timestamp("2021-05-03")]
+        assert may_first["total_invested"].iloc[0] == pytest.approx(15_000.0, rel=1e-6)
+
+
+class TestBacktestAnnualizedReturns:
+    def test_money_weighted_return_matches_lump_sum_cagr(self):
+        closes = [100.0] + [100.0] * 364 + [112.0]
+        prices = _prices({"0050.TW": closes}, start="2021-01-04")
+        result = run_combined(prices, {"0050.TW": 1.0},
+                              "2021-01-04", "2022-01-04",
+                              initial_investment=10_000,
+                              monthly_contribution=0)
+
+        mwrr = calculate_money_weighted_annual_return(result)
+        assert mwrr == pytest.approx(0.12, rel=1e-3)
+
+    def test_money_weighted_return_handles_monthly_contributions(self):
+        annual_rate = 0.12
+        dates = pd.date_range("2021-01-04", "2023-01-04", freq="D")
+        closes = [100.0 * ((1 + annual_rate) ** (i / 365.25)) for i in range(len(dates))]
+        prices = _prices({"0050.TW": closes}, start="2021-01-04")
+        result = run_combined(prices, {"0050.TW": 1.0},
+                              "2021-01-04", "2023-01-04",
+                              initial_investment=10_000,
+                              monthly_contribution=1_000)
+
+        mwrr = calculate_money_weighted_annual_return(result)
+        assert mwrr == pytest.approx(annual_rate, rel=1e-3)
+
+    def test_annual_returns_neutralize_monthly_contributions(self):
+        prices = _prices({"0050.TW": [100.0] * 365}, start="2021-01-04")
+        result = run_combined(prices, {"0050.TW": 1.0},
+                              "2021-01-04", "2022-01-03",
+                              initial_investment=10_000,
+                              monthly_contribution=1_000)
+
+        annual = calculate_annual_returns(result)
+        assert annual["annual_return"].abs().max() == pytest.approx(0.0, abs=1e-9)
 
 
 # ── USD → TWD FX conversion ───────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 # Tests 說明
 
+最後更新：2026-07-02
+
 `tests/` 是 Passive Portfolio Lab 的自動化測試資料夾。這裡的測試保護四個高風險區塊：金融計算、TWD-based 回測 / FIRE 邏輯、GitHub Web 的 `ppl-data.js` 資料契約，以及 Asset Profiles / Web Scraping Showcase 的 schema、export 與 Streamlit loader。
 
 所有測試都必須能在本機離線執行。BigQuery、Yahoo Finance、FRED、Gemini 等外部服務不能在測試中真的被呼叫；需要資料時使用 fixtures 或 mock。
@@ -58,7 +60,7 @@ tests/
 |---|---|---|
 | `conftest.py` | 共用路徑設定與 fixtures，確保測試可匯入 `streamlit_dashboard` 與 `github_web/scripts` | 必要 |
 | `export/test_export_web_data.py` | `PPL_ASSETS`、`PPL_PRICE_HISTORY`、`PPL_FX_RATE`、`PPL_HISTORY_UPDATED_AT` 的輸出契約 | 必要 |
-| `processing/test_backtest.py` | `run_combined()` 的 lump-sum、DCA timing、USD to TWD FX conversion、mixed portfolio、ticker validation | 必要 |
+| `processing/test_backtest.py` | `run_combined()` 的 lump-sum、DCA timing、MWRR、年度報酬、USD to TWD FX conversion、mixed portfolio、ticker validation | 必要 |
 | `processing/test_drawdown_events.py` | 回撤 episode 偵測、peak / trough / recovery、min-depth filter、top N、歷史事件標籤 | 必要 |
 | `processing/test_fire_calculator.py` | years-to-FIRE、projection structure、nominal / inflation-adjusted timeline、edge cases | 必要 |
 | `processing/test_metrics.py` | CAGR、volatility、max drawdown、Sharpe ratio、worst year 與 edge cases | 必要 |
@@ -96,7 +98,7 @@ tests/
 5. 已測試 summary、issuer、dividendPolicy 等文字欄位不含可執行 HTML / script。
 6. 已測試 GitHub Web JS export 可被前端安全讀取。
 7. 已測試 Streamlit loader 在缺資料或壞資料時回傳 fallback。
-8. 實際結果：`python3 -m pytest tests/` 為 121 passed。
+8. 實際結果：`python3 -m pytest tests/` 為 136 passed。
 
 ## 本機產物
 

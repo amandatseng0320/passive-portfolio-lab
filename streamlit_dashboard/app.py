@@ -17,7 +17,12 @@ from collections import defaultdict
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 from dotenv import load_dotenv
 from src.processing.screening import get_all_candidates
-from src.processing.backtest import run_backtest, load_prices_for_tickers
+from src.processing.backtest import (
+    calculate_annual_returns,
+    calculate_money_weighted_annual_return,
+    run_backtest,
+    load_prices_for_tickers,
+)
 from src.processing.fire_calculator import calculate_fire
 from src.processing.drawdown_events import identify_drawdown_events, MARKET_EVENTS
 from src.asset_profiles.loader import get_asset_profile
@@ -162,8 +167,8 @@ ZH_TW = {
     "Fall Time": "下跌時間",
     "Recovery Time": "恢復時間",
     "Historical Context": "歷史背景",
-    "Based on your allocation's historical CAGR, estimate when you can reach financial independence.": "根據配置的歷史 CAGR，估算你何時能達成財務自由。",
-    "Using backtest CAGR:": "使用回測 CAGR：",
+    "Based on your allocation's historical annual return, estimate when you can reach financial independence.": "根據配置的歷史年化報酬，估算你何時能達成財務自由。",
+    "Using backtest MWRR:": "使用回測 MWRR：",
     "Using portfolio weighted CAGR:": "使用投資組合加權 CAGR：",
     "Adjust the parameters below. Risk Level is carried over from your Risk Allocation.": "調整下方參數。風險等級會沿用風險配置區塊的設定。",
     "Annual Expenses (NT$)": "年度支出 (NT$)",
@@ -177,7 +182,7 @@ ZH_TW = {
     "All calculations in New Taiwan Dollar": "所有計算皆以新台幣進行",
     "About the 4% Rule (Trinity Study)": "關於 4% 法則（Trinity Study）",
     "Calculating FIRE projection...": "正在計算 FIRE 預測...",
-    "CAGR Used": "採用 CAGR",
+    "Annual Return Used": "採用年化報酬",
     "Years to FIRE (Nominal)": "距離 FIRE 年數（名目）",
     "Years to FIRE (Real)": "距離 FIRE 年數（實質）",
     "Inflation Applied": "套用通膨率",
@@ -215,7 +220,7 @@ def fmt_years(value) -> str:
 COST_SCENARIO_RATES: tuple[float, float] = (0.005, 0.01)
 
 def cost_adjusted_cagr(cagr: float, annual_cost: float) -> float:
-    """Return a conservative reference CAGR after a generic annual cost scenario."""
+    """Return a conservative annual-return reference after generic annual costs."""
     return max(cagr - annual_cost, -0.99)
 
 def estimate_fire_years_for_cagr(
@@ -744,7 +749,7 @@ Analyze the following portfolio and provide exactly 3-5 concise bullet points of
 Financial Context:
 - Current Portfolio: {allocation_str}
 - Risk Level: {risk_level}
-- Historical Performance: {cagr_bt*100:.1f}% CAGR, {max_drawdown*100:.1f}% Max Drawdown, {total_return:.1f}x Total Return
+- Historical Performance: {cagr_bt*100:.1f}% money-weighted annual return, {max_drawdown*100:.1f}% Max Drawdown, {total_return:.1f}x Total Return
 - FIRE Target: NT${fire_target:,}
 - Years to FIRE (Real): {fire_years:.1f}
 - Current Stats: Initial NT${initial_cap:,.0f}, Monthly Contribution NT${monthly_cont:,.0f}, Annual Expenses NT${annual_exp:,.0f}
@@ -1709,8 +1714,7 @@ else:
             final_val = result_df['portfolio_value'].iloc[-1]
             total_inv = result_df['total_invested'].iloc[-1]
             total_ret = result_df['total_return_pct'].iloc[-1]
-            years = (pd.to_datetime(end_bt) - pd.to_datetime(start_bt)).days / 365.0
-            cagr_bt = (final_val / total_inv) ** (1 / years) - 1 if years > 0 and total_inv > 0 else 0.0
+            cagr_bt = calculate_money_weighted_annual_return(result_df)
             st.session_state['backtest_cagr'] = cagr_bt
             st.session_state['backtest_total_return'] = total_ret
 
@@ -1724,20 +1728,21 @@ else:
             m2.metric(tr("Total Invested"), f"{cs}{disp_inv:,.0f}")
             m3.metric(tr("Total Return"), f"{total_ret:.1f}%")
             m4.metric(
-                "CAGR",
+                "MWRR",
                 f"{cagr_bt:.1%}",
-                help="This is the actual annualized return of your portfolio over the backtest period, "
-                     "calculated in TWD. USD-denominated assets are converted using historical exchange rates, "
-                     "so currency fluctuations are included. This may differ from the Weighted CAGR shown "
-                     "in Risk Allocation, which uses each asset's native-currency historical average."
+                help="This is the money-weighted annualized return of your portfolio over the backtest period, "
+                     "calculated in TWD and adjusted for the timing of monthly contributions. "
+                     "USD-denominated assets are converted using historical exchange rates, so currency "
+                     "fluctuations are included. This may differ from the Weighted CAGR shown in Risk "
+                     "Allocation, which uses each asset's native-currency historical average."
             )
             st.caption(
                 tr(
                     f"Cost scenario reference: if trading, tax, and FX-related costs are estimated at "
-                    f"0.5% / 1.0% per year, reference CAGR would be approximately "
+                    f"0.5% / 1.0% per year, reference annual return would be approximately "
                     f"{format_cost_cagr_reference(cagr_bt)}.",
                     f"成本情境參考：若交易、稅務與換匯等成本以年化 0.5% / 1.0% 估算，"
-                    f"參考 CAGR 約為 {format_cost_cagr_reference(cagr_bt)}。",
+                    f"參考年化報酬約為 {format_cost_cagr_reference(cagr_bt)}。",
                 )
             )
             st.caption(cost_scope_note())
@@ -1796,10 +1801,10 @@ else:
                 f"Starting with {cs}{disp_inv:,.0f}, "
                 f"your portfolio would have grown to {cs}{disp_final:,.0f} — "
                 f"a gain of {cs}{disp_gain:,.0f} "
-                f"({total_ret:.1f}%) over the period, equivalent to a {cagr_bt:.1%} annualized return."
+                f"({total_ret:.1f}%) over the period, equivalent to a {cagr_bt:.1%} money-weighted annualized return."
                 ),
                 f"從 {cs}{disp_inv:,.0f} 開始，你的投資組合會成長到 {cs}{disp_final:,.0f}，"
-                f"期間增加 {cs}{disp_gain:,.0f}（{total_ret:.1f}%），約等於 {cagr_bt:.1%} 的年化報酬率。"
+                f"期間增加 {cs}{disp_gain:,.0f}（{total_ret:.1f}%），約等於 {cagr_bt:.1%} 的資金加權年化報酬率。"
             )
             st.markdown(
                 f'<div style="background-color:#e8f4f8; padding:12px 16px; border-radius:8px; '
@@ -1879,12 +1884,7 @@ else:
                     )
 
             st.subheader(tr("Annual Returns"))
-            result_df['year'] = pd.to_datetime(result_df['date']).dt.year
-            annual = result_df.groupby('year').apply(
-                lambda x: (x['portfolio_value'].iloc[-1] / x['portfolio_value'].iloc[0] - 1) * 100
-                if x['portfolio_value'].iloc[0] > 0 else float('nan'), include_groups=False
-            ).reset_index(name='annual_return')
-            annual = annual[annual['annual_return'].notna() & ~annual['annual_return'].isin([float('inf'), float('-inf')])]
+            annual = calculate_annual_returns(result_df)
             colors_annual = ['#F44336' if r < 0 else '#4CAF50' for r in annual['annual_return']]
             bar_fig = go.Figure()
             bar_fig.add_trace(go.Bar(
@@ -1922,7 +1922,7 @@ st.divider()
 
 st.markdown("<div id='fire-calculator' style='padding-top: 70px; margin-top: -70px; pointer-events: none;'></div>", unsafe_allow_html=True)
 st.title(tr("FIRE Calculator"))
-st.caption(tr("Based on your allocation's historical CAGR, estimate when you can reach financial independence."))
+st.caption(tr("Based on your allocation's historical annual return, estimate when you can reach financial independence."))
 
 if not st.session_state.get('portfolio_confirmed', False):
     st.info("ℹ️ " + tr("Confirm your portfolio in **Correlation Analysis** above to unlock this section."))
@@ -1940,8 +1940,8 @@ bt_params = st.session_state.get('bt_params', {})
 risk_from_allocation = st.session_state.get('risk_pref', 'Medium')
 
 if st.session_state.get('backtest_cagr') is not None:
-    st.success(tr(f"Using backtest CAGR: **{portfolio_cagr:.2%}** (from your Backtest results)",
-                  f"使用回測 CAGR：**{portfolio_cagr:.2%}**（來自你的回測結果）"))
+    st.success(tr(f"Using backtest MWRR: **{portfolio_cagr:.2%}** (from your Backtest results)",
+                  f"使用回測 MWRR：**{portfolio_cagr:.2%}**（來自你的回測結果）"))
 elif portfolio_cagr:
     st.success(tr(f"Using portfolio weighted CAGR: **{portfolio_cagr:.2%}** (from your Risk Allocation)",
                   f"使用投資組合加權 CAGR：**{portfolio_cagr:.2%}**（來自風險配置）"))
@@ -2111,7 +2111,7 @@ with st.spinner(tr("Calculating FIRE projection...")):
 
         display_cagr = st.session_state.get('backtest_cagr', annual_cagr)
         f1, f2, f3, f4 = st.columns(4)
-        f1.metric(tr("CAGR Used"), f"{display_cagr:.2%}")
+        f1.metric(tr("Annual Return Used"), f"{display_cagr:.2%}")
         f2.metric(tr("Years to FIRE (Nominal)"), fmt_years(years_to_fire))
         f3.metric(tr("Years to FIRE (Real)"), fmt_years(real_fire_year))
         f4.metric(tr("Inflation Applied"), f"{inflation_rate:.1%}")

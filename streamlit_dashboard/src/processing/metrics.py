@@ -86,11 +86,23 @@ def calculate_metrics(df: pd.DataFrame) -> pd.DataFrame:
                     
             # Worst Year
             t_df['year'] = t_df['date'].dt.year
-            yearly_returns = t_df.groupby('year').apply(
-                lambda x: (x['close'].iloc[-1] - x['close'].iloc[0]) / x['close'].iloc[0],
-                include_groups=False,
-            ).reset_index(name='return')
-            
+            yearly_returns = (
+                t_df.groupby('year', as_index=False)
+                .agg(first_close=('close', 'first'), last_close=('close', 'last'))
+            )
+            with np.errstate(invalid='ignore', divide='ignore'):
+                yearly_returns['return'] = (
+                    yearly_returns['last_close'] - yearly_returns['first_close']
+                ) / yearly_returns['first_close']
+            yearly_returns = (
+                yearly_returns
+                .replace([np.inf, -np.inf], np.nan)
+                .dropna(subset=['return'])
+            )
+            if yearly_returns.empty:
+                print(f"No valid yearly returns to calculate worst year for {ticker}")
+                continue
+
             worst_row = yearly_returns.loc[yearly_returns['return'].idxmin()]
             worst_year = float(worst_row['return'])
             worst_year_label = int(worst_row['year'])

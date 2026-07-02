@@ -1,5 +1,7 @@
 # Streamlit Dashboard 說明
 
+最後更新：2026-07-02
+
 `streamlit_dashboard/` 是 Passive Portfolio Lab 的互動式研究介面，也是目前 Streamlit Cloud 的正式部署入口。使用者可在這裡完成資產篩選、相關性檢查、風險配置、TWD-based 回測、FIRE 試算與 AI 投資組合摘要。
 
 線上版本：
@@ -113,7 +115,7 @@ APP_PASSWORD=your-password
 | Risk Allocation | 依 Low / Medium / High / Extreme High 風險層級配置權重 |
 | TWD Backtest | 使用 initial investment + monthly contribution 模型回測 portfolio value |
 | Drawdown Analysis | 顯示最大回撤、回撤曲線與主要歷史事件 |
-| FIRE Calculator | 依年度支出、withdrawal rate、通膨與 CAGR 推估 FIRE timeline |
+| FIRE Calculator | 依年度支出、withdrawal rate、通膨與回測 MWRR 或 weighted CAGR 推估 FIRE timeline |
 | Gemini AI Insights | 產生投資組合結構、回撤、FIRE 與行為風險摘要 |
 | Asset Profiles / Web Scraping Showcase | 在「投資組合組成」點進單一資產時展示 ETF / crypto 補充資訊 |
 
@@ -127,7 +129,7 @@ APP_PASSWORD=your-password
 | `src/asset_profiles/` | Streamlit asset profile loader package | 由 `data/README.md` 維護 pipeline 與資料契約 |
 | `src/processing/screening.py` | 固定策展資產池、ticker metadata、ticker whitelist | 必要 |
 | `src/processing/metrics.py` | 資產 CAGR、volatility、max drawdown、Sharpe、worst year 計算 | 必要 |
-| `src/processing/backtest.py` | TWD-based combined backtest，引入 initial / monthly contribution 與 FX conversion | 必要 |
+| `src/processing/backtest.py` | TWD-based combined backtest，引入 initial / monthly contribution、MWRR、年度報酬與 FX conversion | 必要 |
 | `src/processing/drawdown_events.py` | 回撤 episode 偵測與歷史事件標籤 | 必要 |
 | `src/processing/fire_calculator.py` | FIRE target、years-to-FIRE、nominal / real projection | 必要 |
 | `src/processing/utils.py` | BigQuery identifier validation、upload helper、Yahoo request headers | 必要 |
@@ -137,6 +139,7 @@ APP_PASSWORD=your-password
 - 台股 ETF 以 TWD 計算。
 - 美股 ETF 與 crypto 會透過歷史 TWD/USD 匯率轉換成 TWD。
 - Portfolio-level backtest、FIRE 與金額輸入都以 TWD 為主。
+- Backtest 的年化報酬採 MWRR，會納入每月投入的時間點；年度報酬扣除投入影響後計算。
 - TWD/USD 匯率來自 Yahoo Finance `TWD=X`。
 - FIRE 通膨率優先使用 FRED CPI YoY；未設定 API key 時使用 2.5% fallback。
 
