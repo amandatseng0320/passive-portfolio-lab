@@ -171,6 +171,83 @@ CoinMarketCap API 或其他行情 API。ETF 來源優先使用官方發行商 ET
 | 測試 | pytest、pytest-mock |
 | 資安掃描 | Bandit、pip-audit |
 
+## 所有資料來源
+
+本專案資料來源分為「行情與宏觀 API」、「公開 HTML 網頁爬蟲」與「內部資料倉儲」。API 主要用於價格、匯率與通膨資料；公開 HTML 網頁爬蟲主要用於 ETF / crypto 標的基本資料、發行資訊與費用率；BigQuery 用於保存清理後資料與提供 Streamlit、GitHub Web、Looker Studio 後續分析使用。
+
+### 行情與宏觀 API
+
+| 用途 | 實際來源 |
+|---|---|
+| 37 個資產歷史價格 | `https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&period1=0&period2={end_ts}` |
+| Streamlit 即時價格與成交量 | `https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=5d` |
+| TWD/USD 歷史匯率 | `https://query1.finance.yahoo.com/v8/finance/chart/TWD=X?interval=1d&period1={start_ts}&period2={end_ts}` |
+| Streamlit 即時 TWD/USD 顯示匯率 | `https://query1.finance.yahoo.com/v8/finance/chart/TWD=X?interval=1d&range=5d` |
+| FIRE 通膨假設 US CPI YoY | `https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&api_key={FRED_API_KEY}&sort_order=desc&limit=13&file_type=json` |
+
+### 內部資料倉儲
+
+| 用途 | 來源或資料表 |
+|---|---|
+| 原始價格資料 | Google BigQuery `raw_prices` |
+| 資產指標資料 | Google BigQuery `asset_metrics` |
+| Looker Studio asset views | Google BigQuery `looker_asset_metrics`、`looker_price_history`、`looker_annual_returns`、`looker_category_summary` |
+| Looker Studio portfolio tables | Google BigQuery `looker_portfolio_allocations`、`looker_portfolio_metrics`、`looker_portfolio_history`、`looker_portfolio_annual_returns`、`looker_portfolio_drawdown_events`、`looker_fire_scenarios`、`looker_fire_projection` |
+| GitHub Web 靜態資料 | `github_web/src/ppl-data.js`、`github_web/src/ppl-asset-profiles.js` |
+| Asset Profiles 共用資料 | `data/asset_profiles/asset_profiles.json` |
+
+### 台灣 ETF 公開 HTML 網頁爬蟲來源
+
+| 標的 | 標的基本資料來源 | 費用率來源 |
+|---|---|---|
+| `0050.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0050](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0050) | [https://www.etfinfo.tw/etf/0050](https://www.etfinfo.tw/etf/0050) |
+| `0056.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0056](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0056) | [https://www.etfinfo.tw/etf/0056](https://www.etfinfo.tw/etf/0056) |
+| `00878.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00878](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00878) | [https://www.etfinfo.tw/etf/00878](https://www.etfinfo.tw/etf/00878) |
+| `00919.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00919](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00919) | [https://www.capitalfund.com.tw/etf/product/detail/195/basic](https://www.capitalfund.com.tw/etf/product/detail/195/basic) |
+| `006208.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/006208](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/006208) | [https://www.etfinfo.tw/etf/006208](https://www.etfinfo.tw/etf/006208) |
+| `00937B.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00937B](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00937B) | [https://www.capitalfund.com.tw/etf/product/detail/378/basic](https://www.capitalfund.com.tw/etf/product/detail/378/basic) |
+| `00679B.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00679B](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00679B) | [https://www.yuantaetf.com/product/detail/00679B/Basic_information](https://www.yuantaetf.com/product/detail/00679B/Basic_information) |
+| `00751B.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00751B](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00751B) | [https://www.yuantaetf.com/product/detail/00751B/Basic_information](https://www.yuantaetf.com/product/detail/00751B/Basic_information) |
+| `0052.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0052](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0052) | [https://www.etfinfo.tw/etf/0052](https://www.etfinfo.tw/etf/0052) |
+| `00929.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00929](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00929) | [https://www.etfinfo.tw/etf/00929](https://www.etfinfo.tw/etf/00929) |
+| `00713.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00713](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00713) | [https://www.etfinfo.tw/etf/00713](https://www.etfinfo.tw/etf/00713) |
+| `00952.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00952](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00952) | [https://www.etfinfo.tw/etf/00952](https://www.etfinfo.tw/etf/00952) |
+| `00646.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00646](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00646) | [https://www.etfinfo.tw/etf/00646](https://www.etfinfo.tw/etf/00646) |
+| `00955.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00955](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00955) | [https://school.gugu.fund/ai/answer/00955%E4%B8%AD-5-655118](https://school.gugu.fund/ai/answer/00955%E4%B8%AD-5-655118) |
+
+### 美國 ETF 官方 HTML 來源
+
+| 標的 | 標的基本資料與費用率來源 |
+|---|---|
+| `VOO` | [https://investor.vanguard.com/investment-products/etfs/profile/voo](https://investor.vanguard.com/investment-products/etfs/profile/voo) |
+| `IVV` | [https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf](https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf) |
+| `SPY` | [https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy](https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy) |
+| `VTI` | [https://investor.vanguard.com/investment-products/etfs/profile/vti](https://investor.vanguard.com/investment-products/etfs/profile/vti) |
+| `QQQ` | [https://www.invesco.com/qqq-etf/en/home.html](https://www.invesco.com/qqq-etf/en/home.html) |
+| `VUG` | [https://investor.vanguard.com/investment-products/etfs/profile/vug](https://investor.vanguard.com/investment-products/etfs/profile/vug) |
+| `VEA` | [https://investor.vanguard.com/investment-products/etfs/profile/vea](https://investor.vanguard.com/investment-products/etfs/profile/vea) |
+| `IEFA` | [https://www.ishares.com/us/products/244049/ishares-core-msci-eafe-etf](https://www.ishares.com/us/products/244049/ishares-core-msci-eafe-etf) |
+| `VTV` | [https://investor.vanguard.com/investment-products/etfs/profile/vtv](https://investor.vanguard.com/investment-products/etfs/profile/vtv) |
+| `GLD` | [https://www.ssga.com/us/en/intermediary/etfs/spdr-gold-shares-gld](https://www.ssga.com/us/en/intermediary/etfs/spdr-gold-shares-gld) |
+| `BND` | [https://investor.vanguard.com/investment-products/etfs/profile/bnd](https://investor.vanguard.com/investment-products/etfs/profile/bnd) |
+| `IEMG` | [https://www.ishares.com/us/products/244050/ishares-core-msci-emerging-markets-etf](https://www.ishares.com/us/products/244050/ishares-core-msci-emerging-markets-etf) |
+| `VXUS` | [https://investor.vanguard.com/investment-products/etfs/profile/vxus](https://investor.vanguard.com/investment-products/etfs/profile/vxus) |
+| `AGG` | [https://www.ishares.com/us/products/239458/ishares-core-us-aggregate-bond-etf](https://www.ishares.com/us/products/239458/ishares-core-us-aggregate-bond-etf) |
+| `IEF` | [https://www.ishares.com/us/products/239456/ishares-7-10-year-treasury-bond-etf](https://www.ishares.com/us/products/239456/ishares-7-10-year-treasury-bond-etf) |
+
+### 加密貨幣官方 HTML 來源
+
+| 標的 | 官方來源 |
+|---|---|
+| `BTC-USD` | [https://bitcoin.org/en/](https://bitcoin.org/en/) |
+| `ETH-USD` | [https://ethereum.org/en/](https://ethereum.org/en/) |
+| `BNB-USD` | [https://www.bnbchain.org/en](https://www.bnbchain.org/en) |
+| `XRP-USD` | [https://xrpl.org/](https://xrpl.org/) |
+| `SOL-USD` | [https://solana.com/](https://solana.com/) |
+| `TRX-USD` | [https://trondao.org/](https://trondao.org/) |
+| `DOGE-USD` | [https://dogecoin.com/](https://dogecoin.com/) |
+| `ADA-USD` | [https://cardano.org/](https://cardano.org/) |
+
 ## 專案結構
 
 ```text
