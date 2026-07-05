@@ -165,7 +165,7 @@ APP_PASSWORD=your-password
 4. Detail view 已調整為三欄一致透明框：績效數值、資產補充資訊、雷達圖；雷達圖在右欄置中。
 5. 缺資料時會顯示 fallback，不影響原本數值資料。
 6. 已補上 `tests/streamlit/test_asset_profiles_loader.py`。
-7. 已驗證 29 檔 ETF 皆有可顯示費用率，8 檔 crypto 不套用 ETF 費用率欄位。
+7. 已驗證 29 檔 ETF 皆有可顯示費用率，8 檔 crypto 不套用 ETF 費用率欄位；00679B.TWO、00751B.TWO、00955.TWO 的費率為明確標記的 curated fallback。
 8. 已驗證台股 ETF 費用率由 `managementFee + custodianFee` 計算，前端以單一費用率欄位呈現。
 9. 已完成 security scan，並更新 `CHANGELOG.md`、`SECURITY_REVIEW.md` 與本 README。
 
@@ -177,5 +177,6 @@ APP_PASSWORD=your-password
 - 修改 backtest / FIRE / metrics 公式時，要同步更新 `tests/processing/`。
 - 修改 BigQuery schema 時，要同步更新 `app.py`、`utils.py`、進化實驗室（GitHub Web）export、決策儀表板（Looker Studio）與 README。
 - 修改 asset profile schema 時，要同步更新共用 JSON、進化實驗室（GitHub Web）匯出、經典實驗室（Streamlit）loader、tests、CHANGELOG 與 SECURITY_REVIEW。
+- Asset profile live normalize 是網路 smoke，不應取代 fixture-based schema / loader / export 測試；WAF 或來源失敗時以 readiness gate 與前次乾淨資料保護前端，TWSE 真實封鎖頁文字已納入 fixture。
 - Gemini 與 password gate 都是選用功能，不能讓缺少 API key 影響核心 dashboard。
 - `__pycache__/`、`.pyc`、`.DS_Store` 等本機產物不應提交到 Git。

@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from sources import validate_source_url
+from sources import CURATED_EXPENSE_RATIO_FALLBACKS, validate_source_url
 
 
 SCHEMA_VERSION = "1.0"
@@ -88,7 +88,11 @@ def validate_profile(profile: dict[str, Any]) -> None:
             "officialExpenseRatio",
         }:
             raise ValueError(f"{profile['ticker']} has invalid expenseRatioFormula")
-        if profile.get("expenseRatioCollectionMethod") != "web_scraping":
+        collection_method = profile.get("expenseRatioCollectionMethod")
+        allowed_methods = {"web_scraping"}
+        if profile["ticker"] in CURATED_EXPENSE_RATIO_FALLBACKS:
+            allowed_methods.add("curated_fallback")
+        if collection_method not in allowed_methods:
             raise ValueError(f"{profile['ticker']} has invalid expenseRatioCollectionMethod")
 
     for key, value in profile.items():

@@ -21,13 +21,43 @@ ALLOWED_DOMAINS = {
     "www.ishares.com",
     "www.etfinfo.tw",
     "www.capitalfund.com.tw",
-    "www.pocket.tw",
     "www.spdrgoldshares.com",
     "www.ssga.com",
     "www.twse.com.tw",
     "www.yuantaetf.com",
     "school.gugu.fund",
     "xrpl.org",
+}
+
+
+CURATED_EXPENSE_RATIO_FALLBACKS = {
+    "00679B.TWO": {
+        "managementFee": "0.1%~0.12%",
+        "custodianFee": "0.04%~0.1%",
+        "expenseRatio": "0.14%~0.22%",
+        "expenseRatioFormula": "managementFee + custodianFee",
+        "expenseRatioSourceName": "Yuanta official ETF profile",
+        "expenseRatioSourceUrl": "https://www.yuantaetf.com/product/detail/00679B/Basic_information",
+        "expenseRatioCollectionMethod": "curated_fallback",
+    },
+    "00751B.TWO": {
+        "managementFee": "0.18%~0.4%",
+        "custodianFee": "0.05%~0.1%",
+        "expenseRatio": "0.23%~0.5%",
+        "expenseRatioFormula": "managementFee + custodianFee",
+        "expenseRatioSourceName": "Yuanta official ETF profile",
+        "expenseRatioSourceUrl": "https://www.yuantaetf.com/product/detail/00751B/Basic_information",
+        "expenseRatioCollectionMethod": "curated_fallback",
+    },
+    "00955.TWO": {
+        "managementFee": "0.6%",
+        "custodianFee": "0.15%",
+        "expenseRatio": "0.75%",
+        "expenseRatioFormula": "managementFee + custodianFee",
+        "expenseRatioSourceName": "Gugu public ETF fee profile",
+        "expenseRatioSourceUrl": "https://school.gugu.fund/ai/answer/00955%E4%B8%AD-5-655118",
+        "expenseRatioCollectionMethod": "curated_fallback",
+    },
 }
 
 

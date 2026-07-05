@@ -17,9 +17,10 @@ sys.path.insert(0, str(REPO_ROOT / "streamlit_dashboard"))
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from src.processing.screening import ASSET_POOL
+from blocked_pages import BLOCKED_PAGE_TERMS
 from fetch_etf_profiles import fetch_expense_ratio_components, fetch_source_summary
 from schema import SCHEMA_VERSION, sanitize_text, validate_profile, validate_profiles
-from sources import source_for_asset
+from sources import CURATED_EXPENSE_RATIO_FALLBACKS, source_for_asset
 
 
 OUTPUT = REPO_ROOT / "data" / "asset_profiles" / "asset_profiles.json"
@@ -56,11 +57,15 @@ def export_readiness_errors(profile: dict[str, Any]) -> list[str]:
     """Return profile issues that would fail the GitHub Web export gate."""
     ticker = str(profile.get("ticker", "<unknown>"))
     errors: list[str] = []
+    source_summary = str(profile.get("sourceSummary", ""))
+    source_summary_lower = source_summary.lower()
 
     if profile.get("collectionMethod") != "web_scraping":
         errors.append(f"{ticker} collectionMethod is not web_scraping")
-    if not profile.get("sourceSummary"):
+    if not source_summary:
         errors.append(f"{ticker} sourceSummary is empty")
+    if any(term in source_summary_lower for term in BLOCKED_PAGE_TERMS):
+        errors.append(f"{ticker} sourceSummary looks like a blocked page")
     if not str(profile.get("sourceUrl", "")).startswith("https://"):
         errors.append(f"{ticker} sourceUrl is not https")
 
@@ -79,8 +84,14 @@ def export_readiness_errors(profile: dict[str, Any]) -> list[str]:
         errors.append(f"{ticker} ETF expenseRatio is not materialized")
     if not str(profile.get("expenseRatioSourceUrl", "")).startswith("https://"):
         errors.append(f"{ticker} expenseRatioSourceUrl is missing")
-    if profile.get("expenseRatioCollectionMethod") != "web_scraping":
-        errors.append(f"{ticker} expenseRatioCollectionMethod is not web_scraping")
+    expected_method = "curated_fallback" if ticker in CURATED_EXPENSE_RATIO_FALLBACKS else "web_scraping"
+    if profile.get("expenseRatioCollectionMethod") != expected_method:
+        errors.append(f"{ticker} expenseRatioCollectionMethod is not {expected_method}")
+    if ticker in CURATED_EXPENSE_RATIO_FALLBACKS:
+        expected = CURATED_EXPENSE_RATIO_FALLBACKS[ticker]
+        for key in ("managementFee", "custodianFee", "expenseRatio", "expenseRatioSourceUrl"):
+            if profile.get(key) != expected[key]:
+                errors.append(f"{ticker} curated fallback {key} does not match allowlist")
     if ticker.endswith((".TW", ".TWO")):
         if profile.get("expenseRatioFormula") != "managementFee + custodianFee":
             errors.append(f"{ticker} TW ETF expenseRatioFormula is not fee component based")
@@ -191,6 +202,9 @@ def scrape_profile_summary(ticker: str, category: str) -> dict[str, str]:
 
 def scrape_expense_ratio(ticker: str, category: str) -> dict[str, str]:
     """Scrape ETF management/custodian fee fields from an approved source."""
+    if ticker in CURATED_EXPENSE_RATIO_FALLBACKS:
+        return dict(CURATED_EXPENSE_RATIO_FALLBACKS[ticker])
+
     try:
         fees = fetch_expense_ratio_components(ticker, category)
     except Exception:

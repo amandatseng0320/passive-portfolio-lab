@@ -93,28 +93,35 @@ def fetch_ticker_prices_yahoo(ticker: str, timeout: int = 30, max_retries: int =
                 continue
             raise RuntimeError(f"Failed after {max_retries} attempts: {last_err}")
 
-# 0050.TW underwent a 4:1 zero-share split (零股分割) on 2014-01-02.
-# yfinance does not record this event; we correct it manually.
-_0050_SPLIT_DATE  = "2014-01-02"
-_0050_SPLIT_RATIO = 4.0
+MANUAL_SPLIT_ADJUSTMENTS = {
+    # Yahoo does not record this 4:1 zero-share split (零股分割).
+    "0050.TW": {
+        "effective_date": "2014-01-02",
+        "ratio": 4.0,
+    },
+    # Yahoo currently exposes pre-split 0052.TW prices next to post-split prices.
+    "0052.TW": {
+        "effective_date": "2025-11-17",
+        "ratio": 7.0,
+    },
+}
 
 
 def apply_manual_adjustments(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
     """
-    Apply manual price adjustments for known issues not captured by yfinance.
-
-    0050.TW: 4:1 zero-share split on 2014-01-02. Derived from observed
-    price discontinuity (37.41 on 2013-12-31 vs 9.33 on 2014-01-02).
+    Apply manual split adjustments for known issues not captured by Yahoo.
     """
-    if ticker == '0050.TW' and not df.empty:
-        mask = df['date'] < _0050_SPLIT_DATE
+    adjustment = MANUAL_SPLIT_ADJUSTMENTS.get(ticker)
+    if adjustment and not df.empty:
+        mask = df['date'] < adjustment["effective_date"]
+        ratio = float(adjustment["ratio"])
 
         for col in ['open', 'high', 'low', 'close']:
             if col in df.columns:
-                df.loc[mask, col] = (df.loc[mask, col] / _0050_SPLIT_RATIO).astype(float).round(6)
+                df.loc[mask, col] = (df.loc[mask, col] / ratio).astype(float).round(6)
 
         if 'volume' in df.columns:
-            df.loc[mask, 'volume'] = (df.loc[mask, 'volume'] * _0050_SPLIT_RATIO).astype('int64')
+            df.loc[mask, 'volume'] = (df.loc[mask, 'volume'] * ratio).astype('int64')
 
     return df
 

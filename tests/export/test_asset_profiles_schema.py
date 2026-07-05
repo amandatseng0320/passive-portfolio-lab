@@ -23,7 +23,7 @@ if str(STREAMLIT_DIR) not in sys.path:
     sys.path.insert(0, str(STREAMLIT_DIR))
 
 from schema import SCHEMA_VERSION, validate_profiles, sanitize_text
-from sources import is_allowed_url
+from sources import CURATED_EXPENSE_RATIO_FALLBACKS, is_allowed_url
 from src.processing.screening import ASSET_POOL
 
 
@@ -77,7 +77,12 @@ def test_all_etf_expense_ratios_are_materialized(asset_profile_payload):
         assert "約" not in expense_ratio
         assert "+" not in expense_ratio
         assert profiles[ticker]["expenseRatioSourceUrl"].startswith("https://")
-        assert profiles[ticker]["expenseRatioCollectionMethod"] == "web_scraping"
+        expected_method = (
+            "curated_fallback"
+            if ticker in CURATED_EXPENSE_RATIO_FALLBACKS
+            else "web_scraping"
+        )
+        assert profiles[ticker]["expenseRatioCollectionMethod"] == expected_method
 
 
 def test_tw_etf_expense_ratio_is_management_plus_custodian_fee(asset_profile_payload):
@@ -92,6 +97,20 @@ def test_tw_etf_expense_ratio_is_management_plus_custodian_fee(asset_profile_pay
         assert profile["managementFee"]
         assert profile["custodianFee"]
         assert profile["expenseRatioFormula"] == "managementFee + custodianFee"
+
+
+def test_curated_expense_ratio_fallbacks_are_allowlisted(asset_profile_payload):
+    profiles = {profile["ticker"]: profile for profile in asset_profile_payload["profiles"]}
+    curated_tickers = {
+        ticker
+        for ticker, profile in profiles.items()
+        if profile.get("expenseRatioCollectionMethod") == "curated_fallback"
+    }
+    assert curated_tickers == set(CURATED_EXPENSE_RATIO_FALLBACKS)
+    for ticker, expected in CURATED_EXPENSE_RATIO_FALLBACKS.items():
+        profile = profiles[ticker]
+        for key, value in expected.items():
+            assert profile[key] == value
 
 
 def test_crypto_profiles_do_not_require_fund_expense_ratio(asset_profile_payload):

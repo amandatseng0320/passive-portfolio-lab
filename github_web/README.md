@@ -85,12 +85,12 @@ github_web/src/ppl-asset-profiles.js
 
 - ETF：基本簡介、發行商、費用率、配息政策 / 配息頻率、資料來源。29 檔 ETF
   皆需顯示可讀費用率，不得退回 `See source profile`、`約` 或 `+` 這類不明確文字。
-  台股 ETF 的經理費與保管費會以括號補充在同一個「費用率」欄位內，不額外拆成多個費用欄位。
+  台股 ETF 的經理費與保管費會以括號補充在同一個「費用率」欄位內，不額外拆成多個費用欄位；00679B.TWO、00751B.TWO、00955.TWO 的費率使用明確標記的 curated fallback。
 - Crypto：基本簡介、類別、區塊鏈、發行商 / 去中心化狀態、共識機制、資料來源。
 
 Asset profile 資料線使用公開 HTML 頁面爬蟲，不使用 Yahoo Finance REST API、
 CoinMarketCap API 或其他行情 API。ETF 來源優先使用官方發行商 ETF profile 頁
-或 TWSE ETFortune 公開 ETF 資訊頁；crypto 來源優先使用官方網站或官方公開資料頁。
+或 TWSE ETFortune 公開 ETF 資訊頁；crypto 來源優先使用官方網站或官方公開資料頁。爬蟲維持標準 TLS 驗證；WAF / 封鎖頁污染會被 readiness gate 阻擋，並以 TWSE 真實封鎖頁 fixture 回歸測試。
 
 實作狀態：
 
@@ -101,13 +101,13 @@ CoinMarketCap API 或其他行情 API。ETF 來源優先使用官方發行商 ET
 5. 已在 `landing.html` 功能亮點加入「資產補充資訊 / Web Scraping Showcase」。
 6. 已補上 `tests/export/test_asset_profiles_schema.py` 與 `tests/export/test_asset_profiles_export.py`。
 7. 已驗證 37 個 asset profile 皆為 `collectionMethod = "web_scraping"`。
-8. 已驗證 29 檔 ETF 皆有可顯示費用率，8 檔 crypto 不套用 ETF 費用率欄位。
+8. 已驗證 29 檔 ETF 皆有可顯示費用率，8 檔 crypto 不套用 ETF 費用率欄位；三檔台股 ETF 費率為 curated fallback。
 9. 已驗證台股 ETF 費用率由 `managementFee + custodianFee` 計算，前端以單一費用率欄位呈現。
 10. 已完成 security scan，並更新 `CHANGELOG.md` 與 `SECURITY_REVIEW.md`。
 
 目前狀態：**已完成第一版，GitHub Actions 會產生並驗證 asset profile 靜態資料。**
 
-2026-07-05 重掃結果：`python3 github_web/scripts/validate_export.py` 已在資料刷新後通過，`ppl-data.js` 目前包含 37 個 assets，顯示匯率為 FX=31.57。
+2026-07-05 重掃結果：`python3 github_web/scripts/validate_export.py` 已在資料刷新後通過，`ppl-data.js` 目前包含 37 個 assets，顯示匯率為 FX=31.92。驗證包含 required globals、freshness、FX range、asset profile readiness 與類別分級 price cliff gate。
 
 ## 部署流程
 
@@ -161,7 +161,7 @@ python github_web/scripts/export_web_data.py
 
 ## 維護注意事項
 
-- 若修改 `ppl-data.js` schema，需同步更新 `scripts/export_web_data.py`、`scripts/validate_export.py` 與 `tests/export/test_export_web_data.py`。
+- 若修改 `ppl-data.js` schema，需同步更新 `scripts/export_web_data.py`、`scripts/validate_export.py`、price cliff gate 與 `tests/export/test_export_web_data.py` / `tests/export/test_validate_export.py`。
 - 若新增或修改 asset profile schema，需同步更新 `data/README.md`、`scripts/asset_intelligence/`、`src/ppl-asset-profiles.js`、進化實驗室 UI、經典實驗室 loader 與測試。
 - 若新增資產，需先確認 BigQuery 有價格資料，再執行 backfill / export。
 - `.DS_Store`、`__pycache__/`、`.pyc` 等本機產物不應提交到 Git。

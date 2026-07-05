@@ -153,7 +153,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioFormula": "managementFee + custodianFee",
     "expenseRatioSourceName": "Yuanta official ETF profile",
     "expenseRatioSourceUrl": "https://www.yuantaetf.com/product/detail/00679B/Basic_information",
-    "expenseRatioCollectionMethod": "web_scraping",
+    "expenseRatioCollectionMethod": "curated_fallback",
     "dividendPolicy": "Income-oriented bond ETF; verify frequency from source profile"
   },
   "00751B.TWO": {
@@ -175,7 +175,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioFormula": "managementFee + custodianFee",
     "expenseRatioSourceName": "Yuanta official ETF profile",
     "expenseRatioSourceUrl": "https://www.yuantaetf.com/product/detail/00751B/Basic_information",
-    "expenseRatioCollectionMethod": "web_scraping",
+    "expenseRatioCollectionMethod": "curated_fallback",
     "dividendPolicy": "Dividend-focused strategy; verify frequency from source profile"
   },
   "0052.TW": {
@@ -307,7 +307,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioFormula": "managementFee + custodianFee",
     "expenseRatioSourceName": "Gugu public ETF fee profile",
     "expenseRatioSourceUrl": "https://school.gugu.fund/ai/answer/00955%E4%B8%AD-5-655118",
-    "expenseRatioCollectionMethod": "web_scraping",
+    "expenseRatioCollectionMethod": "curated_fallback",
     "dividendPolicy": "Distribution policy listed in source profile"
   },
   "VOO": {

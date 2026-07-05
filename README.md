@@ -131,11 +131,11 @@ FIRE Target = Annual Expenses / Withdrawal Rate
 
 專案已建立 asset profiles 資料層，透過網頁爬蟲資料管線與資料正規化流程整理 ETF 與加密貨幣的補充資訊，例如基本簡介、發行商、費用率、配息政策、加密貨幣類別、區塊鏈與資料來源。費用率只適用於 ETF；目前 29 檔 ETF 皆已輸出可顯示費用率，8 檔 crypto 則改顯示鏈別、發行 / 治理與共識機制。
 
-台股 ETF 的費用率定義為 `經理費 + 保管費`；前端只顯示一個「費用率」欄位，並在括號內標注其包含的經理費與保管費。美股 ETF 若官方頁直接揭露 official / gross expense ratio，則直接採用官方費用率。
+台股 ETF 的費用率定義為 `經理費 + 保管費`；前端只顯示一個「費用率」欄位，並在括號內標注其包含的經理費與保管費。美股 ETF 若官方頁直接揭露 official / gross expense ratio，則直接採用官方費用率。00679B.TWO、00751B.TWO、00955.TWO 的費率目前標記為 curated fallback，保留公開來源 URL 作為出處，但不再依賴 TLS 驗證失敗或 404 的 live scrape。
 
 這條資料線使用公開 HTML 頁面爬蟲，不使用 Yahoo Finance REST API、
 CoinMarketCap API 或其他行情 API。ETF 來源優先使用官方發行商 ETF profile
-頁或 TWSE ETFortune 公開 ETF 資訊頁；crypto 來源優先使用官方網站或官方公開資料頁。
+頁或 TWSE ETFortune 公開 ETF 資訊頁；crypto 來源優先使用官方網站或官方公開資料頁。爬蟲維持標準 TLS 驗證，若遇到 WAF / 封鎖頁污染，包含 TWSE 的 `FOR SECURITY REASONS...CAN NOT BE ACCESSED` 封鎖頁，normalize 與 export readiness gate 會 fail closed 或沿用前次乾淨資料。
 
 這條資料線目前支援：
 
@@ -195,14 +195,14 @@ CoinMarketCap API 或其他行情 API。ETF 來源優先使用官方發行商 ET
 | `00919.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00919](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00919) | [https://www.capitalfund.com.tw/etf/product/detail/195/basic](https://www.capitalfund.com.tw/etf/product/detail/195/basic) |
 | `006208.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/006208](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/006208) | [https://www.etfinfo.tw/etf/006208](https://www.etfinfo.tw/etf/006208) |
 | `00937B.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00937B](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00937B) | [https://www.capitalfund.com.tw/etf/product/detail/378/basic](https://www.capitalfund.com.tw/etf/product/detail/378/basic) |
-| `00679B.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00679B](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00679B) | [https://www.yuantaetf.com/product/detail/00679B/Basic_information](https://www.yuantaetf.com/product/detail/00679B/Basic_information) |
-| `00751B.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00751B](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00751B) | [https://www.yuantaetf.com/product/detail/00751B/Basic_information](https://www.yuantaetf.com/product/detail/00751B/Basic_information) |
+| `00679B.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00679B](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00679B) | Curated fallback from [https://www.yuantaetf.com/product/detail/00679B/Basic_information](https://www.yuantaetf.com/product/detail/00679B/Basic_information) |
+| `00751B.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00751B](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00751B) | Curated fallback from [https://www.yuantaetf.com/product/detail/00751B/Basic_information](https://www.yuantaetf.com/product/detail/00751B/Basic_information) |
 | `0052.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0052](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0052) | [https://www.etfinfo.tw/etf/0052](https://www.etfinfo.tw/etf/0052) |
 | `00929.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00929](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00929) | [https://www.etfinfo.tw/etf/00929](https://www.etfinfo.tw/etf/00929) |
 | `00713.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00713](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00713) | [https://www.etfinfo.tw/etf/00713](https://www.etfinfo.tw/etf/00713) |
 | `00952.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00952](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00952) | [https://www.etfinfo.tw/etf/00952](https://www.etfinfo.tw/etf/00952) |
 | `00646.TW` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00646](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00646) | [https://www.etfinfo.tw/etf/00646](https://www.etfinfo.tw/etf/00646) |
-| `00955.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00955](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00955) | [https://school.gugu.fund/ai/answer/00955%E4%B8%AD-5-655118](https://school.gugu.fund/ai/answer/00955%E4%B8%AD-5-655118) |
+| `00955.TWO` | [https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00955](https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00955) | Curated fallback from [https://school.gugu.fund/ai/answer/00955%E4%B8%AD-5-655118](https://school.gugu.fund/ai/answer/00955%E4%B8%AD-5-655118) |
 
 ### 美國 ETF 官方 HTML 來源
 
@@ -384,9 +384,9 @@ python3 -m pip_audit -r tests/requirements_test.txt
 - Bandit High / Medium / Low findings：0
 - Python dependency known vulnerabilities：0
 - 測試依賴 known vulnerabilities：0
-- 核心測試：136 passed
+- 核心測試：150 passed
 - Secret / credential 搜尋：未發現已追蹤的明文 key 或 private key
-- `validate_export.py`：資料刷新後通過，37 assets，FX=31.57
+- `validate_export.py`：資料刷新後通過，37 assets，FX=31.92
 
 ## 資料流程
 
@@ -396,7 +396,7 @@ GitHub Actions 每日執行資料更新與 GitHub Pages 部署。主要流程如
 2. `fetch_macro.py` 從 FRED 抓取 US CPI YoY
 3. `metrics.py` 計算 CAGR、volatility、max drawdown、Sharpe ratio、worst year
 4. `export_web_data.py` 將 BigQuery 資料匯出成 `github_web/src/ppl-data.js`
-5. `validate_export.py` 驗證 web data schema 與數值範圍
+5. `validate_export.py` 驗證 web data schema、數值範圍、asset profile readiness 與類別分級價格斷崖 gate
 6. GitHub Actions commit 更新後的 `ppl-data.js`
 7. GitHub Pages 部署 `github_web/`
 

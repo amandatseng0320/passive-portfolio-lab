@@ -84,7 +84,7 @@ CoinMarketCap API 或其他行情 API。價格與回測資料線仍可能使用 
 
 費率來源可與 profile 摘要來源不同。當主要 profile 頁沒有揭露經理費 / 保管費時，
 pipeline 會改抓 allowlist 內可直接解析費率欄位的官方或公開 ETF 費率頁，並寫入
-`expenseRatioSourceName` / `expenseRatioSourceUrl`。
+`expenseRatioSourceName` / `expenseRatioSourceUrl`。若公開頁目前無法以標準 TLS 驗證或穩定 HTTP 狀態取得，費率可使用明確白名單的 `curated_fallback`；目前只允許 00679B.TWO、00751B.TWO、00955.TWO。
 
 費用率欄位只適用於 ETF。29 檔 ETF 都必須輸出可顯示的 `expenseRatio`，
 不得再使用 `See source profile`、`約` 或 `+` 這類不明確文字；8 檔 crypto
@@ -102,6 +102,11 @@ expenseRatio = managementFee + custodianFee
 official / gross expense ratio，則 `expenseRatioFormula` 會標示為
 `officialExpenseRatio`。
 
+`expenseRatioCollectionMethod` 可為：
+
+- `web_scraping`：本次 normalize 從 allowlist 來源頁 live scrape 取得。
+- `curated_fallback`：僅限明確白名單標的，使用已標記的費率備援值並保留公開來源 URL 作出處標註。
+
 ## Asset Profiles Pipeline 狀態
 
 1. `data/asset_profiles/asset_profiles.json` 已建立。
@@ -117,24 +122,26 @@ official / gross expense ratio，則 `expenseRatioFormula` 會標示為
 11. 已補上 `tests/export/test_asset_profiles_schema.py`、`tests/export/test_asset_profiles_export.py`、`tests/streamlit/test_asset_profiles_loader.py`。
 12. GitHub Actions workflow 已加入 asset profile JSON / JS 產生與 artifact。
 13. 已驗證 37 個 asset profile 皆為 `collectionMethod = "web_scraping"`。
-14. 已驗證 29 檔 ETF 皆有可顯示費用率，且不使用 `約` / `+` / `See source profile`。
+14. 已驗證 29 檔 ETF 皆有可顯示費用率，且不使用 `約` / `+` / `See source profile`；其中 00679B.TWO、00751B.TWO、00955.TWO 的費率為明確標記的 curated fallback。
 15. 已驗證台股 ETF 皆有 `managementFee`、`custodianFee` 與
     `expenseRatioFormula = "managementFee + custodianFee"`。
 16. 已完成 Bandit、pytest、README、CHANGELOG、SECURITY_REVIEW 更新，並於 2026-07-05 重新執行完整品質與資安檢查。
 
 驗證結果：
 
-- `python3 -m pytest tests/`：136 passed。
+- `python3 -m pytest tests/`：150 passed。
 - `python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'`：No issues identified。
 - `python3 -m pip_audit -r streamlit_dashboard/requirements.txt`：No known vulnerabilities found。
 - `python3 -m pip_audit -r tests/requirements_test.txt`：No known vulnerabilities found。
-- `python3 github_web/scripts/validate_export.py`：Export validation passed (37 assets, FX=31.57)。
+- `python3 github_web/scripts/validate_export.py`：Export validation passed (37 assets, FX=31.92)。
 
 ## 安全規則
 
 - 只允許 `sources.py` 中列出的固定來源。
 - 不接受使用者輸入任意 URL。
 - 所有 `requests` 必須設定 timeout。
+- 所有 `requests` 使用標準 TLS 驗證，不允許 `verify=False` 或全域 warning suppression。
+- WAF / 封鎖頁污染會讓 readiness gate fail；TWSE `FOR SECURITY REASONS...CAN NOT BE ACCESSED` 封鎖頁已有 fixture 覆蓋，有前次乾淨資料時可 reuse，無可用舊資料時 fail closed。
 - 不儲存 cookie、token、API key 或登入頁內容。
 - 爬到的文字輸出到前端前必須 sanitize。
 - 前端只讀靜態資料，不在瀏覽器或 Streamlit 使用者操作時即時爬取。

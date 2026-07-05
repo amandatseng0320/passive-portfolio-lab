@@ -6,6 +6,43 @@
 Keep a Changelog，但目前專案尚未建立正式 Git tag，因此先以「里程碑版本」
 整理開發歷程。
 
+## [修正 11.1] - 2026-07-05
+
+### 新增
+
+- 新增 GitHub Web export 價格斷崖檢查，依資產類別套用門檻：ETF 為 3.0x、Crypto 為 6.0x，避免未校正分割資料進入靜態回測，同時保留 DOGE-USD 這類真實高波動行情。
+- 新增 WAF / 封鎖頁防線，fetch 層以多重訊號辨識封鎖頁，normalize / validate gate 會阻擋污染摘要並優先沿用前次乾淨資料；fixture 覆蓋 TWSE 真實 `FOR SECURITY REASONS...CAN NOT BE ACCESSED` 封鎖頁。
+- 新增 TLS 與資料污染回歸測試，阻擋 `verify=False`、`disable_warnings`、`TLS_VERIFY_EXCEPTIONS`、`# nosec B501` 與未校正價格斷層回歸。
+
+### 變更
+
+- `validate_export.py` 改為直接讀取 `ASSET_POOL` 取得 expected asset count 與 ticker category，不再手動維護 `EXPECTED_ASSETS = 37`。
+- Asset profile readiness 收斂到 `normalize_profiles.export_readiness_errors()`，`validate_export.py` 直接重用同一份 gate。
+- 00679B.TWO、00751B.TWO、00955.TWO 的費率改為明確標記的 curated fallback，保留原公開來源 URL 作為出處，但不再依賴 TLS 失敗或 404 的 live scrape。
+
+### 修正
+
+- 修正 `0052.TW` 於 `2025-11-17` 前的 7:1 分割資料污染：fetch 層統一調整 pre-split OHLC 除以 7、volume 乘以 7，並使用 BigQuery backfill 重算 `raw_prices` 與 `asset_metrics`。
+- 重新匯出 `github_web/src/ppl-data.js`，`0052.TW` 最大相鄰日價格比值由約 6.99x 降至約 1.13x。
+- 移除 Looker 匯出端對 `0052.TW` 的單點 hardcode，讓 Looker、Streamlit 與 GitHub Web 都使用同一份已校正 BigQuery 價格資料。
+
+### 安全性
+
+- 移除 Asset Profiles fetcher 的 TLS 驗證例外、`urllib3.disable_warnings()` 與 Bandit `# nosec B501` 排除。
+- `github_web/serve.py` 改為只綁定 `127.0.0.1`。
+- Streamlit password gate 改用 `hmac.compare_digest()` 比較密碼。
+- 刪除未使用的 `fetch_crypto_profiles.py`，降低未維護爬蟲入口。
+
+### 驗證
+
+- `python3 -m pytest tests/`：150 passed。
+- `python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'`：No issues identified。
+- `python3 -m pip_audit -r streamlit_dashboard/requirements.txt`：No known vulnerabilities found。
+- `python3 -m pip_audit -r tests/requirements_test.txt`：No known vulnerabilities found。
+- `python3 github_web/scripts/backfill_missing_web_assets.py 0052.TW`：成功刷新 0052.TW 並重算 full `asset_metrics`。
+- `python3 github_web/scripts/export_web_data.py`：成功匯出 37 assets。
+- `python3 github_web/scripts/validate_export.py`：Export validation passed，37 assets，FX=31.92。
+
 ## [新增 11] - 2026-07-05
 
 ### 版本修訂記錄

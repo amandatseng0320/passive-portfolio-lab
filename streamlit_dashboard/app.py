@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import tempfile
+import hmac
 sys.path.append(os.path.dirname(__file__))
 
 import streamlit as st
@@ -732,7 +733,7 @@ if _app_password:
         st.caption(tr("This dashboard is currently shared for project review. Please enter the access password."))
         pw = st.text_input(tr("Password"), type="password", key="pw_input")
         if pw:
-            if pw == _app_password:
+            if hmac.compare_digest(str(pw), str(_app_password)):
                 st.session_state["authenticated"] = True
                 st.rerun()
             else:

@@ -17,17 +17,17 @@
 | Bandit High | 5 | 0 |
 | Bandit Medium | 12 | 0 |
 | Bandit Low | 2 | 0 |
-| `verify=False` | 5 處 | 0 個未審查用法 |
+| `verify=False` / TLS 驗證例外 | 5 處 + asset profile 例外 | 0 個未審查用法 |
 | Python dependency known vulnerabilities | 0 | 0 |
 | 測試依賴 known vulnerabilities | 0 | 0 |
-| 核心測試 | 未於原始掃描執行 | 136 passed |
+| 核心測試 | 未於原始掃描執行 | 150 passed |
 | Web export validation | 未於原始掃描執行 | Passed after refresh |
 | Git tracked sensitive files | 未發現 | 未發現 |
 
 已完成修正：
 
-- 移除所有 `requests.get(..., verify=False)`，恢復正常 TLS certificate validation。
-- 移除原始價格 / 宏觀資料線不需要的 `InsecureRequestWarning` suppression 與相關註解；asset profile 固定來源 TLS 例外另見第 12 節。
+- 移除所有 `requests.get(..., verify=False)` 與 asset profile fetcher 的 TLS 驗證例外，恢復正常 TLS certificate validation。
+- 移除原始價格 / 宏觀資料線不需要的 `InsecureRequestWarning` suppression，也移除 asset profile 的 `urllib3.disable_warnings()` 與 `# nosec B501` 排除。
 - 新增 BigQuery project / dataset identifier validation。
 - Streamlit Cloud entry point shim 已於重新部署後移除，正式入口改為 `streamlit_dashboard/app.py`。
 - Streamlit secrets 初始化從完全靜默 `except/pass` 改為 local fallback + warning。
@@ -37,12 +37,13 @@
   sanitize、raw data ignore 與 schema/export/loader 測試。
 - 2026-07-02 修正回測 MWRR、年度報酬與 worst-year FutureWarning，並補上相關測試。
 - 2026-07-05 完成完整重掃、資料刷新、導覽命名清理與文件重整。
+- 2026-07-05 修正 asset profile TLS 例外、WAF 封鎖頁污染防線與 `0052.TW` split 資料污染；三檔 TLS 不穩定費率來源改為明確標記的 curated fallback，WAF fixture 覆蓋 TWSE 真實 `FOR SECURITY REASONS...CAN NOT BE ACCESSED` 封鎖頁。
 
 修正後仍保留的風險/注意事項：
 
 - Bandit 已無 High / Medium / Low findings。
 - 部分固定來源 SQL 使用 `# nosec` 註記；這些註記均附有安全理由，避免靜態掃描誤報干擾結案報告。
-- Asset Profiles fetcher 對三個固定 public profile host 保留受控 TLS 例外；URL 來源受 allowlist 限制，不接受使用者輸入任意 URL。
+- Asset profile normalize 仍依賴公開來源的 live network smoke；若遇到 WAF / 封鎖頁或來源失敗，readiness gate 會 fail closed 或沿用前次乾淨資料。
 - `.env` 與 `credentials.json` 仍存在於本機，但未被 git 追蹤，且已由 `.gitignore` 排除。
 
 以下第 1 到第 8 節保留原始掃描結果，作為修正前基準與稽核紀錄；第 9 節記錄原始發現修正後重掃結果；第 10 節記錄新增 Web Scraping Showcase 後的補充資安檢查；第 11 節記錄 2026-07-02 的修正與重掃結果；第 12 節記錄 2026-07-05 的最新完整重掃結果。
@@ -525,7 +526,7 @@ python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/
 指令：
 
 ```bash
-rg -n "verify=False|InsecureRequestWarning|disable_warnings|urllib3" streamlit_dashboard github_web looker_studio -g '!*.pyc'
+rg -n "verify=False|InsecureRequestWarning|disable_warnings|urllib3|TLS_VERIFY_EXCEPTIONS|nosec B501" streamlit_dashboard github_web looker_studio -g '!*.pyc'
 ```
 
 結果：
@@ -573,7 +574,7 @@ python3 -m pytest tests/processing/test_backtest.py tests/processing/test_metric
 
 本次修正後，原始報告中最重要的高風險問題已處理完成：
 
-- `verify=False` 已全部移除。
+- `verify=False`、asset profile TLS exception allowlist、`urllib3.disable_warnings()` 與 `# nosec B501` 已全部移除。
 - Bandit High 從 5 降為 0。
 - Bandit Medium 從 12 降為 0。
 - Bandit Low 從 2 降為 0。
@@ -600,7 +601,6 @@ python3 -m pytest tests/processing/test_backtest.py tests/processing/test_metric
 - `github_web/scripts/asset_intelligence/sources.py`
 - `github_web/scripts/asset_intelligence/schema.py`
 - `github_web/scripts/asset_intelligence/fetch_etf_profiles.py`
-- `github_web/scripts/asset_intelligence/fetch_crypto_profiles.py`
 - `github_web/scripts/asset_intelligence/normalize_profiles.py`
 - `github_web/scripts/asset_intelligence/export_asset_profiles.py`
 - `streamlit_dashboard/src/asset_profiles/loader.py`
@@ -628,6 +628,7 @@ python3 -m pytest tests/processing/test_backtest.py tests/processing/test_metric
 | schema drift | 新增 schema / export / loader 測試，並把 profile export 加入 `validate_export.py` |
 | ETF 費用率退回佔位或模糊文字 | 測試與 `validate_export.py` 會檢查 29 檔 ETF 不得輸出 `See source profile`、`約` 或 `+`，且 8 檔 crypto 不套用 ETF 費用率欄位 |
 | 台股 ETF 費率來源不透明 | asset profile schema 新增 `managementFee`、`custodianFee`、`expenseRatioFormula`、`expenseRatioSourceUrl`，並要求台股 ETF 以 `managementFee + custodianFee` 計算 |
+| TLS 例外與封鎖頁污染 | 2026-07-05 已移除 asset profile TLS 例外，三檔不穩定費率來源改為 curated fallback，WAF / 封鎖頁污染由 readiness gate fail closed，且以 TWSE 真實封鎖文字做 fixture |
 
 ### 10.3 重掃指令與結果
 
@@ -656,7 +657,7 @@ python3 -m pytest tests/
 結果：
 
 ```text
-136 passed
+150 passed
 ```
 
 警告說明：
@@ -675,7 +676,7 @@ python3 github_web/scripts/validate_export.py
 結果：
 
 ```text
-Export validation passed (37 assets, FX=31.57)
+Export validation passed (37 assets, FX=31.92)
 ```
 
 ### 10.4 補充結論
@@ -705,7 +706,7 @@ python3 -m pytest tests/processing/test_backtest.py tests/processing/test_metric
 68 passed
 
 python3 -m pytest tests/
-136 passed
+150 passed
 ```
 
 目前未再出現 pandas `Series.idxmin` FutureWarning。
@@ -718,14 +719,14 @@ python3 -m pytest tests/
 本輪以目前工作樹為準，不回復已完成的 landing page、進化實驗室操作導覽與經典實驗室新手導覽調整。審查範圍包含：
 
 - Python 資安掃描、依賴弱點掃描、secret / credential 搜尋與 git tracked sensitive files 檢查。
-- GitHub Actions secret 使用方式、BigQuery identifier validation、ticker whitelist、前端 HTML injection 風險、asset profile 爬蟲來源 allowlist 與 TLS 例外。
+- GitHub Actions secret 使用方式、BigQuery identifier validation、ticker whitelist、前端 HTML injection 風險、asset profile 爬蟲來源 allowlist、TLS 驗證與 WAF fail-closed 防線。
 - GitHub Web 導覽程式碼中的舊彈窗命名、未使用 wrapper id、未使用 component prop 與 localStorage 相容性。
 
 ### 12.2 最新重掃結果
 
 ```text
 python3 -m pytest tests/
-136 passed
+150 passed
 
 python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'
 No issues identified.
@@ -737,10 +738,10 @@ python3 -m pip_audit -r tests/requirements_test.txt
 No known vulnerabilities found
 
 python3 github_web/scripts/export_web_data.py
-Updated github_web/src/ppl-data.js at 2026-07-05 05:30 UTC
+Updated github_web/src/ppl-data.js at 2026-07-05 08:21 UTC
 
 python3 github_web/scripts/validate_export.py
-Export validation passed (37 assets, FX=31.57)
+Export validation passed (37 assets, FX=31.92)
 ```
 
 Secret / credential 搜尋使用下列模式：
@@ -768,11 +769,12 @@ rg -n -i "(api[_-]?key|secret|password|token|private[_ -]?key|client_email|crede
 - BigQuery project / dataset identifier 仍由 helper 驗證；ticker 來源受固定 `ASSET_POOL`、portfolio presets 或 whitelist 約束。
 - GitHub Web 的 `dangerouslySetInnerHTML` 僅用於靜態信任翻譯字串；Streamlit 的 HTML 片段使用 escaped / sanitized profile data。
 - `localStorage` 只用於操作導覽 seen state，並以 try/catch 包住，storage 被封鎖時不影響核心功能。
-- Asset Profiles fetcher 的 TLS 例外只套用在固定 allowlist host：`www.yuantaetf.com`、`www.pocket.tw`、`school.gugu.fund`。URL 不接受使用者輸入，呼叫前會經 `validate_source_url()` 檢查，且仍有 timeout 與 sanitize。
-- `# nosec` 目前集中於已審查的 BigQuery SQL identifier 組裝、固定翻譯字串誤判與上述受控 TLS 例外；Bandit 重掃仍為 0 findings。
+- Asset Profiles fetcher 不再保留 TLS 驗證例外；`www.pocket.tw` 已從 allowlist 移除，00679B.TWO、00751B.TWO、00955.TWO 的費率改以明確標記 curated fallback 保留來源出處。
+- WAF / 封鎖頁污染會被 fetch 層與 readiness gate 阻擋；有前次乾淨資料時 reuse，無前次資料時 fail closed，避免污染摘要上線。TWSE `FOR SECURITY REASONS...CAN NOT BE ACCESSED` 封鎖頁已納入 fixture。
+- `# nosec` 目前集中於已審查的 BigQuery SQL identifier 組裝與固定翻譯字串誤判；不再用於 TLS 驗證關閉。Bandit 重掃仍為 0 findings。
 
 ### 12.4 最新結論
 
-截至 2026-07-05，本專案未發現已追蹤明文憑證、未發現已知 Python 依賴弱點，Bandit High / Medium / Low findings 均為 0。核心測試與 web export validation 皆通過；`ppl-data.js` 已使用本機 BigQuery credentials 刷新並通過 freshness gate。
+截至 2026-07-05，本專案未發現已追蹤明文憑證、未發現已知 Python 依賴弱點，Bandit High / Medium / Low findings 均為 0。核心測試與 web export validation 皆通過；`ppl-data.js` 已使用本機 BigQuery credentials 刷新並通過 freshness gate、asset profile readiness 與類別分級 price cliff gate。
 
 後續若新增外部資料來源、前端 HTML 插入點、GitHub Actions secret、BigQuery table/view 或使用者輸入 API，應重新跑本節列出的檢查並更新本報告。

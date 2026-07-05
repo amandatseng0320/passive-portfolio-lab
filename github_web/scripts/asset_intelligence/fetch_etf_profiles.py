@@ -4,21 +4,18 @@
 from __future__ import annotations
 
 import re
-import urllib3
 from html.parser import HTMLParser
-from urllib.parse import urlparse
 
 import requests
 
+from blocked_pages import BLOCKED_PAGE_TERMS
 from schema import sanitize_text
 from sources import source_for_asset, source_for_expense_ratio, validate_source_url
 
 
 REQUEST_TIMEOUT_SECONDS = 12
 USER_AGENT = "PassivePortfolioLab/1.0 (+https://amandatseng0320.github.io/passive-portfolio-lab/)"
-TLS_VERIFY_EXCEPTIONS = {"www.yuantaetf.com", "www.pocket.tw", "school.gugu.fund"}
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+ASSET_TITLE_KEYWORDS = ("etf", "fund", "asset", "profile", "基金", "投信")
 
 
 class MetaDescriptionParser(HTMLParser):
@@ -77,6 +74,25 @@ def extract_meta_description(html_text: str) -> str:
     if text_parser.parts:
         return sanitize_text(" ".join(text_parser.parts[:3]), max_len=360)
     return ""
+
+
+def extract_title(html_text: str) -> str:
+    """Extract a sanitized page title."""
+    title_match = re.search(r"<title[^>]*>(.*?)</title>", html_text, re.IGNORECASE | re.DOTALL)
+    if not title_match:
+        return ""
+    return sanitize_text(title_match.group(1), max_len=240)
+
+
+def looks_like_blocked_page(html_text: str, ticker: str) -> bool:
+    """Detect common WAF/block pages without rejecting one keyword in isolation."""
+    text = sanitize_text(html_text, max_len=20000).lower()
+    title = extract_title(html_text).lower()
+    ticker_root = ticker.split(".", 1)[0].split("-", 1)[0].lower()
+    has_block_keyword = any(keyword in text for keyword in BLOCKED_PAGE_TERMS)
+    abnormal_length = len(text) < 2500
+    title_mentions_asset = ticker_root in title or any(keyword in title for keyword in ASSET_TITLE_KEYWORDS)
+    return has_block_keyword and abnormal_length and not title_mentions_asset
 
 
 def extract_expense_ratio(html_text: str) -> str:
@@ -210,15 +226,11 @@ def extract_fee_components(html_text: str, ticker: str) -> dict[str, str]:
 
 
 def request_public_page(url: str) -> requests.Response:
-    """Fetch an allowlisted public page with timeout and known TLS handling."""
-    host = urlparse(url).hostname or ""
-    verify_tls = host not in TLS_VERIFY_EXCEPTIONS
-    # URLs are allowlisted; TLS exceptions are fixed known public fee sources.
-    response = requests.get(  # nosec B501
+    """Fetch an allowlisted public page with default TLS verification."""
+    response = requests.get(
         url,
         headers={"User-Agent": USER_AGENT},
         timeout=REQUEST_TIMEOUT_SECONDS,
-        verify=verify_tls,
     )
     response.raise_for_status()
     return response
@@ -229,6 +241,8 @@ def fetch_source_summary(ticker: str, category: str) -> dict[str, str]:
     source = source_for_asset(ticker, category)
     validate_source_url(source.source_url)
     response = request_public_page(source.source_url)
+    if looks_like_blocked_page(response.text, ticker):
+        raise RuntimeError(f"{ticker} source page appears blocked by WAF")
     return {
         "ticker": ticker,
         "sourceName": source.source_name,
@@ -243,6 +257,8 @@ def fetch_expense_ratio_components(ticker: str, category: str) -> dict[str, str]
     source = source_for_expense_ratio(ticker, category)
     validate_source_url(source.source_url)
     response = request_public_page(source.source_url)
+    if looks_like_blocked_page(response.text, ticker):
+        raise RuntimeError(f"{ticker} expense source page appears blocked by WAF")
     fees = extract_fee_components(response.text, ticker)
     fees.update({
         "expenseRatioSourceName": source.source_name,

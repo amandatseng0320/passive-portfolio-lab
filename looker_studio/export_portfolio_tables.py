@@ -232,8 +232,6 @@ def convert_prices_to_twd(prices: pd.DataFrame) -> pd.DataFrame:
             * fx_aligned.to_numpy(dtype=float)
         )
 
-    split_mask = (converted["ticker"] == "0052.TW") & (converted["date"] < "2025-11-17")
-    converted.loc[split_mask, "close_twd"] = converted.loc[split_mask, "close_twd"] / 7.0
     return converted
 
 

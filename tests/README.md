@@ -34,10 +34,17 @@ tests/
 ├── conftest.py
 ├── requirements_test.txt
 ├── export/
-│   └── test_export_web_data.py
+│   ├── test_asset_profiles_export.py
+│   ├── test_asset_profiles_normalize.py
+│   ├── test_asset_profiles_schema.py
+│   ├── test_export_web_data.py
+│   ├── test_fetch_etf_profiles.py
+│   ├── test_security_regressions.py
+│   └── test_validate_export.py
 ├── processing/
 │   ├── test_backtest.py
 │   ├── test_drawdown_events.py
+│   ├── test_fetch_prices_adjustments.py
 │   ├── test_fire_calculator.py
 │   └── test_metrics.py
 └── streamlit/
@@ -60,8 +67,12 @@ tests/
 |---|---|---|
 | `conftest.py` | 共用路徑設定與 fixtures，確保測試可匯入 `streamlit_dashboard` 與 `github_web/scripts` | 必要 |
 | `export/test_export_web_data.py` | `PPL_ASSETS`、`PPL_PRICE_HISTORY`、`PPL_FX_RATE`、`PPL_HISTORY_UPDATED_AT` 的輸出契約 | 必要 |
+| `export/test_validate_export.py` | `validate_export.py` 的類別分級 price cliff gate 與 fail-closed 行為 | 必要 |
+| `export/test_fetch_etf_profiles.py` | WAF / 封鎖頁多重訊號 fixture，含 TWSE 真實封鎖頁文字，不連外部網路 | 必要 |
+| `export/test_security_regressions.py` | 阻擋 asset profile fetcher 重新引入 TLS 驗證例外或 `# nosec B501` | 必要 |
 | `processing/test_backtest.py` | `run_combined()` 的 lump-sum、DCA timing、MWRR、年度報酬、USD to TWD FX conversion、mixed portfolio、ticker validation | 必要 |
 | `processing/test_drawdown_events.py` | 回撤 episode 偵測、peak / trough / recovery、min-depth filter、top N、歷史事件標籤 | 必要 |
+| `processing/test_fetch_prices_adjustments.py` | 0050.TW / 0052.TW manual split adjustment regression，含 volume int64 檢查 | 必要 |
 | `processing/test_fire_calculator.py` | years-to-FIRE、projection structure、nominal / inflation-adjusted timeline、edge cases | 必要 |
 | `processing/test_metrics.py` | CAGR、volatility、max drawdown、Sharpe ratio、worst year 與 edge cases | 必要 |
 | `export/test_asset_profiles_schema.py` | `asset_profiles.json` schema、ticker 覆蓋率、欄位型別、source allowlist | 必要 |
@@ -76,7 +87,7 @@ tests/
 - 不使用真實 API key、service account 或 Streamlit secrets。
 - 金融數值用小型 synthetic DataFrame 驗證公式。
 - 匯出測試要檢查資料單位，避免 fraction / percentage 混用。
-- Asset profile 測試要檢查來源 allowlist、文字 sanitize、缺資料 fallback 與 schema version。
+- Asset profile 測試要檢查來源 allowlist、文字 sanitize、缺資料 fallback、curated fee allowlist、WAF 污染防線與 schema version。
 
 ## 維護規則
 
@@ -98,7 +109,9 @@ tests/
 5. 已測試 summary、issuer、dividendPolicy 等文字欄位不含可執行 HTML / script。
 6. 已測試進化實驗室（GitHub Web）JS export 可被前端安全讀取。
 7. 已測試經典實驗室（Streamlit）loader 在缺資料或壞資料時回傳 fallback。
-8. 2026-07-05 實際結果：`python3 -m pytest tests/` 為 136 passed。
+8. 已測試三檔 curated fallback 費率只允許明確白名單標的。
+9. 已測試 TWSE 真實封鎖頁污染輸入會 reuse 前次乾淨資料，無前次資料時 fail closed。
+10. 2026-07-05 實際結果：`python3 -m pytest tests/` 為 150 passed。
 
 ## 本機產物
 
