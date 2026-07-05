@@ -217,6 +217,402 @@ def fmt_years(value) -> str:
         return f"{value} 年" if value is not None else "50+ 年"
     return f"{value} yrs" if value is not None else "50+ yrs"
 
+# ── Session State ──────────────────────────────────────────────────────────────
+
+if 'watchlist' not in st.session_state:
+    st.session_state.watchlist = []
+if 'portfolio_confirmed' not in st.session_state:
+    st.session_state['portfolio_confirmed'] = False
+if 'active_persona' not in st.session_state:
+    st.session_state['active_persona'] = None
+
+
+def render_sidebar_guide() -> None:
+    """Render a non-blocking guide that never interrupts the analysis workflow."""
+
+    steps = [
+        (
+            tr("Select assets", "選擇資產"),
+            tr("Filter the asset pool and add assets to your watchlist.", "從資產池篩選標的，加入觀察清單。"),
+            "asset-screening",
+            bool(st.session_state.get("watchlist")),
+        ),
+        (
+            tr("Use preset persona", "使用預設投資人角色"),
+            tr(
+                "If you are not sure what to pick, start from a preset investor persona.",
+                "如果還不知道挑選哪些標的，可以先選擇預設投資人角色。",
+            ),
+            "asset-screening",
+            bool(st.session_state.get("watchlist")),
+        ),
+        (
+            tr("Check overlap", "檢查重疊"),
+            tr("Review correlations before treating assets as diversified.", "先看相關性，再判斷是不是真的分散。"),
+            "correlation-analysis",
+            bool(st.session_state.get("portfolio_confirmed", False)),
+        ),
+        (
+            tr("Set allocation", "設定配置"),
+            tr(
+                "Choose a preset risk level; weights are assigned automatically from that profile.",
+                "選擇預設風險等級，系統會依該設定自動分配權重。",
+            ),
+            "risk-allocation",
+            bool(st.session_state.get("allocation")),
+        ),
+        (
+            tr("Run backtest", "執行回測"),
+            tr("Review return, volatility, and drawdown history.", "查看歷史報酬、波動與回撤。"),
+            "backtest",
+            st.session_state.get("backtest_cagr") is not None,
+        ),
+        (
+            tr("Estimate FIRE", "試算 FIRE"),
+            tr("Use savings, contributions, expenses, and withdrawal rate.", "用存款、投入、支出與提領率估算時間軸。"),
+            "fire-calculator",
+            bool(st.session_state.get("fire_result_cache")),
+        ),
+        (
+            tr("Read summary", "閱讀總結"),
+            tr("Use the final snapshot to decide whether to adjust.", "用最後快照判斷是否需要調整。"),
+            "summary",
+            bool(st.session_state.get("allocation")),
+        ),
+    ]
+
+    st.markdown(
+        """
+<style>
+.ppl-guide-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 0;
+    color: inherit !important;
+    text-decoration: none !important;
+}
+.ppl-guide-dot {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #eef4fb;
+    border: 1px solid #cfe0f0;
+    color: #1e5a96;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+}
+.ppl-guide-dot.done {
+    background: #1e5a96;
+    border-color: #1e5a96;
+    color: #fff;
+}
+.ppl-guide-title {
+    display: block;
+    color: #0d1f3c;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+.ppl-guide-desc {
+    display: block;
+    color: #6b727e;
+    font-size: 12px;
+    line-height: 1.45;
+    margin-top: 2px;
+}
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    expanded = not st.session_state.get("ppl_streamlit_guide_collapsed", False)
+    with st.expander(tr("New user guide", "新手導覽"), expanded=expanded):
+        for idx, (title, desc, anchor, done) in enumerate(steps, start=1):
+            marker = "✓" if done else str(idx)
+            done_class = " done" if done else ""
+            st.markdown(
+                f"""
+<a class="ppl-guide-row" href="#{anchor}">
+  <span class="ppl-guide-dot{done_class}">{marker}</span>
+  <span>
+    <span class="ppl-guide-title">{title}</span>
+    <span class="ppl-guide-desc">{desc}</span>
+  </span>
+</a>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        collapse_label = (
+            tr("Default to expanded", "下次預設展開")
+            if st.session_state.get("ppl_streamlit_guide_collapsed", False)
+            else tr("Default to collapsed", "下次預設收合")
+        )
+        if st.button(collapse_label, key="toggle_streamlit_guide_default", width="stretch"):
+            st.session_state["ppl_streamlit_guide_collapsed"] = not st.session_state.get(
+                "ppl_streamlit_guide_collapsed", False
+            )
+            st.rerun()
+
+
+def render_intro_usage_flow() -> None:
+    """Render a compact orientation card for first-time users."""
+
+    st.markdown(
+        tr(
+            """
+<style>
+.ppl-intro-guide-note {
+    margin: 18px 0 22px;
+    padding: 18px 20px;
+    border: 1px solid #dce8f3;
+    border-left: 4px solid #4182b9;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+.ppl-intro-guide-kicker {
+    color: #4182b9;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+}
+.ppl-intro-guide-title {
+    color: #0d1f3c;
+    font-size: 1.03rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+.ppl-intro-guide-body {
+    color: #5b6472;
+    line-height: 1.65;
+}
+.ppl-flow {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 10px 0 24px;
+}
+.ppl-flow-step {
+    position: relative;
+    min-height: 132px;
+    padding: 14px 14px 16px;
+    border: 1px solid #dfe7f0;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(13, 31, 60, 0.04);
+}
+.ppl-flow-step:not(:last-child)::after {
+    content: "→";
+    position: absolute;
+    right: -10px;
+    top: 42px;
+    color: #4182b9;
+    font-weight: 800;
+}
+.ppl-flow-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #e8f2fb;
+    color: #1e5a96;
+    font-size: 0.78rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+.ppl-flow-title {
+    color: #0d1f3c;
+    font-size: 0.95rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+.ppl-flow-body {
+    color: #6b727e;
+    font-size: 0.84rem;
+    line-height: 1.55;
+}
+@media (max-width: 1100px) {
+    .ppl-flow { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+    .ppl-flow-step:not(:last-child)::after { display: none; }
+}
+@media (max-width: 700px) {
+    .ppl-flow { grid-template-columns: 1fr; }
+}
+</style>
+<div class="ppl-intro-guide-note">
+  <div class="ppl-intro-guide-kicker">FIRST TIME HERE</div>
+  <div class="ppl-intro-guide-title">Use the sidebar New user guide as your map.</div>
+  <div class="ppl-intro-guide-body">
+    The guide on the left follows the same order as the analysis below, so you can move through the tool without guessing what to do next.
+  </div>
+</div>
+<div class="ppl-flow" aria-label="Passive portfolio analysis flow">
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">1</div>
+    <div class="ppl-flow-title">Select assets</div>
+    <div class="ppl-flow-body">Choose the ETFs or crypto assets you want to test, or start from a preset persona.</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">2</div>
+    <div class="ppl-flow-title">Check overlap</div>
+    <div class="ppl-flow-body">See whether assets move together before treating them as diversified.</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">3</div>
+    <div class="ppl-flow-title">Set risk</div>
+    <div class="ppl-flow-body">Choose a risk level and let the system translate it into portfolio weights.</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">4</div>
+    <div class="ppl-flow-title">Run backtest</div>
+    <div class="ppl-flow-body">Test how past contributions would have experienced return and drawdown.</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">5</div>
+    <div class="ppl-flow-title">Estimate FIRE</div>
+    <div class="ppl-flow-body">Convert portfolio assumptions into a financial independence timeline.</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">6</div>
+    <div class="ppl-flow-title">Review summary</div>
+    <div class="ppl-flow-body">Use the final snapshot to decide whether to adjust assets or risk.</div>
+  </div>
+</div>
+            """,
+            """
+<style>
+.ppl-intro-guide-note {
+    margin: 18px 0 22px;
+    padding: 18px 20px;
+    border: 1px solid #dce8f3;
+    border-left: 4px solid #4182b9;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+.ppl-intro-guide-kicker {
+    color: #4182b9;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+}
+.ppl-intro-guide-title {
+    color: #0d1f3c;
+    font-size: 1.03rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+.ppl-intro-guide-body {
+    color: #5b6472;
+    line-height: 1.65;
+}
+.ppl-flow {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 10px 0 24px;
+}
+.ppl-flow-step {
+    position: relative;
+    min-height: 132px;
+    padding: 14px 14px 16px;
+    border: 1px solid #dfe7f0;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(13, 31, 60, 0.04);
+}
+.ppl-flow-step:not(:last-child)::after {
+    content: "→";
+    position: absolute;
+    right: -10px;
+    top: 42px;
+    color: #4182b9;
+    font-weight: 800;
+}
+.ppl-flow-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #e8f2fb;
+    color: #1e5a96;
+    font-size: 0.78rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+.ppl-flow-title {
+    color: #0d1f3c;
+    font-size: 0.95rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+.ppl-flow-body {
+    color: #6b727e;
+    font-size: 0.84rem;
+    line-height: 1.55;
+}
+@media (max-width: 1100px) {
+    .ppl-flow { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+    .ppl-flow-step:not(:last-child)::after { display: none; }
+}
+@media (max-width: 700px) {
+    .ppl-flow { grid-template-columns: 1fr; }
+}
+</style>
+<div class="ppl-intro-guide-note">
+  <div class="ppl-intro-guide-kicker">第一次使用</div>
+  <div class="ppl-intro-guide-title">可以參考左側「新手導覽」照順序完成分析。</div>
+  <div class="ppl-intro-guide-body">
+    左側導覽與下方分析區塊使用同一套順序，從挑選資產到總結檢查，讓你知道每一步是在回答什麼問題。
+  </div>
+</div>
+<div class="ppl-flow" aria-label="被動投資組合分析流程">
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">1</div>
+    <div class="ppl-flow-title">選擇資產</div>
+    <div class="ppl-flow-body">挑選想測試的 ETF 或加密貨幣，也可先從預設投資人情境開始。</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">2</div>
+    <div class="ppl-flow-title">檢查重疊</div>
+    <div class="ppl-flow-body">先看標的是否同漲同跌，避免看似分散其實高度重複。</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">3</div>
+    <div class="ppl-flow-title">設定風險</div>
+    <div class="ppl-flow-body">選擇風險等級，讓系統轉換成投資組合權重。</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">4</div>
+    <div class="ppl-flow-title">執行回測</div>
+    <div class="ppl-flow-body">假設過去投入資金，檢查報酬、波動與最大回撤。</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">5</div>
+    <div class="ppl-flow-title">試算 FIRE</div>
+    <div class="ppl-flow-body">把投資假設轉換成達到財務自由的時間軸。</div>
+  </div>
+  <div class="ppl-flow-step">
+    <div class="ppl-flow-num">6</div>
+    <div class="ppl-flow-title">閱讀總結</div>
+    <div class="ppl-flow-body">用最終快照判斷是否要回頭調整資產或風險。</div>
+  </div>
+</div>
+            """,
+        ),
+        unsafe_allow_html=True,
+    )
+
 COST_SCENARIO_RATES: tuple[float, float] = (0.005, 0.01)
 
 def cost_adjusted_cagr(cagr: float, annual_cost: float) -> float:
@@ -411,14 +807,8 @@ with st.sidebar:
 <a class="nav-link" href="#summary">{tr("Summary")}</a>
 """, unsafe_allow_html=True)
 
-# ── Session State ──────────────────────────────────────────────────────────────
-
-if 'watchlist' not in st.session_state:
-    st.session_state.watchlist = []
-if 'portfolio_confirmed' not in st.session_state:
-    st.session_state['portfolio_confirmed'] = False
-if 'active_persona' not in st.session_state:
-    st.session_state['active_persona'] = None
+    st.divider()
+    render_sidebar_guide()
 
 # ── Load Data ──────────────────────────────────────────────────────────────────
 
@@ -863,14 +1253,6 @@ a diversified portfolio without stock-picking or market-timing — consistently 
 **The Simple Path to Wealth** (JL Collins) and **Your Money or Your Life** (Vicki Robin) extend this logic
 into the FIRE movement: by minimizing costs, maximizing savings rate, and staying invested through market cycles,
 financial independence becomes a matter of time, not luck.
-
-This dashboard helps you explore that thesis with real data:
-- **Asset Screening** — browse and select assets into your watchlist
-- **Risk Allocation** — auto-allocate weights based on each asset's risk profile
-- **Backtest & Pain Index** — see historical returns and the drawdowns you'd have to endure
-- **FIRE Calculator** — estimate when you can retire based on your allocation
-
-> *All portfolio calculations are performed in New Taiwan Dollar (TWD). For USD-denominated assets (US ETFs, bonds, commodities, and crypto), daily prices are converted to TWD using historical exchange rates — meaning currency fluctuations are factored into the returns. This reflects the real experience of a Taiwan-based investor holding foreign assets. All input amounts should be entered in TWD.*
 """, """
 > *「股市是一個把金錢從沒有耐心的人手中，轉移到有耐心的人手中的裝置。」*
 > — Benjamin Graham，引自 Burton Malkiel 的 **A Random Walk Down Wall Street**
@@ -878,15 +1260,26 @@ This dashboard helps you explore that thesis with real data:
 學術證據相當清楚：多數主動型經理人長期難以打敗市場。
 **A Random Walk Down Wall Street** 主張，被動指數策略，也就是買進並持有分散化投資組合、不選股、不擇時，在扣除費用後通常能勝過主動管理。
 **The Simple Path to Wealth**（JL Collins）與 **Your Money or Your Life**（Vicki Robin）則把這套邏輯延伸到 FIRE 運動：降低成本、提高儲蓄率，並在市場循環中持續投入，財務自由就更像是時間問題，而不是運氣問題。
-
-這個儀表板用真實資料協助你探索這個命題：
-- **資產篩選** — 瀏覽並選擇資產到觀察清單
-- **風險配置** — 依各資產風險特性自動配置權重
-- **回測與痛苦指數** — 查看歷史報酬，以及你需要承受的回撤
-- **財務自由試算** — 依照配置估算何時能退休
-
-> *所有投資組合計算皆以新台幣（TWD）進行。對於以美元計價的資產（美股 ETF、債券、商品與加密貨幣），每日價格會使用歷史匯率轉換為 TWD，因此匯率波動也會反映在報酬中。這更貼近台灣投資人持有海外資產的真實經驗。所有輸入金額都應以 TWD 填寫。*
 """))
+currency_note = tr(
+    "All portfolio calculations are performed in New Taiwan Dollar (TWD). For USD-denominated assets, daily prices are converted to TWD using historical exchange rates, so currency fluctuations are reflected in returns. All input amounts should be entered in TWD.",
+    "所有投資組合計算皆以新台幣（TWD）進行。美元計價資產會使用歷史匯率轉換為 TWD，因此匯率波動也會反映在報酬中。所有輸入金額都應以 TWD 填寫。",
+)
+st.markdown(
+    f"""
+<style>
+.ppl-currency-note {{
+    margin: 6px 0 22px;
+    color: #8b929e;
+    font-size: 0.92rem;
+    line-height: 1.7;
+}}
+</style>
+<p class="ppl-currency-note">{currency_note}</p>
+    """,
+    unsafe_allow_html=True,
+)
+render_intro_usage_flow()
 
 st.divider()
 

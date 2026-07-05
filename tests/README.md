@@ -1,8 +1,8 @@
 # Tests 說明
 
-最後更新：2026-07-02
+最後更新：2026-07-05
 
-`tests/` 是 Passive Portfolio Lab 的自動化測試資料夾。這裡的測試保護四個高風險區塊：金融計算、TWD-based 回測 / FIRE 邏輯、GitHub Web 的 `ppl-data.js` 資料契約，以及 Asset Profiles / Web Scraping Showcase 的 schema、export 與 Streamlit loader。
+`tests/` 是 Passive Portfolio Lab 的自動化測試資料夾。這裡的測試保護四個高風險區塊：金融計算、TWD-based 回測 / FIRE 邏輯、進化實驗室（GitHub Web）的 `ppl-data.js` 資料契約，以及 Asset Profiles / Web Scraping Showcase 的 schema、export 與經典實驗室（Streamlit）loader。
 
 所有測試都必須能在本機離線執行。BigQuery、Yahoo Finance、FRED、Gemini 等外部服務不能在測試中真的被呼叫；需要資料時使用 fixtures 或 mock。
 
@@ -48,7 +48,7 @@ tests/
 
 | 位置 | 測什麼 | 說明 |
 |---|---|---|
-| `tests/export/` | GitHub Web data export | 保護 `ppl-data.js` schema、單位、TWD conversion 與 idempotency |
+| `tests/export/` | 進化實驗室（GitHub Web）data export | 保護 `ppl-data.js` schema、單位、TWD conversion 與 idempotency |
 | `tests/processing/` | 金融計算與核心邏輯 | 保護 metrics、backtest、FIRE、drawdown events |
 | `tests/streamlit/` | Streamlit-specific helper 測試 | 目前測 asset profile loader |
 | `conftest.py` | 共用 fixtures | 提供 fake price data、fake metrics、constant FX 等測試資料 |
@@ -96,9 +96,9 @@ tests/
 3. 已測試所有 profile ticker 都存在於 `ASSET_POOL`。
 4. 已測試 `sourceUrl` 只允許出現在 allowlist 內的來源。
 5. 已測試 summary、issuer、dividendPolicy 等文字欄位不含可執行 HTML / script。
-6. 已測試 GitHub Web JS export 可被前端安全讀取。
-7. 已測試 Streamlit loader 在缺資料或壞資料時回傳 fallback。
-8. 實際結果：`python3 -m pytest tests/` 為 136 passed。
+6. 已測試進化實驗室（GitHub Web）JS export 可被前端安全讀取。
+7. 已測試經典實驗室（Streamlit）loader 在缺資料或壞資料時回傳 fallback。
+8. 2026-07-05 實際結果：`python3 -m pytest tests/` 為 136 passed。
 
 ## 本機產物
 

@@ -1,25 +1,25 @@
 # Passive Portfolio Lab
 
-最後更新：2026-07-02
+最後更新：2026-07-05
 
 Passive Portfolio Lab 是一個以台灣投資人視角設計的長期被動投資分析專案。它把 ETF、加密貨幣、匯率、通膨、回測、FIRE 試算與 BI 報表整合在同一套資料流程中，核心問題是：
 
-> 如果一個投資組合的歷史報酬看起來不錯，那背後承擔了多少風險、回撤痛苦，以及 FIRE 目標上的取捨？
+> 當你想建立一組長期持有的被動投資組合時，真正需要回答的不是「哪個標的最會漲」，而是：資產是否分散、配置是否合理、回撤能否承受，以及這套組合是否支撐你的長期財務目標。
 
 ## 線上成品
 
 | 平台 | 連結 |
 |---|---|
-| Streamlit Dashboard | https://passive-portfolio-lab-tw.streamlit.app/ |
-| GitHub Web | https://amandatseng0320.github.io/passive-portfolio-lab/ |
+| 經典實驗室（Streamlit） | https://passive-portfolio-lab-tw.streamlit.app/ |
+| 進化實驗室（GitHub Web） | https://amandatseng0320.github.io/passive-portfolio-lab/ |
 | Landing Page | https://amandatseng0320.github.io/passive-portfolio-lab/landing.html |
-| Looker Studio | https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67 |
+| 決策儀表板（Looker Studio） | https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67 |
 
 ## 功能摘要
 
 ### 1. 雙語投資分析介面
 
-Streamlit 與 GitHub Web 皆支援英文 / 繁體中文切換。切換範圍包含導覽、區塊標題、控制項、提醒訊息、圖表標籤與 AI 摘要語言。
+經典實驗室與進化實驗室皆支援英文 / 繁體中文切換。切換範圍包含導覽、區塊標題、控制項、提醒訊息、圖表標籤與 AI 摘要語言。
 
 ### 2. 靜態策展資產池
 
@@ -115,11 +115,11 @@ FIRE Target = Annual Expenses / Withdrawal Rate
 
 ### 7. Gemini AI Insights
 
-Streamlit 版本可選擇設定 `GEMINI_API_KEY`。設定後，系統會使用 Gemini 2.5 Flash 產生投資組合摘要，內容涵蓋配置結構、回撤脈絡、FIRE timeline 與行為風險。未設定 API key 時，系統會保留規則式 fallback，不影響核心分析功能。
+經典實驗室可選擇設定 `GEMINI_API_KEY`。設定後，系統會使用 Gemini 2.5 Flash 產生投資組合摘要，內容涵蓋配置結構、回撤脈絡、FIRE timeline 與行為風險。未設定 API key 時，系統會保留規則式 fallback，不影響核心分析功能。
 
 ### 8. Persona Quick Start
 
-Streamlit 版本提供三種預設投資者 persona，讓使用者快速帶入 watchlist、risk level、backtest 參數與 FIRE 假設：
+經典實驗室提供三種預設投資者 persona，讓使用者快速帶入 watchlist、risk level、backtest 參數與 FIRE 假設：
 
 | Persona | 用途 |
 |---|---|
@@ -139,8 +139,8 @@ CoinMarketCap API 或其他行情 API。ETF 來源優先使用官方發行商 ET
 
 這條資料線目前支援：
 
-- GitHub Web 的「投資組合組成」與「組合配置」資產詳情。
-- Streamlit Dashboard 的「投資組合組成」treemap 資產詳情。
+- 進化實驗室（GitHub Web）的「投資組合組成」與「組合配置」資產詳情。
+- 經典實驗室（Streamlit）的「投資組合組成」treemap 資產詳情。
 - Landing page 的功能亮點展示。
 
 完整 pipeline 與驗證結果請見 [Data 說明](data/README.md)。
@@ -162,7 +162,7 @@ CoinMarketCap API 或其他行情 API。ETF 來源優先使用官方發行商 ET
 
 ## 所有資料來源
 
-本專案資料來源分為「行情與宏觀 API」、「公開 HTML 網頁爬蟲」與「內部資料倉儲」。API 主要用於價格、匯率與通膨資料；公開 HTML 網頁爬蟲主要用於 ETF / crypto 標的基本資料、發行資訊與費用率；BigQuery 用於保存清理後資料與提供 Streamlit、GitHub Web、Looker Studio 後續分析使用。
+本專案資料來源分為「行情與宏觀 API」、「公開 HTML 網頁爬蟲」與「內部資料倉儲」。API 主要用於價格、匯率與通膨資料；公開 HTML 網頁爬蟲主要用於 ETF / crypto 標的基本資料、發行資訊與費用率；BigQuery 用於保存清理後資料與提供經典實驗室（Streamlit）、進化實驗室（GitHub Web）、決策儀表板（Looker Studio）後續分析使用。
 
 ### 行情與宏觀 API
 
@@ -180,9 +180,9 @@ CoinMarketCap API 或其他行情 API。ETF 來源優先使用官方發行商 ET
 |---|---|
 | 原始價格資料 | Google BigQuery `raw_prices` |
 | 資產指標資料 | Google BigQuery `asset_metrics` |
-| Looker Studio asset views | Google BigQuery `looker_asset_metrics`、`looker_price_history`、`looker_annual_returns`、`looker_category_summary` |
-| Looker Studio portfolio tables | Google BigQuery `looker_portfolio_allocations`、`looker_portfolio_metrics`、`looker_portfolio_history`、`looker_portfolio_annual_returns`、`looker_portfolio_drawdown_events`、`looker_fire_scenarios`、`looker_fire_projection` |
-| GitHub Web 靜態資料 | `github_web/src/ppl-data.js`、`github_web/src/ppl-asset-profiles.js` |
+| 決策儀表板 asset views（Looker Studio） | Google BigQuery `looker_asset_metrics`、`looker_price_history`、`looker_annual_returns`、`looker_category_summary` |
+| 決策儀表板 portfolio tables（Looker Studio） | Google BigQuery `looker_portfolio_allocations`、`looker_portfolio_metrics`、`looker_portfolio_history`、`looker_portfolio_annual_returns`、`looker_portfolio_drawdown_events`、`looker_fire_scenarios`、`looker_fire_projection` |
+| 進化實驗室靜態資料（GitHub Web） | `github_web/src/ppl-data.js`、`github_web/src/ppl-asset-profiles.js` |
 | Asset Profiles 共用資料 | `data/asset_profiles/asset_profiles.json` |
 
 ### 台灣 ETF 公開 HTML 網頁爬蟲來源
@@ -289,9 +289,9 @@ passive-portfolio-lab/
 
 子系統設定請看：
 
-- [Streamlit Dashboard 說明](streamlit_dashboard/README.md)
-- [GitHub Web 說明](github_web/README.md)
-- [Looker Studio 說明](looker_studio/README.md)
+- [經典實驗室（Streamlit）說明](streamlit_dashboard/README.md)
+- [進化實驗室（GitHub Web）說明](github_web/README.md)
+- [決策儀表板（Looker Studio）說明](looker_studio/README.md)
 - [Data 說明](data/README.md)
 - [版本修訂紀錄](CHANGELOG.md)
 - [資安與弱點掃描報告](SECURITY_REVIEW.md)
@@ -307,7 +307,7 @@ pip install -r streamlit_dashboard/requirements.txt
 pip install -r tests/requirements_test.txt
 ```
 
-根目錄的 `requirements.txt` 是給 Streamlit Cloud 使用的 shim，實際 dashboard 依賴以 `streamlit_dashboard/requirements.txt` 為主。
+根目錄的 `requirements.txt` 是 Streamlit Cloud / repo root 安裝用的 convenience requirements，內容轉接到 `streamlit_dashboard/requirements.txt`；實際 dashboard 依賴仍以 `streamlit_dashboard/requirements.txt` 為主。
 
 ### 2. 設定環境變數
 
@@ -357,7 +357,7 @@ streamlit_dashboard/app.py
 ### 單元測試
 
 ```bash
-pytest tests/
+python3 -m pytest tests/
 ```
 
 目前測試重點包含：
@@ -385,6 +385,8 @@ python3 -m pip_audit -r tests/requirements_test.txt
 - Python dependency known vulnerabilities：0
 - 測試依賴 known vulnerabilities：0
 - 核心測試：136 passed
+- Secret / credential 搜尋：未發現已追蹤的明文 key 或 private key
+- `validate_export.py`：資料刷新後通過，37 assets，FX=31.57
 
 ## 資料流程
 
@@ -398,16 +400,16 @@ GitHub Actions 每日執行資料更新與 GitHub Pages 部署。主要流程如
 6. GitHub Actions commit 更新後的 `ppl-data.js`
 7. GitHub Pages 部署 `github_web/`
 
-Asset Profiles / Web Scraping Showcase 的流程另列於 [data/README.md](data/README.md)。此資料線已進入 GitHub Actions 靜態資料更新流程，會產出共用 `asset_profiles.json` 與 GitHub Web 靜態 `ppl-asset-profiles.js`。
+Asset Profiles / Web Scraping Showcase 的流程另列於 [data/README.md](data/README.md)。此資料線已進入 GitHub Actions 靜態資料更新流程，會產出共用 `asset_profiles.json` 與進化實驗室（GitHub Web）靜態 `ppl-asset-profiles.js`。
 
 資料使用方式：
 
 | 交付面 | 資料來源 |
 |---|---|
-| Streamlit Dashboard | 直接讀取 BigQuery |
-| GitHub Web | 使用每日匯出的 `ppl-data.js` 靜態資料 |
-| Looker Studio | 使用 BigQuery semantic views / portfolio tables |
-| Asset Profiles | 爬蟲資料管線整理後的 `data/asset_profiles/asset_profiles.json`，供 GitHub Web 與 Streamlit 共用 |
+| 經典實驗室（Streamlit） | 直接讀取 BigQuery |
+| 進化實驗室（GitHub Web） | 使用每日匯出的 `ppl-data.js` 靜態資料 |
+| 決策儀表板（Looker Studio） | 使用 BigQuery semantic views / portfolio tables |
+| Asset Profiles | 爬蟲資料管線整理後的 `data/asset_profiles/asset_profiles.json`，供進化實驗室與經典實驗室共用 |
 
 ## BigQuery 與資料契約
 
@@ -424,9 +426,9 @@ Asset Profiles / Web Scraping Showcase 的流程另列於 [data/README.md](data/
 
 若後續修改欄位名稱、ticker schema、portfolio metrics 或 FIRE / backtest 公式，需同步更新：
 
-- Streamlit UI 與資料讀取邏輯
-- GitHub Web 的 `ppl-data.js` export 與 validation
-- Looker Studio views / tables
+- 經典實驗室（Streamlit）UI 與資料讀取邏輯
+- 進化實驗室（GitHub Web）的 `ppl-data.js` export 與 validation
+- 決策儀表板（Looker Studio）views / tables
 - 測試案例
 - `CHANGELOG.md`
 - `SECURITY_REVIEW.md` 或相關交付文件
@@ -435,9 +437,9 @@ Asset Profiles / Web Scraping Showcase 的流程另列於 [data/README.md](data/
 
 | 交付面 | 支援項目 | 主要限制 |
 |---|---|---|
-| Streamlit Dashboard | 完整互動分析、BigQuery 即時讀取、AI insights、persona quick start、FIRE 試算 | 需要 BigQuery credentials；Gemini 與 FRED 為選用功能 |
-| GitHub Web | 靜態展示、資產指標、TWD 歷史價格、前端互動分析 | 不在瀏覽器直接連 BigQuery；資料取決於每日 export |
-| Looker Studio | BI 報表、資產層與投資組合層比較、分享式 dashboard | 報表互動受 Looker Studio 控制；需先建立 BigQuery views / tables |
+| 經典實驗室（Streamlit） | 完整互動分析、BigQuery 即時讀取、AI insights、persona quick start、FIRE 試算 | 需要 BigQuery credentials；Gemini 與 FRED 為選用功能 |
+| 進化實驗室（GitHub Web） | 完整分析功能、產品化介面、TWD 歷史價格、手機友善操作 | 不在瀏覽器直接連 BigQuery；資料取決於每日 export |
+| 決策儀表板（Looker Studio） | BI 報表、資產層與投資組合層比較、分享式 dashboard | 報表互動受 Looker Studio 控制；需先建立 BigQuery views / tables |
 
 ## 方法論與風險提醒
 

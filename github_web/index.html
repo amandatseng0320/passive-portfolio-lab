@@ -184,60 +184,80 @@
       }
     }
 
-    /* ── Instruction popup ──────────────────────────────────────────────── */
-    #ppl-help-overlay {
+    /* ── Guided tour ───────────────────────────────────────────────────── */
+    #ppl-tour-overlay {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(13,31,60,0.42);
       z-index: 500;
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px;
     }
-    #ppl-help-box {
-      background: #fff;
-      border-radius: 12px;
-      padding: 32px 36px;
-      max-width: 540px;
-      width: 100%;
-      max-height: 88vh;
-      overflow-y: auto;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.22);
-      position: relative;
+    #ppl-tour-card {
+      position: fixed; left: 28px; top: 28px; z-index: 620;
+      width: min(390px, calc(100vw - 32px));
+      background: #fff; border-radius: 12px;
+      padding: 22px 24px;
+      box-shadow: 0 18px 60px rgba(13,31,60,0.28);
+      border: 1px solid rgba(13,31,60,0.08);
+      transition: left 0.18s ease, top 0.18s ease;
     }
-    #ppl-help-box h2 {
+    #ppl-tour-card .tour-kicker {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #4182b9; margin-bottom: 8px;
+    }
+    #ppl-tour-card h2 {
       font-size: 20px; font-weight: 700; color: #0d1f3c;
-      margin-bottom: 6px;
+      margin-bottom: 8px; line-height: 1.25;
     }
-    #ppl-help-box .help-sub {
-      font-size: 13px; color: #6b727e; margin-bottom: 20px;
+    #ppl-tour-card .tour-desc {
+      font-size: 14px; line-height: 1.7; color: #4b5563; margin-bottom: 18px;
     }
-    #ppl-help-box .help-step {
-      display: flex; gap: 14px; margin-bottom: 16px; align-items: flex-start;
+    #ppl-tour-card .tour-alert {
+      background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412;
+      border-radius: 8px; padding: 9px 11px;
+      font-size: 13px; line-height: 1.55; margin: -4px 0 16px;
     }
-    #ppl-help-box .help-num {
-      flex-shrink: 0;
-      width: 28px; height: 28px;
-      background: #4182b9; color: #fff;
-      border-radius: 50%; font-size: 13px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
+    #ppl-tour-card .tour-progress {
+      display: flex; gap: 5px; margin: 2px 0 18px;
     }
-    #ppl-help-box .help-text strong { color: #0d1f3c; }
-    #ppl-help-box .help-text { font-size: 14px; line-height: 1.6; color: #444; }
-    #ppl-help-box .help-note {
-      background: #eff5fb; border-left: 3px solid #4182b9; border-radius: 6px;
-      padding: 10px 14px; font-size: 13px; color: #1f3b5c;
-      line-height: 1.6; margin-top: 20px;
+    #ppl-tour-card .tour-dot {
+      height: 4px; flex: 1; border-radius: 999px;
+      background: #dde4ed;
     }
-    #ppl-help-close {
-      margin-top: 24px;
-      background: #4182b9; color: #fff;
-      border: none; border-radius: 7px;
-      padding: 10px 24px; font-size: 14px; font-weight: 600;
-      cursor: pointer; font-family: inherit; width: 100%;
+    #ppl-tour-card .tour-dot.active { background: #4182b9; }
+    #ppl-tour-card .tour-actions {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
     }
-    #ppl-help-close:hover { background: #1e5a96; }
+    #ppl-tour-card .tour-secondary,
+    #ppl-tour-card .tour-primary {
+      border-radius: 7px; padding: 8px 14px;
+      font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+    #ppl-tour-card .tour-secondary {
+      background: transparent; border: 1px solid #d0d7e2; color: #5b6472;
+    }
+    #ppl-tour-card .tour-primary {
+      background: #4182b9; border: 1px solid #4182b9; color: #fff;
+    }
+    .ppl-tour-focus {
+      position: relative; z-index: 560;
+      border-radius: 16px;
+      box-shadow:
+        0 0 0 4px rgba(114,168,212,0.55),
+        0 20px 52px rgba(13,31,60,0.18);
+      background: #f7f9fc;
+      transition: box-shadow 0.2s ease;
+    }
 
     @media (max-width: 480px) {
-      #ppl-help-box { padding: 24px 20px; }
+      #ppl-tour-card {
+        left: 16px; top: 16px; padding: 20px;
+      }
+      #ppl-tour-card .tour-actions {
+        align-items: stretch; flex-direction: column;
+      }
+      #ppl-tour-card .tour-secondary,
+      #ppl-tour-card .tour-primary {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -730,8 +750,8 @@ const T = {
     costCagrReference:cagrText=>`If trading, tax, and FX-related costs are estimated at 0.5% / 1.0% per year, reference annual return would be approximately ${cagrText}.`,
     fireCostReference:items=>`If annual costs are estimated at 0.5% / 1.0%, the FIRE timeline reference becomes: ${items}.`,
     fireCostItem:({ rate, cagr, nominal, real })=>`${rate} scenario: annual return ${cagr}, nominal ${nominal}, real ${real}`,
-    btSourceHistory:'Using true daily historical prices synced from BigQuery.',
-    btSourceProjection:'Historical price data is not loaded yet, so this view is temporarily using a metric-based projection.',
+    btSourceHistory:'This backtest asks: if you had invested these amounts in the past, what return and risk would the portfolio have experienced?',
+    btSourceProjection:'Historical prices are not loaded yet, so this view temporarily estimates how past investment inputs might translate into return and risk.',
     nav:{ intro:'Introduction', screening:'Asset Screening', correlation:'Correlation Analysis',
       allocation:'Risk Allocation', backtest:'Backtest & Pain Index', fire:'FIRE Calculator', summary:'Summary' },
 
@@ -751,15 +771,17 @@ const T = {
       'This tool is built on that philosophy. Every metric, every preset, and every calculation is designed to help you build a broadly diversified, low-cost, long-horizon portfolio — and to understand the tradeoffs you\'re making along the way.',
       'We don\'t tell you what to buy. We give you the data to make that decision yourself.',
     ],
-    introHowTitle:'How to Use This Tool',
+    introHowTitle:'Guided walkthrough',
     introHowSteps:[
-      { step:1, title:'Asset Screening',       desc:'Browse a curated list of passive ETFs across Taiwan, US, international, and bond markets. Filter by category, sort by any column, and check the assets you want to include. Start broad; you can narrow later.' },
-      { step:2, title:'Correlation Analysis',  desc:'See which of your selected ETFs move together. Highly correlated assets add duplication without diversification benefit. Use the group recommendations to keep one representative per cluster and remove the rest.' },
-      { step:3, title:'Risk Allocation',       desc:'Assign portfolio weights to each asset you kept. The total must sum to 100%. Use the presets as a starting point, or enter weights manually to reflect your own risk tolerance.' },
-      { step:4, title:'Backtest',              desc:'Run a TWD-based historical backtest on your weighted portfolio. Review money-weighted annual return, volatility, max drawdown, and Sharpe ratio. Adjust weights in Step 3 and re-run as many times as you like.' },
-      { step:5, title:'FIRE Calculator',       desc:'Enter your current savings, monthly contribution, expected retirement age, and spending target. The calculator estimates whether your portfolio is on track to support financial independence.' },
-      { step:6, title:'Summary',               desc:'Review your final portfolio at a glance — asset list, weights, key metrics, and FIRE readiness. You can screenshot or print this page as a personal reference.' },
+      { step:1, target:'screening', focus:'tour-asset-selection', align:'start', title:'Select assets', desc:'Filter the asset pool and add ETFs or crypto assets you want to test.' },
+      { step:2, target:'screening', focus:'tour-persona-presets', requiresSelection:true, title:'Use a preset persona', desc:'If you are not sure what to pick, choose a preset investor persona. If you already selected assets manually, continue to the next step.' },
+      { step:3, target:'correlation', title:'Remove overlap', desc:'Check whether the selected ETFs overlap too much. If correlated groups appear, click the “Remove ...” button to delete ETFs with duplicate exposure and keep one representative holding.' },
+      { step:4, target:'allocation', focus:'tour-risk-buttons', title:'Set allocation', desc:'Choose a preset risk level. The system automatically assigns weights from that risk profile.' },
+      { step:5, target:'backtest', focus:'tour-backtest-inputs', title:'Run the backtest', desc:'Enter the initial investment and monthly contribution, then review how those historical inputs would have affected return and risk.' },
+      { step:6, target:'fire', focus:'tour-fire-params', title:'Estimate FIRE', desc:'Use your savings, contributions, expenses, and withdrawal rate to estimate the timeline.' },
+      { step:7, target:'summary', title:'Review the summary', desc:'Use the final snapshot to compare metrics and decide what you want to adjust.' },
     ],
+    introSelectionRequired:'Select at least one asset or apply a preset investor persona before continuing.',
 
     screeningCriteriaTitle:'How assets were selected',
     screeningCriteriaBody:[
@@ -867,8 +889,8 @@ const T = {
     costCagrReference:cagrText=>`若交易、稅務與換匯等成本以年化 0.5% / 1.0% 估算，參考年化報酬約為 ${cagrText}。`,
     fireCostReference:items=>`若以年化 0.5% / 1.0% 成本情境估算，FIRE 年數參考為：${items}。`,
     fireCostItem:({ rate, cagr, nominal, real })=>`${rate} 情境：年化報酬 ${cagr}，名目 ${nominal}，實質 ${real}`,
-    btSourceHistory:'使用 BigQuery 同步的真實每日歷史價格。',
-    btSourceProjection:'尚未載入歷史價格資料，因此暫時使用指標推估。',
+    btSourceHistory:'這段回測是在回答：如果過去投入這些資金，組合曾經歷的報酬與風險會如何。',
+    btSourceProjection:'尚未載入歷史價格資料，因此暫時用指標推估過去投入這些資金時可能呈現的報酬與風險。',
     nav:{ intro:'介紹', screening:'資產篩選', correlation:'相關性分析',
       allocation:'風險配置', backtest:'回測與痛苦指數', fire:'財務自由試算', summary:'總結' },
 
@@ -888,15 +910,17 @@ const T = {
       '本工具以這個理念為基礎。所有指標、預設配置與計算，都是為了幫助你建立一個廣泛分散、低成本、以長期持有為核心的投資組合，並讓你清楚理解每個決策背後的取捨。',
       '我們不告訴你買什麼，我們提供數據，讓你自己做出判斷。',
     ],
-    introHowTitle:'如何使用本工具',
+    introHowTitle:'操作導覽',
     introHowSteps:[
-      { step:1, title:'資產篩選',     desc:'從台灣、美國、國際及債券市場的精選被動 ETF 清單中挑選標的。可依分類篩選、依任一欄位排序，勾選你想納入的資產。初期可以選廣一點，後續再縮減。' },
-      { step:2, title:'相關性分析',   desc:'查看你所選的 ETF 之間的連動性。高度相關的資產重複配置，卻沒有分散效果。利用本工具提供的分組建議，每個高相關群組保留一個代表標的即可。' },
-      { step:3, title:'風險配置',     desc:'為每個留下的資產設定投資比例，合計須達 100%。可從預設的風格配置出發，再依自身風險承受度手動調整。' },
-      { step:4, title:'回測分析',     desc:'對你的加權組合進行歷史模擬回測，查看資金加權年化報酬、波動率、最大回撤與 Sharpe 比率。可隨時回到第三步調整比例後重新回測。' },
-      { step:5, title:'FIRE 計算機',  desc:'輸入現有存款、每月定期投入金額、預計退休年齡與退休後支出目標，計算機將估算你的投資組合是否有機會達成財務獨立。' },
-      { step:6, title:'總覽摘要',     desc:'一頁總覽你的最終投資組合：標的清單、配置比例、關鍵績效指標與 FIRE 達成狀況，可截圖或列印作為個人參考。' },
+      { step:1, target:'screening', focus:'tour-asset-selection', align:'start', title:'選擇資產', desc:'從資產池篩選 ETF 或加密貨幣，加入想測試的清單。' },
+      { step:2, target:'screening', focus:'tour-persona-presets', requiresSelection:true, title:'使用預設投資人角色', desc:'如果還不知道挑選哪些標的，可以先選擇預設投資人角色；如果已經手動選好資產，可直接繼續下一步。' },
+      { step:3, target:'correlation', title:'檢查重疊', desc:'檢查已選 ETF 是否有太高的重複；若出現高相關群組，建議按下「移除 ...」按鈕，刪掉標的相同或曝險重複的 ETF，只保留一檔代表標的。' },
+      { step:4, target:'allocation', focus:'tour-risk-buttons', title:'設定配置', desc:'選擇預設風險等級，系統會依該風險設定自動分配權重。' },
+      { step:5, target:'backtest', focus:'tour-backtest-inputs', title:'執行回測', desc:'先填入初始投入與每月定期投入，再查看假設過去投入這些資金時，回測報酬與風險會如何。' },
+      { step:6, target:'fire', focus:'tour-fire-params', title:'試算 FIRE', desc:'輸入存款、投入、支出與提領率，估算財務自由時間軸。' },
+      { step:7, target:'summary', title:'閱讀總結', desc:'用最後快照比較關鍵指標，再決定是否回頭調整。' },
     ],
+    introSelectionRequired:'請先選取至少一個資產，或套用一個預設投資人角色，再繼續後面的導覽。',
 
     screeningCriteriaTitle:'資產是如何挑選的',
     screeningCriteriaBody:[
@@ -1005,7 +1029,7 @@ const NAV_ITEMS = [
 ];
 
 // ── App Header ────────────────────────────────────────────────────────────────
-const AppHeader = ({ t, lang, displayCurrency, setDisplayCurrency, onToggleSidebar, onHelp }) => (
+const AppHeader = ({ t, lang, displayCurrency, setDisplayCurrency, onToggleSidebar, onGuide }) => (
   <div id="ppl-app-header" style={{
     background:'linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%)',
     padding:'22px 48px', display:'flex', alignItems:'center', gap:20,
@@ -1025,11 +1049,11 @@ const AppHeader = ({ t, lang, displayCurrency, setDisplayCurrency, onToggleSideb
     <div className="header-sep" style={{ width:1, height:40, background:'rgba(255,255,255,0.18)', flexShrink:0 }} />
     <div className="header-tagline" style={{ fontSize:13, color:'rgba(255,255,255,0.65)', lineHeight:1.6 }}>{t.appTagline}</div>
     <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:10 }}>
-      <button onClick={onHelp} title="How to use" style={{
+      <button onClick={onGuide} title={t.introHowTitle} style={{
         background:'rgba(255,255,255,0.12)', border:'1px solid rgba(255,255,255,0.22)',
         borderRadius:20, padding:'5px 12px', color:'#fff', fontSize:12, fontWeight:600,
         cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:5,
-      }}>❓ {lang === 'zh' ? '使用說明' : 'How to use'}</button>
+      }}>❓ {lang === 'zh' ? '操作導覽' : 'Guide'}</button>
       <CurrencyToggle t={t} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} />
     </div>
   </div>
@@ -1149,18 +1173,6 @@ const IntroSection = ({ t }) => (
         <p key={i} style={{ fontSize:14, color:'#2d3e52', lineHeight:1.8, marginBottom: i < t.introPhiloBody.length - 1 ? 14 : 0 }}>{p}</p>
       ))}
     </Accordion>
-    <Accordion title={t.introHowTitle}>
-      {t.introHowSteps.map(s => (
-        <div key={s.step} style={{ display:'flex', gap:14, marginBottom:14, alignItems:'flex-start' }}>
-          <div style={{ flexShrink:0, width:26, height:26, borderRadius:'50%', background:'#1a3a6b',
-            color:'#fff', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center' }}>{s.step}</div>
-          <div>
-            <div style={{ fontWeight:700, fontSize:13, color:'#0d1f3c', marginBottom:3 }}>{s.title}</div>
-            <div style={{ fontSize:13, color:'#6b727e', lineHeight:1.65 }}>{s.desc}</div>
-          </div>
-        </div>
-      ))}
-    </Accordion>
     <InfoBanner><span dangerouslySetInnerHTML={{ __html:t.introBanner }} /></InfoBanner>
   </div>
 );
@@ -1248,76 +1260,78 @@ const AssetScreening = ({ t, lang, watchlist, setWatchlist, setConfirmed, setPer
         ))}
       </Accordion>
 
-      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
-        <input value={search} onChange={e => { setSearch(e.target.value); }}
-          placeholder={t.searchPlaceholder}
-          style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', width:195, outline:'none' }} />
-        {CATEGORIES.map(c => (
-          <button key={c} onClick={() => { setCat(c); }}
-            style={{ padding:'6px 13px', borderRadius:6, border:'1px solid', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.12s',
-              borderColor:cat===c?'#4182b9':'#d0d7e2', background:cat===c?'#4182b9':'#fff', color:cat===c?'#fff':'#555' }}>
-            {catLabel[c]}
-          </button>
-        ))}
-        <select value={cagrMin} onChange={e => { setCagrMin(+e.target.value); }}
-          style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', background:'#fff', cursor:'pointer' }}>
-          {[0,5,10,15,20,30].map(v => <option key={v} value={v}>{t.cagrFilter} {v}%</option>)}
-        </select>
-        <Btn small variant="ghost" onClick={selectAll}>{t.selectAll}</Btn>
-        <Btn small variant="ghost" onClick={deselectAll}>{t.deselectAll}</Btn>
-        <div style={{ marginLeft:'auto', fontSize:13, color:'#888' }}>{t.selectedCount(watchlist.length, filtered.length)}</div>
-      </div>
+      <div id="tour-asset-selection">
+        <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
+          <input value={search} onChange={e => { setSearch(e.target.value); }}
+            placeholder={t.searchPlaceholder}
+            style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', width:195, outline:'none' }} />
+          {CATEGORIES.map(c => (
+            <button key={c} onClick={() => { setCat(c); }}
+              style={{ padding:'6px 13px', borderRadius:6, border:'1px solid', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.12s',
+                borderColor:cat===c?'#4182b9':'#d0d7e2', background:cat===c?'#4182b9':'#fff', color:cat===c?'#fff':'#555' }}>
+              {catLabel[c]}
+            </button>
+          ))}
+          <select value={cagrMin} onChange={e => { setCagrMin(+e.target.value); }}
+            style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', background:'#fff', cursor:'pointer' }}>
+            {[0,5,10,15,20,30].map(v => <option key={v} value={v}>{t.cagrFilter} {v}%</option>)}
+          </select>
+          <Btn small variant="ghost" onClick={selectAll}>{t.selectAll}</Btn>
+          <Btn small variant="ghost" onClick={deselectAll}>{t.deselectAll}</Btn>
+          <div style={{ marginLeft:'auto', fontSize:13, color:'#888' }}>{t.selectedCount(watchlist.length, filtered.length)}</div>
+        </div>
 
-      <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,0.05)', marginBottom:14 }}>
-        <div style={{ overflowY:'auto', maxHeight:420 }}>
-        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
-          <thead>
-            <tr style={{ background:'#f7f9fc', borderBottom:'2px solid #e8edf3' }}>
-              {SORT_COLS.map((col, i) => {
-                const label = colLabels[i];
-                const isActive = col.key !== null && sortKey === col.key;
+        <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,0.05)', marginBottom:14 }}>
+          <div style={{ overflowY:'auto', maxHeight:420 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+            <thead>
+              <tr style={{ background:'#f7f9fc', borderBottom:'2px solid #e8edf3' }}>
+                {SORT_COLS.map((col, i) => {
+                  const label = colLabels[i];
+                  const isActive = col.key !== null && sortKey === col.key;
+                  return (
+                    <th key={i} onClick={() => onSortCol(col.key)}
+                      style={{ padding:'10px 12px', textAlign:'left', fontWeight:600, color:isActive?'#1e5a96':'#555',
+                        fontSize:11, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap',
+                        cursor:col.key?'pointer':'default', userSelect:'none',
+                        position:'sticky', top:0, background:'#f7f9fc', zIndex:1 }}>
+                      {label}
+                      {col.key && <span style={{ marginLeft:4, color:isActive?'#4182b9':'#ccc' }}>{isActive?(sortDir==='asc'?'▲':'▼'):'↕'}</span>}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedFiltered.map((a, i) => {
+                const inW = watchlist.includes(a.ticker);
                 return (
-                  <th key={i} onClick={() => onSortCol(col.key)}
-                    style={{ padding:'10px 12px', textAlign:'left', fontWeight:600, color:isActive?'#1e5a96':'#555',
-                      fontSize:11, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap',
-                      cursor:col.key?'pointer':'default', userSelect:'none',
-                      position:'sticky', top:0, background:'#f7f9fc', zIndex:1 }}>
-                    {label}
-                    {col.key && <span style={{ marginLeft:4, color:isActive?'#4182b9':'#ccc' }}>{isActive?(sortDir==='asc'?'▲':'▼'):'↕'}</span>}
-                  </th>
+                  <tr key={a.ticker} onClick={() => toggle(a.ticker)}
+                    style={{ background:inW?'#eff5fb':(i%2===0?'#fff':'#fafbfc'), borderBottom:'1px solid #f0f2f6', cursor:'pointer', transition:'background 0.1s' }}>
+                    <td style={{ padding:'10px 12px' }}>
+                      <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${inW?'#4182b9':'#d0d7e2'}`, background:inW?'#4182b9':'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, color:'#fff', fontWeight:700 }}>
+                        {inW ? '✓' : '+'}
+                      </div>
+                    </td>
+                    <td style={{ padding:'10px 12px', fontWeight:700, color:'#0d1f3c', fontFamily:'monospace', fontSize:12 }}>{a.ticker}</td>
+                    <td style={{ padding:'10px 12px', color:'#333', maxWidth:180 }}>{(lang === 'zh' && a.nameZh) ? a.nameZh : a.name}</td>
+                    <td style={{ padding:'10px 12px' }}><Badge label={catLabel[a.category]} variant={CAT_BADGE[a.category]} /></td>
+                    <td style={{ padding:'10px 12px', color:'#555', fontSize:12 }}>{a.subcategory}</td>
+                    <td style={{ padding:'10px 12px', fontWeight:600, color:a.cagr>=10?'#1e5a96':'#333' }}>{a.cagr.toFixed(1)}%</td>
+                    <td style={{ padding:'10px 12px', color:'#555' }}>{a.vol.toFixed(1)}%</td>
+                    <td style={{ padding:'10px 12px', color:'#e53e3e', fontWeight:600 }}>{a.maxDD.toFixed(1)}%</td>
+                    <td style={{ padding:'10px 12px', color:'#333' }}>{a.sharpe.toFixed(2)}</td>
+                    <td style={{ padding:'10px 12px', color:'#888', fontSize:12, whiteSpace:'nowrap' }}>{a.aumNote}</td>
+                  </tr>
                 );
               })}
-            </tr>
-          </thead>
-          <tbody>
-            {sortedFiltered.map((a, i) => {
-              const inW = watchlist.includes(a.ticker);
-              return (
-                <tr key={a.ticker} onClick={() => toggle(a.ticker)}
-                  style={{ background:inW?'#eff5fb':(i%2===0?'#fff':'#fafbfc'), borderBottom:'1px solid #f0f2f6', cursor:'pointer', transition:'background 0.1s' }}>
-                  <td style={{ padding:'10px 12px' }}>
-                    <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${inW?'#4182b9':'#d0d7e2'}`, background:inW?'#4182b9':'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, color:'#fff', fontWeight:700 }}>
-                      {inW ? '✓' : '+'}
-                    </div>
-                  </td>
-                  <td style={{ padding:'10px 12px', fontWeight:700, color:'#0d1f3c', fontFamily:'monospace', fontSize:12 }}>{a.ticker}</td>
-                  <td style={{ padding:'10px 12px', color:'#333', maxWidth:180 }}>{(lang === 'zh' && a.nameZh) ? a.nameZh : a.name}</td>
-                  <td style={{ padding:'10px 12px' }}><Badge label={catLabel[a.category]} variant={CAT_BADGE[a.category]} /></td>
-                  <td style={{ padding:'10px 12px', color:'#555', fontSize:12 }}>{a.subcategory}</td>
-                  <td style={{ padding:'10px 12px', fontWeight:600, color:a.cagr>=10?'#1e5a96':'#333' }}>{a.cagr.toFixed(1)}%</td>
-                  <td style={{ padding:'10px 12px', color:'#555' }}>{a.vol.toFixed(1)}%</td>
-                  <td style={{ padding:'10px 12px', color:'#e53e3e', fontWeight:600 }}>{a.maxDD.toFixed(1)}%</td>
-                  <td style={{ padding:'10px 12px', color:'#333' }}>{a.sharpe.toFixed(2)}</td>
-                  <td style={{ padding:'10px 12px', color:'#888', fontSize:12, whiteSpace:'nowrap' }}>{a.aumNote}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+          </div>
         </div>
       </div>
 
-      <div style={{ background:'#f7f9fc', border:'1px solid #e8edf3', borderRadius:10, padding:'16px 18px', marginBottom:16 }}>
+      <div id="tour-persona-presets" style={{ background:'#f7f9fc', border:'1px solid #e8edf3', borderRadius:10, padding:'16px 18px', marginBottom:16 }}>
         <div style={{ fontSize:14, fontWeight:600, color:'#0d1f3c', marginBottom:12 }}>{t.personaPrompt}</div>
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
           {Object.entries(PPL_PERSONAS).map(([name, p]) => (
@@ -1545,7 +1559,7 @@ const RiskAllocation = ({ t, watchlist, confirmed, riskLevel, setRiskLevel, allo
     <div>
       <SectionTitle icon="⚖️" title={t.allocTitle} caption={t.allocCaption} />
 
-      <div style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap' }}>
+      <div id="tour-risk-buttons" style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap', width:'fit-content', maxWidth:'100%', padding:8, marginLeft:-8 }}>
         {RISK_LEVELS.map(r => (
           <button key={r} onClick={() => setRiskLevel(r)}
             style={{ padding:'8px 18px', borderRadius:8, border:'1px solid', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s',
@@ -1631,8 +1645,10 @@ const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, 
 
   if (!confirmed || !Object.keys(allocation).length) return (
     <div>
-      <SectionTitle icon="📈" title={t.btTitle} caption={t.btCaption} />
-      <InfoBanner>{t.btLocked}</InfoBanner>
+      <div id="tour-backtest-inputs">
+        <SectionTitle icon="📈" title={t.btTitle} caption={t.btCaption} />
+        <InfoBanner>{t.btLocked}</InfoBanner>
+      </div>
     </div>
   );
 
@@ -1652,16 +1668,18 @@ const BacktestSection = ({ t, lang, allocation, confirmed, initial, setInitial, 
     <div>
       <SectionTitle icon="📈" title={t.btTitle} caption={t.btCaption} />
       <InfoBanner type={bt.source === 'history' ? 'success' : 'warning'}>
-        {bt.source === 'history' ? t.btSourceHistory : t.btSourceProjection} {t.currencyDisplayNote}
+        {bt.source === 'history' ? t.btSourceHistory : t.btSourceProjection}
       </InfoBanner>
       <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap', alignItems:'flex-end' }}>
-        {[[t.btInitial,initial,setInitial],[t.btMonthly,monthly,setMonthly]].map(([label,val,setter]) => (
-          <div key={label}>
-            <div style={LABEL_SM}>{label}</div>
-            <input type="number" value={val} onChange={e => setter(+e.target.value)}
-              style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', width:170 }} />
-          </div>
-        ))}
+        <div id="tour-backtest-inputs" style={{ display:'flex', gap:12, alignItems:'flex-end', width:'fit-content', maxWidth:'100%', padding:8, marginLeft:-8 }}>
+          {[[t.btInitial,initial,setInitial],[t.btMonthly,monthly,setMonthly]].map(([label,val,setter]) => (
+            <div key={label}>
+              <div style={LABEL_SM}>{label}</div>
+              <input type="number" value={val} onChange={e => setter(+e.target.value)}
+                style={{ padding:'7px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', width:170 }} />
+            </div>
+          ))}
+        </div>
         <div style={{ marginLeft:'auto', display:'flex', alignItems:'flex-end', gap:5, flexWrap:'wrap' }}>
           {TIME_RANGES.map(r => (
             <button key={r.key} onClick={() => setTimeRange(r.key)}
@@ -1800,48 +1818,48 @@ const FireSection = ({ t, confirmed, btCagr, displayCurrency }) => {
     <div>
       <SectionTitle icon="🔥" title={t.fireTitle} caption={t.fireCaption} />
       <div className="ppl-grid-2" style={{ display:'grid', gap:24 }}>
-        <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'20px 24px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c', marginBottom:18 }}>{t.fireParams}</div>
-          {[[t.fireAnnualExp,expenses,setExpenses,10000],[t.fireCurrentSav,savings,setSavings,50000],[t.fireMonthlyContrib,contrib,setContrib,1000]].map(([label,val,setter,step]) => (
-            <div key={label} style={{ marginBottom:14 }}>
-              <div style={LABEL_SM}>{label}</div>
-              <input type="number" value={val} step={step} onChange={e => setter(+e.target.value)}
-                style={{ width:'100%', padding:'8px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', outline:'none' }} />
-            </div>
-          ))}
-          <div className="ppl-grid-3" style={{ display:'grid', gap:10 }}>
-            {[[t.fireCagr,cagrInput,setCagrInput,0.1],[t.fireWithdraw,withdraw,setWithdraw,0.5],[t.fireInflation,inflation,setInflation,0.5]].map(([label,val,setter,step]) => (
-              <div key={label}>
-                <div style={{ fontSize:11, fontWeight:600, color:'#555', marginBottom:4 }}>{label}</div>
+          <div id="tour-fire-params" style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'20px 24px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontWeight:700, fontSize:14, color:'#0d1f3c', marginBottom:18 }}>{t.fireParams}</div>
+            {[[t.fireAnnualExp,expenses,setExpenses,10000],[t.fireCurrentSav,savings,setSavings,50000],[t.fireMonthlyContrib,contrib,setContrib,1000]].map(([label,val,setter,step]) => (
+              <div key={label} style={{ marginBottom:14 }}>
+                <div style={LABEL_SM}>{label}</div>
                 <input type="number" value={val} step={step} onChange={e => setter(+e.target.value)}
-                  style={{ width:'100%', padding:'7px 10px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', outline:'none' }} />
+                  style={{ width:'100%', padding:'8px 12px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', outline:'none' }} />
               </div>
             ))}
+            <div className="ppl-grid-3" style={{ display:'grid', gap:10 }}>
+              {[[t.fireCagr,cagrInput,setCagrInput,0.1],[t.fireWithdraw,withdraw,setWithdraw,0.5],[t.fireInflation,inflation,setInflation,0.5]].map(([label,val,setter,step]) => (
+                <div key={label}>
+                  <div style={{ fontSize:11, fontWeight:600, color:'#555', marginBottom:4 }}>{label}</div>
+                  <input type="number" value={val} step={step} onChange={e => setter(+e.target.value)}
+                    style={{ width:'100%', padding:'7px 10px', borderRadius:6, border:'1px solid #d0d7e2', fontSize:13, fontFamily:'inherit', outline:'none' }} />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        <div>
-          <div className="ppl-grid-2" style={{ display:'grid', gap:12, marginBottom:16 }}>
-            <MetricCard label={t.fireTarget}    value={fmtDisplay(fire.target)} sub={`${formatMoney(expenses, displayCurrency)} ÷ ${withdraw}%`} />
-            <MetricCard label={t.fireYearsNom}  value={formatFireYears(fire.yearsNominal, t)} />
-            <MetricCard label={t.fireYearsReal} value={formatFireYears(fire.yearsReal, t)} />
-            <MetricCard label={t.fireCagrUsed}  value={`${(Number.isFinite(cagrPct) ? cagrPct : 0).toFixed(1)}%`}
-              sub={btCagr?t.fireCagrFrom:t.fireCagrManual} />
+          <div>
+            <div className="ppl-grid-2" style={{ display:'grid', gap:12, marginBottom:16 }}>
+              <MetricCard label={t.fireTarget}    value={fmtDisplay(fire.target)} sub={`${formatMoney(expenses, displayCurrency)} ÷ ${withdraw}%`} />
+              <MetricCard label={t.fireYearsNom}  value={formatFireYears(fire.yearsNominal, t)} />
+              <MetricCard label={t.fireYearsReal} value={formatFireYears(fire.yearsReal, t)} />
+              <MetricCard label={t.fireCagrUsed}  value={`${(Number.isFinite(cagrPct) ? cagrPct : 0).toFixed(1)}%`}
+                sub={btCagr?t.fireCagrFrom:t.fireCagrManual} />
+            </div>
+            <InfoBanner>
+              <strong>{t.costScenarioTitle}:</strong> {t.fireCostReference(fireCostScenarioText)}
+              <br />{t.costScopeNote}
+            </InfoBanner>
+            <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'16px 20px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontWeight:600, fontSize:14, color:'#0d1f3c', marginBottom:14 }}>{t.fireProjection}</div>
+              <ChartLine labels={fire.labels}
+                yFmt={v=>formatMoney(v, displayCurrency, true)}
+                datasets={[
+                  { label:t.fireNominal,    data:fire.nomVals,  borderColor:'#4182b9', backgroundColor:'rgba(65,130,185,0.10)', borderWidth:2, pointRadius:0, fill:true, tension:0.4 },
+                  { label:t.fireReal,       data:fire.realVals, borderColor:'#72a8d4', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[5,4], tension:0.4 },
+                  { label:t.fireTargetLine, data:fire.labels.map(()=>fire.target), borderColor:'#e53e3e', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[8,4] },
+                ]} />
+            </div>
           </div>
-          <InfoBanner>
-            <strong>{t.costScenarioTitle}:</strong> {t.fireCostReference(fireCostScenarioText)}
-            <br />{t.costScopeNote}
-          </InfoBanner>
-          <div style={{ background:'#fff', border:'1px solid #e8edf3', borderRadius:10, padding:'16px 20px', boxShadow:'0 1px 3px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontWeight:600, fontSize:14, color:'#0d1f3c', marginBottom:14 }}>{t.fireProjection}</div>
-            <ChartLine labels={fire.labels}
-              yFmt={v=>formatMoney(v, displayCurrency, true)}
-              datasets={[
-                { label:t.fireNominal,    data:fire.nomVals,  borderColor:'#4182b9', backgroundColor:'rgba(65,130,185,0.10)', borderWidth:2, pointRadius:0, fill:true, tension:0.4 },
-                { label:t.fireReal,       data:fire.realVals, borderColor:'#72a8d4', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[5,4], tension:0.4 },
-                { label:t.fireTargetLine, data:fire.labels.map(()=>fire.target), borderColor:'#e53e3e', backgroundColor:'transparent', borderWidth:1.5, pointRadius:0, borderDash:[8,4] },
-              ]} />
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -1896,35 +1914,45 @@ const SummarySection = ({ t, lang, watchlist, allocation, riskLevel, btCagr, con
   );
 };
 
-// ── Instruction popup ─────────────────────────────────────────────────────────
-const InstructionPopup = ({ lang, t, onClose }) => {
-  const isZh = lang === 'zh';
+// ── Guided tour ───────────────────────────────────────────────────────────────
+const GuidedTour = ({ lang, t, stepIndex, notice, onPrev, onNext, onClose, cardStyle }) => {
   const steps = t.introHowSteps || [];
+  const step = steps[stepIndex] || steps[0];
+  const isLast = stepIndex >= steps.length - 1;
+  const isZh = lang === 'zh';
+
+  if (!step) return null;
+
   return (
-    <div id="ppl-help-overlay" onClick={e => { if (e.target.id === 'ppl-help-overlay') onClose(); }}>
-      <div id="ppl-help-box">
-        <h2>{isZh ? '如何使用本工具' : 'How to use this tool'}</h2>
-        <div className="help-sub">
-          {isZh
-            ? '依照以下六個步驟，完成你的被動投資組合分析。'
-            : 'Follow these six steps to build your passive portfolio analysis.'}
+    <>
+      <div id="ppl-tour-overlay" onClick={onClose} />
+      <div id="ppl-tour-card" role="dialog" aria-modal="true" aria-label={t.introHowTitle} style={cardStyle}>
+        <div className="tour-kicker">{t.introHowTitle} · {step.step}/{steps.length}</div>
+        <h2>{step.title}</h2>
+        <div className="tour-desc">{step.desc}</div>
+        {notice && <div className="tour-alert">{notice}</div>}
+        <div className="tour-progress" aria-hidden="true">
+          {steps.map((s, i) => (
+            <span key={s.step} className={`tour-dot ${i <= stepIndex ? 'active' : ''}`} />
+          ))}
         </div>
-        {steps.map(s => (
-          <div key={s.step} className="help-step">
-            <div className="help-num">{s.step}</div>
-            <div className="help-text"><strong>{s.title}</strong><br />{s.desc}</div>
+        <div className="tour-actions">
+          <button className="tour-secondary" onClick={onClose}>
+            {isZh ? '跳過導覽' : 'Skip tour'}
+          </button>
+          <div style={{ display:'flex', gap:8 }}>
+            {stepIndex > 0 && (
+              <button className="tour-secondary" onClick={onPrev}>
+                {isZh ? '上一步' : 'Back'}
+              </button>
+            )}
+            <button className="tour-primary" onClick={onNext}>
+              {isLast ? (isZh ? '完成' : 'Done') : (isZh ? '下一步' : 'Next')}
+            </button>
           </div>
-        ))}
-        <div className="help-note">
-          {isZh
-            ? '💡 所有計算以新台幣（TWD）為基礎。美元顯示僅為換算參考，不影響底層數字。'
-            : '💡 All calculations are in TWD. The USD toggle is display-only and does not affect underlying computations.'}
         </div>
-        <button id="ppl-help-close" onClick={onClose}>
-          {isZh ? '開始使用 →' : 'Get started →'}
-        </button>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -1944,27 +1972,42 @@ const App = () => {
   const [monthly,    setMonthly]    = useState(15000);
   const [displayCurrency, setDisplayCurrency] = useState('TWD');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showHelp,    setShowHelp]    = useState(false);
+  const [showTour,    setShowTour]    = useState(false);
+  const [tourStep,    setTourStep]    = useState(0);
+  const [tourNotice,  setTourNotice]  = useState('');
+  const [tourCardStyle, setTourCardStyle] = useState({});
 
   const mainRef = useRef();
   const t = T[lang] || T.en;
 
-  // Show popup on first visit
+  // Show guided tour on first visit
   useEffect(() => {
     try {
-      if (!localStorage.getItem('ppl_help_seen')) setShowHelp(true);
+      const hasSeenTour = localStorage.getItem('ppl_tour_seen') || localStorage.getItem('ppl_help_seen');
+      if (!hasSeenTour) {
+        setTourStep(0);
+        setShowTour(true);
+      }
     } catch {
-      setShowHelp(true);
+      setShowTour(true);
     }
   }, []);
 
-  const closeHelp = () => {
+  const closeTour = () => {
     try {
+      localStorage.setItem('ppl_tour_seen', '1');
       localStorage.setItem('ppl_help_seen', '1');
     } catch {
       // Continue without persistence when storage is blocked.
     }
-    setShowHelp(false);
+    setTourNotice('');
+    setShowTour(false);
+  };
+
+  const startTour = () => {
+    setTourStep(0);
+    setTourNotice('');
+    setShowTour(true);
   };
 
   const toggleSidebar = () => setSidebarOpen(o => !o);
@@ -1981,6 +2024,102 @@ const App = () => {
     scrollTo(id);
     setSidebarOpen(false);
   }, [scrollTo]);
+
+  useEffect(() => {
+    if (!showTour) {
+      document.querySelectorAll('.ppl-tour-focus').forEach(el => el.classList.remove('ppl-tour-focus'));
+      setTourCardStyle({});
+      return;
+    }
+
+    const currentStep = (t.introHowSteps || [])[tourStep];
+    if (!currentStep?.target) return;
+
+    const sectionEl = document.getElementById('section-'+currentStep.target);
+    const focusEl = currentStep.focus ? document.getElementById(currentStep.focus) : sectionEl;
+    if (!sectionEl || !focusEl) return;
+
+    focusEl.scrollIntoView({ behavior:'smooth', block: currentStep.align || 'center' });
+    document.querySelectorAll('.ppl-tour-focus').forEach(node => node.classList.remove('ppl-tour-focus'));
+    focusEl.classList.add('ppl-tour-focus');
+
+    const placeTourCard = () => {
+      const cardEl = document.getElementById('ppl-tour-card');
+      if (!cardEl) return;
+      const rect = focusEl.getBoundingClientRect();
+      const margin = 16;
+      const gap = 14;
+      const cardW = Math.min(cardEl.offsetWidth || 390, window.innerWidth - margin * 2);
+      const cardH = cardEl.offsetHeight || 260;
+      const maxLeft = Math.max(margin, window.innerWidth - cardW - margin);
+      const maxTop = Math.max(margin, window.innerHeight - cardH - margin);
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+      const canPlaceRight = rect.right + gap + cardW <= window.innerWidth - margin;
+      const canPlaceBelow = rect.bottom + gap + cardH <= window.innerHeight - margin;
+      const canPlaceAbove = rect.top - gap - cardH >= margin;
+      const canPlaceLeft = rect.left - gap - cardW >= margin;
+      let left;
+      let top;
+
+      if (canPlaceRight) {
+        left = rect.right + gap;
+        top = clamp(rect.top, margin, maxTop);
+      } else if (canPlaceBelow) {
+        left = clamp(rect.right - cardW, margin, maxLeft);
+        top = rect.bottom + gap;
+      } else if (canPlaceAbove) {
+        left = clamp(rect.right - cardW, margin, maxLeft);
+        top = rect.top - gap - cardH;
+      } else if (canPlaceLeft) {
+        left = rect.left - gap - cardW;
+        top = clamp(rect.top, margin, maxTop);
+      } else {
+        left = maxLeft;
+        top = maxTop;
+      }
+      setTourCardStyle({ left:`${Math.round(left)}px`, top:`${Math.round(top)}px` });
+    };
+
+    const timers = [
+      window.setTimeout(placeTourCard, 90),
+      window.setTimeout(placeTourCard, 420),
+      window.setTimeout(placeTourCard, 760),
+    ];
+    const main = mainRef.current;
+    window.addEventListener('resize', placeTourCard);
+    main?.addEventListener('scroll', placeTourCard, { passive:true });
+
+    return () => {
+      focusEl.classList.remove('ppl-tour-focus');
+      timers.forEach(window.clearTimeout);
+      window.removeEventListener('resize', placeTourCard);
+      main?.removeEventListener('scroll', placeTourCard);
+    };
+  }, [showTour, tourStep, t, scrollTo]);
+
+  useEffect(() => {
+    if (watchlist.length > 0) setTourNotice('');
+  }, [watchlist.length]);
+
+  const nextTour = () => {
+    const steps = t.introHowSteps || [];
+    const currentStep = steps[tourStep];
+    if (currentStep?.requiresSelection && watchlist.length === 0) {
+      setTourNotice(t.introSelectionRequired);
+      return;
+    }
+    setTourNotice('');
+    if (tourStep >= steps.length - 1) {
+      closeTour();
+      return;
+    }
+    setTourStep(i => Math.min(i + 1, steps.length - 1));
+  };
+
+  const prevTour = () => {
+    setTourNotice('');
+    setTourStep(i => Math.max(i - 1, 0));
+  };
 
   const backtestResult = useMemo(() => {
     if (!confirmed || !Object.keys(allocation).length) return null;
@@ -2020,7 +2159,7 @@ const App = () => {
         onClose={closeSidebar} className={sidebarOpen ? 'sidebar-open' : ''} />
       <main id="ppl-main" ref={mainRef} style={{ flex:1, overflowY:'auto', minWidth:0 }}>
         <AppHeader t={t} lang={lang} displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency}
-          onToggleSidebar={toggleSidebar} onHelp={() => setShowHelp(true)} />
+          onToggleSidebar={toggleSidebar} onGuide={startTour} />
         <div id="section-intro"       style={SECTION_STYLE}><IntroSection       {...sectionProps} /></div>
         <div style={DIVIDER} />
         <div id="section-screening"   style={SECTION_STYLE}><AssetScreening     {...sectionProps} onReviewPortfolio={() => scrollTo('correlation')} /></div>
@@ -2036,7 +2175,7 @@ const App = () => {
         <div id="section-summary"     style={SECTION_STYLE}><SummarySection      {...sectionProps} /></div>
         <div style={{ height:80 }} />
       </main>
-      {showHelp && <InstructionPopup lang={lang} t={t} onClose={closeHelp} />}
+      {showTour && <GuidedTour lang={lang} t={t} stepIndex={tourStep} notice={tourNotice} onPrev={prevTour} onNext={nextTour} onClose={closeTour} cardStyle={tourCardStyle} />}
     </div>
   );
 };

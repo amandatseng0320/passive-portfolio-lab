@@ -1,10 +1,10 @@
 # Data 說明
 
-最後更新：2026-07-02
+最後更新：2026-07-05
 
-`data/` 是專案內用來放「跨交付面共用資料」的資料夾。目前主要用途是 Asset Profiles / Web Scraping Showcase，也就是透過網頁爬蟲資料管線與資料正規化流程整理 ETF 與加密貨幣補充資訊，供 GitHub Web、Streamlit Dashboard 與 landing page 共用。
+`data/` 是專案內用來放「跨交付面共用資料」的資料夾。目前主要用途是 Asset Profiles / Web Scraping Showcase，也就是透過網頁爬蟲資料管線與資料正規化流程整理 ETF 與加密貨幣補充資訊，供進化實驗室（GitHub Web）、經典實驗室（Streamlit）與 landing page 共用。
 
-目前狀態：**已完成第一版，已接入 GitHub Web、Streamlit Dashboard、landing page、測試與 GitHub Actions workflow。**
+目前狀態：**已完成第一版，已接入進化實驗室（GitHub Web）、經典實驗室（Streamlit）、landing page、測試與 GitHub Actions workflow。**
 
 ## 資料夾結構
 
@@ -19,7 +19,7 @@ data/
 
 | 位置 | 角色 | 必要性 |
 |---|---|---|
-| `asset_profiles/asset_profiles.json` | 正規化後的共用 profile 資料，GitHub Web 與 Streamlit 都讀這份資料 | 必要，已建立 |
+| `asset_profiles/asset_profiles.json` | 正規化後的共用 profile 資料，進化實驗室與經典實驗室都讀這份資料 | 必要，已建立 |
 | `asset_profiles/raw/etf/` | ETF 來源頁面或中間解析資料 | 選用，用於除錯與資料來源追蹤 |
 | `asset_profiles/raw/crypto/` | Crypto 來源頁面或中間解析資料 | 選用，用於除錯與資料來源追蹤 |
 
@@ -111,8 +111,8 @@ official / gross expense ratio，則 `expenseRatioFormula` 會標示為
 5. ETF / crypto fetcher 已建立，包含 timeout、user-agent、allowlist 與 HTML parser。
 6. `normalize_profiles.py` 會輸出正規化後的 JSON。
 7. `export_asset_profiles.py` 會產出 `github_web/src/ppl-asset-profiles.js`。
-8. GitHub Web 的「組合配置」資產詳情已讀取 `PPL_ASSET_PROFILES`。
-9. Streamlit Dashboard 的「投資組合組成」treemap 詳情已讀取同一份 profile。
+8. 進化實驗室（GitHub Web）的「組合配置」資產詳情已讀取 `PPL_ASSET_PROFILES`。
+9. 經典實驗室（Streamlit）的「投資組合組成」treemap 詳情已讀取同一份 profile。
 10. Landing page 已加入「資產補充資訊 / Web Scraping Showcase」功能亮點。
 11. 已補上 `tests/export/test_asset_profiles_schema.py`、`tests/export/test_asset_profiles_export.py`、`tests/streamlit/test_asset_profiles_loader.py`。
 12. GitHub Actions workflow 已加入 asset profile JSON / JS 產生與 artifact。
@@ -120,13 +120,15 @@ official / gross expense ratio，則 `expenseRatioFormula` 會標示為
 14. 已驗證 29 檔 ETF 皆有可顯示費用率，且不使用 `約` / `+` / `See source profile`。
 15. 已驗證台股 ETF 皆有 `managementFee`、`custodianFee` 與
     `expenseRatioFormula = "managementFee + custodianFee"`。
-16. 已完成 Bandit、pytest、README、CHANGELOG、SECURITY_REVIEW 更新。
+16. 已完成 Bandit、pytest、README、CHANGELOG、SECURITY_REVIEW 更新，並於 2026-07-05 重新執行完整品質與資安檢查。
 
 驗證結果：
 
 - `python3 -m pytest tests/`：136 passed。
 - `python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'`：No issues identified。
-- `python3 github_web/scripts/validate_export.py`：Export validation passed。
+- `python3 -m pip_audit -r streamlit_dashboard/requirements.txt`：No known vulnerabilities found。
+- `python3 -m pip_audit -r tests/requirements_test.txt`：No known vulnerabilities found。
+- `python3 github_web/scripts/validate_export.py`：Export validation passed (37 assets, FX=31.57)。
 
 ## 安全規則
 

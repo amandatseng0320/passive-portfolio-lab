@@ -1,10 +1,10 @@
-# Looker Studio 說明
+# 決策儀表板（Looker Studio）說明
 
-最後更新：2026-07-02
+最後更新：2026-07-05
 
-`looker_studio/` 是 Passive Portfolio Lab 的 BI 報表資料層。它把 Streamlit / BigQuery 已有的價格與資產指標整理成 Looker Studio 可直接連接的 views、portfolio tables 與 CSV snapshots。
+`looker_studio/` 是 Passive Portfolio Lab 的決策儀表板資料層。它把經典實驗室（Streamlit）與 BigQuery 已有的價格與資產指標整理成 Looker Studio 可直接連接的 BI views、portfolio tables 與 CSV snapshots。
 
-已發布報表：
+已發布 BI 視圖：
 
 ```text
 https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67
@@ -18,7 +18,8 @@ https://datastudio.google.com/reporting/c2e7b15c-bf18-460f-8daf-dc480bcbca67
 | Portfolio-level BigQuery tables | 已建立產生腳本 |
 | CSV snapshots | 已產出於 `looker_studio/generated/` |
 | 預設 portfolios | 已內建 6 組 |
-| 報表幣別 | Portfolio-level 統一為 TWD |
+| 儀表板幣別 | Portfolio-level 統一為 TWD |
+| 最近品質重掃 | 2026-07-05，Bandit / pip-audit / pytest 均通過 |
 
 ## 資料夾結構
 
@@ -101,11 +102,11 @@ python3 looker_studio/export_portfolio_tables.py --no-upload
 | `looker_fire_scenarios` | FIRE target 與 years-to-FIRE |
 | `looker_fire_projection` | 50 年 nominal / real FIRE projection |
 
-USD-denominated assets 會使用與 Streamlit dashboard 相同的 TWD/USD 歷史匯率 helper 轉換成 TWD。
+USD-denominated assets 會使用與經典實驗室（Streamlit）相同的 TWD/USD 歷史匯率 helper 轉換成 TWD。
 
 ## 內建 portfolios
 
-目前 Looker Studio 報表使用 6 組 portfolio：
+目前決策儀表板（Looker Studio）使用 6 組 portfolio：
 
 | Portfolio | Type | Annual Expenses |
 |---|---|---:|
@@ -130,9 +131,9 @@ Core portfolio weights：
 looker_studio/export_portfolio_tables.py
 ```
 
-## Looker Studio 目前資料來源
+## 決策儀表板目前資料來源
 
-報表連接下列 BigQuery views / tables：
+決策儀表板連接下列 BigQuery views / tables：
 
 ```text
 looker_asset_metrics
@@ -157,9 +158,9 @@ looker_fire_projection
 | `portfolio_id`、`portfolio_name_zh`、`portfolio_name_en`、`ticker`、`name`、`category`、`subcategory`、`currency` | Text |
 | `cagr`、`volatility`、`max_drawdown`、`sharpe_ratio`、`daily_return`、`cumulative_return`、`annual_return` | Number / Percent |
 
-## 報表頁面
+## 儀表板頁面
 
-目前 Looker Studio 交付面涵蓋：
+目前決策儀表板（Looker Studio）交付面涵蓋：
 
 | 頁面 | 內容 |
 |---|---|
@@ -172,7 +173,7 @@ looker_fire_projection
 
 ## Calculated fields
 
-目前報表使用下列 calculated fields。
+目前決策儀表板使用下列 calculated fields。
 
 Risk label：
 
@@ -208,5 +209,5 @@ cagr / volatility
 - Portfolio-level tables 統一由 `export_portfolio_tables.py` 轉成 TWD。
 - 若修改 asset universe，需重新產生 `bigquery_views.sql` 與 portfolio tables。
 - 若修改 portfolio presets，需更新 `export_portfolio_tables.py`、CSV snapshots、Looker Studio data source 與 `CHANGELOG.md`。
-- 若修改 FIRE / backtest 公式，需同步更新 Streamlit、tests、Looker tables 與本 README。
+- 若修改 FIRE / backtest 公式，需同步更新經典實驗室（Streamlit）、tests、Looker tables 與本 README。
 - `generated/` 是可重建的輸出物，但目前保留作為結案展示與資料契約檢查 snapshot。

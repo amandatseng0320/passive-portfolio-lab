@@ -1,30 +1,33 @@
 # Passive Portfolio Lab 資安與弱點掃描報告
 
-最後更新：2026-07-02
+最後更新：2026-07-05
 
-掃描日期：2026-06-07  
+原始掃描日期：2026-06-07
+最新重掃日期：2026-07-05
 掃描範圍：本機 repo `/Users/at/Documents/GitHub/passive-portfolio-lab`  
 報告目的：確認專案在交付前的主要資安風險、依賴弱點、秘密資訊暴露風險與部署安全性。
 
-## 0. 修正後狀態摘要
+## 0. 最新狀態摘要
 
-修正日期：2026-07-02
-修正方式：保留原始掃描紀錄，新增本節、第 9 節、第 10 節與第 11 節作為修正後紀錄。
+最新重掃日期：2026-07-05
+修正方式：保留原始掃描紀錄，新增本節、第 9 節、第 10 節、第 11 節與第 12 節作為修正後紀錄。
 
-| 項目 | 原始掃描 | 修正後狀態 |
+| 項目 | 原始掃描 | 最新狀態 |
 |---|---:|---:|
 | Bandit High | 5 | 0 |
 | Bandit Medium | 12 | 0 |
 | Bandit Low | 2 | 0 |
-| `verify=False` | 5 處 | 0 處 |
+| `verify=False` | 5 處 | 0 個未審查用法 |
 | Python dependency known vulnerabilities | 0 | 0 |
 | 測試依賴 known vulnerabilities | 0 | 0 |
 | 核心測試 | 未於原始掃描執行 | 136 passed |
+| Web export validation | 未於原始掃描執行 | Passed after refresh |
+| Git tracked sensitive files | 未發現 | 未發現 |
 
 已完成修正：
 
 - 移除所有 `requests.get(..., verify=False)`，恢復正常 TLS certificate validation。
-- 移除不再需要的 `InsecureRequestWarning` suppression 與相關註解。
+- 移除原始價格 / 宏觀資料線不需要的 `InsecureRequestWarning` suppression 與相關註解；asset profile 固定來源 TLS 例外另見第 12 節。
 - 新增 BigQuery project / dataset identifier validation。
 - Streamlit Cloud entry point shim 已於重新部署後移除，正式入口改為 `streamlit_dashboard/app.py`。
 - Streamlit secrets 初始化從完全靜默 `except/pass` 改為 local fallback + warning。
@@ -33,14 +36,16 @@
 - 新增 Asset Profiles / Web Scraping Showcase 時，已加入來源 allowlist、timeout、
   sanitize、raw data ignore 與 schema/export/loader 測試。
 - 2026-07-02 修正回測 MWRR、年度報酬與 worst-year FutureWarning，並補上相關測試。
+- 2026-07-05 完成完整重掃、資料刷新、導覽命名清理與文件重整。
 
 修正後仍保留的風險/注意事項：
 
 - Bandit 已無 High / Medium / Low findings。
 - 部分固定來源 SQL 使用 `# nosec` 註記；這些註記均附有安全理由，避免靜態掃描誤報干擾結案報告。
+- Asset Profiles fetcher 對三個固定 public profile host 保留受控 TLS 例外；URL 來源受 allowlist 限制，不接受使用者輸入任意 URL。
 - `.env` 與 `credentials.json` 仍存在於本機，但未被 git 追蹤，且已由 `.gitignore` 排除。
 
-以下第 1 到第 8 節保留原始掃描結果，作為修正前基準與稽核紀錄；第 9 節記錄原始發現修正後重掃結果；第 10 節記錄新增 Web Scraping Showcase 後的補充資安檢查；第 11 節記錄 2026-07-02 的最終修正與重掃結果。
+以下第 1 到第 8 節保留原始掃描結果，作為修正前基準與稽核紀錄；第 9 節記錄原始發現修正後重掃結果；第 10 節記錄新增 Web Scraping Showcase 後的補充資安檢查；第 11 節記錄 2026-07-02 的修正與重掃結果；第 12 節記錄 2026-07-05 的最新完整重掃結果。
 
 ## 1. 掃描摘要
 
@@ -690,7 +695,7 @@ Export validation passed (37 assets, FX=31.57)
 - Backtest 年度報酬改為扣除投入影響後計算。
 - Python backtest DCA 日期改為該月第一個可用價格日期，避免月初非交易日跳過投入。
 - `metrics.py` worst-year 計算先排除 NA / inf，修正 pandas `Series.idxmin` FutureWarning。
-- GitHub Web help popup 對 `localStorage` 加上 try/catch，storage 被封鎖時仍可關閉。
+- GitHub Web 操作導覽對 `localStorage` 加上 try/catch，storage 被封鎖時仍可關閉。
 - `.env.example` 補齊選用設定，`outputs/` 加入 `.gitignore`。
 
 ### 11.2 重掃結果
@@ -705,3 +710,69 @@ python3 -m pytest tests/
 
 目前未再出現 pandas `Series.idxmin` FutureWarning。
 - GitHub Web、Streamlit Dashboard 與 tests 已共用同一份資料契約。
+
+## 12. 2026-07-05 完整審查、保守清理與重掃紀錄
+
+### 12.1 審查範圍
+
+本輪以目前工作樹為準，不回復已完成的 landing page、進化實驗室操作導覽與經典實驗室新手導覽調整。審查範圍包含：
+
+- Python 資安掃描、依賴弱點掃描、secret / credential 搜尋與 git tracked sensitive files 檢查。
+- GitHub Actions secret 使用方式、BigQuery identifier validation、ticker whitelist、前端 HTML injection 風險、asset profile 爬蟲來源 allowlist 與 TLS 例外。
+- GitHub Web 導覽程式碼中的舊彈窗命名、未使用 wrapper id、未使用 component prop 與 localStorage 相容性。
+
+### 12.2 最新重掃結果
+
+```text
+python3 -m pytest tests/
+136 passed
+
+python3 -m bandit -r streamlit_dashboard github_web/scripts looker_studio -x '*/__pycache__/*'
+No issues identified.
+
+python3 -m pip_audit -r streamlit_dashboard/requirements.txt
+No known vulnerabilities found
+
+python3 -m pip_audit -r tests/requirements_test.txt
+No known vulnerabilities found
+
+python3 github_web/scripts/export_web_data.py
+Updated github_web/src/ppl-data.js at 2026-07-05 05:30 UTC
+
+python3 github_web/scripts/validate_export.py
+Export validation passed (37 assets, FX=31.57)
+```
+
+Secret / credential 搜尋使用下列模式：
+
+```bash
+rg -n -i "(api[_-]?key|secret|password|token|private[_ -]?key|client_email|credentials|GCP_SA_KEY|GOOGLE_APPLICATION_CREDENTIALS|BEGIN PRIVATE KEY)" \
+  --glob '!.git/**' \
+  --glob '!*.pyc' \
+  --glob '!github_web/src/ppl-data.js' \
+  --glob '!looker_studio/generated/**' .
+```
+
+結果摘要：
+
+- 搜尋結果為 README、`.env.example`、程式註解、環境變數名稱、GitHub Actions secret 名稱、UI 翻譯字串與 crypto 類別文字。
+- 未發現已追蹤檔案中包含實際 API key、service account private key 或 credential JSON 內容。
+- `git ls-files | rg "(__pycache__|\\.pyc$|\\.DS_Store$|^\\.env$|credentials\\.json$)" || true` 無輸出，代表沒有上述本機產物或敏感檔案被 git 追蹤。
+
+### 12.3 高風險模式人工審查
+
+掃描 `verify=False`、`exec(`、`eval(`、`shell=True`、`subprocess`、`innerHTML`、`dangerouslySetInnerHTML`、`localStorage` 與 `# nosec` 後，人工結論如下：
+
+- 未發現未審查的 `exec(`、`eval(`、`shell=True` 或 `subprocess`。
+- GitHub Actions 透過 `${{ secrets.GCP_SA_KEY }}` 寫入暫存檔，workflow 內沒有硬編真實 secret。
+- BigQuery project / dataset identifier 仍由 helper 驗證；ticker 來源受固定 `ASSET_POOL`、portfolio presets 或 whitelist 約束。
+- GitHub Web 的 `dangerouslySetInnerHTML` 僅用於靜態信任翻譯字串；Streamlit 的 HTML 片段使用 escaped / sanitized profile data。
+- `localStorage` 只用於操作導覽 seen state，並以 try/catch 包住，storage 被封鎖時不影響核心功能。
+- Asset Profiles fetcher 的 TLS 例外只套用在固定 allowlist host：`www.yuantaetf.com`、`www.pocket.tw`、`school.gugu.fund`。URL 不接受使用者輸入，呼叫前會經 `validate_source_url()` 檢查，且仍有 timeout 與 sanitize。
+- `# nosec` 目前集中於已審查的 BigQuery SQL identifier 組裝、固定翻譯字串誤判與上述受控 TLS 例外；Bandit 重掃仍為 0 findings。
+
+### 12.4 最新結論
+
+截至 2026-07-05，本專案未發現已追蹤明文憑證、未發現已知 Python 依賴弱點，Bandit High / Medium / Low findings 均為 0。核心測試與 web export validation 皆通過；`ppl-data.js` 已使用本機 BigQuery credentials 刷新並通過 freshness gate。
+
+後續若新增外部資料來源、前端 HTML 插入點、GitHub Actions secret、BigQuery table/view 或使用者輸入 API，應重新跑本節列出的檢查並更新本報告。

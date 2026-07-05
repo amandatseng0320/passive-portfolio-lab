@@ -1,8 +1,8 @@
-# Streamlit Dashboard 說明
+# 經典實驗室（Streamlit）說明
 
-最後更新：2026-07-02
+最後更新：2026-07-05
 
-`streamlit_dashboard/` 是 Passive Portfolio Lab 的互動式研究介面，也是目前 Streamlit Cloud 的正式部署入口。使用者可在這裡完成資產篩選、相關性檢查、風險配置、TWD-based 回測、FIRE 試算與 AI 投資組合摘要。
+`streamlit_dashboard/` 是 Passive Portfolio Lab 的經典實驗室，也是目前 Streamlit Cloud 的正式部署入口。使用者可在這裡完成資產篩選、相關性檢查、風險配置、TWD-based 回測、FIRE 試算與 AI 投資組合摘要。
 
 線上版本：
 
@@ -21,6 +21,7 @@ https://passive-portfolio-lab-tw.streamlit.app/
 | Gemini AI insights | 選用，需設定 `GEMINI_API_KEY` |
 | Password gate | 選用，需設定 `APP_PASSWORD` |
 | Asset Profiles / Web Scraping Showcase | 已接入「投資組合組成」資產詳情 |
+| 新手導覽 | 側邊欄提供非彈窗式流程提示；主頁說明分析流程與每一步的意義 |
 
 ## 資料夾結構
 
@@ -145,7 +146,7 @@ APP_PASSWORD=your-password
 
 ## Asset Profiles Pipeline
 
-Streamlit Dashboard 會展示網頁爬蟲資料管線整理後的資產補充資訊。使用者在「Portfolio Composition / 投資組合組成」treemap 點擊單一資產時，除了既有配比、CAGR、波動率、最大回撤與 Sharpe，也會看到：
+經典實驗室（Streamlit）會展示網頁爬蟲資料管線整理後的資產補充資訊。使用者在「Portfolio Composition / 投資組合組成」treemap 點擊單一資產時，除了既有配比、CAGR、波動率、最大回撤與 Sharpe，也會看到：
 
 - ETF：基本簡介、資產類型、發行商、費用率、配息政策 / 配息頻率、資料來源與更新時間。29 檔 ETF
   皆需顯示可讀費用率，不得退回 `See source profile`、`約` 或 `+` 這類不明確文字。
@@ -168,13 +169,13 @@ Streamlit Dashboard 會展示網頁爬蟲資料管線整理後的資產補充資
 8. 已驗證台股 ETF 費用率由 `managementFee + custodianFee` 計算，前端以單一費用率欄位呈現。
 9. 已完成 security scan，並更新 `CHANGELOG.md`、`SECURITY_REVIEW.md` 與本 README。
 
-目前狀態：**已完成第一版。**
+目前狀態：**已完成第一版，並於 2026-07-05 完成資安、測試與文件重掃。**
 
 ## 維護規則
 
-- 新增資產時，要同步更新 `screening.py`、BigQuery price data、metrics、GitHub Web export、Looker Studio tables 與測試。
+- 新增資產時，要同步更新 `screening.py`、BigQuery price data、metrics、進化實驗室（GitHub Web）export、決策儀表板（Looker Studio）tables 與測試。
 - 修改 backtest / FIRE / metrics 公式時，要同步更新 `tests/processing/`。
-- 修改 BigQuery schema 時，要同步更新 `app.py`、`utils.py`、GitHub Web export、Looker Studio 與 README。
-- 修改 asset profile schema 時，要同步更新共用 JSON、GitHub Web 匯出、Streamlit loader、tests、CHANGELOG 與 SECURITY_REVIEW。
+- 修改 BigQuery schema 時，要同步更新 `app.py`、`utils.py`、進化實驗室（GitHub Web）export、決策儀表板（Looker Studio）與 README。
+- 修改 asset profile schema 時，要同步更新共用 JSON、進化實驗室（GitHub Web）匯出、經典實驗室（Streamlit）loader、tests、CHANGELOG 與 SECURITY_REVIEW。
 - Gemini 與 password gate 都是選用功能，不能讓缺少 API key 影響核心 dashboard。
 - `__pycache__/`、`.pyc`、`.DS_Store` 等本機產物不應提交到 Git。

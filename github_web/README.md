@@ -1,8 +1,8 @@
-# GitHub Web 說明
+# 進化實驗室（GitHub Web）說明
 
-最後更新：2026-07-02
+最後更新：2026-07-05
 
-這個資料夾是 Passive Portfolio Lab 的 GitHub Pages 靜態網頁版。它提供免登入、免後端的前端展示介面，讓使用者可以瀏覽資產指標、套用 persona、做靜態資料下的 TWD-based portfolio 分析。
+這個資料夾是 Passive Portfolio Lab 的進化實驗室，也就是 GitHub Pages 上的產品化靜態網頁介面。它提供免登入、免後端的完整前端分析體驗，讓使用者可以瀏覽資產指標、套用 persona、做靜態資料下的 TWD-based portfolio 分析，並支援手機查看與操作。主 app 內建操作導覽，協助第一次使用者依序完成資產篩選、重疊檢查、配置、回測與 FIRE 試算。
 
 ## 入口檔案
 
@@ -47,7 +47,7 @@ github_web/
 
 ## 資料來源
 
-GitHub Web 不會在瀏覽器中直接查 BigQuery。資料流程是：
+進化實驗室（GitHub Web）不會在瀏覽器中直接查 BigQuery。資料流程是：
 
 1. GitHub Actions 執行資料更新。
 2. `github_web/scripts/export_web_data.py` 從 BigQuery 匯出資料。
@@ -81,7 +81,7 @@ github_web/src/ppl-asset-profiles.js
 
 ## Web Scraping Showcase Pipeline
 
-GitHub Web 是 asset profiles 的主要展示面之一。使用者在「組合配置」點進單一資產時，除了目前的 CAGR、volatility、max drawdown、Sharpe 等數值，也會看到：
+進化實驗室（GitHub Web）是 asset profiles 的主要展示面之一。使用者在「組合配置」點進單一資產時，除了目前的 CAGR、volatility、max drawdown、Sharpe 等數值，也會看到：
 
 - ETF：基本簡介、發行商、費用率、配息政策 / 配息頻率、資料來源。29 檔 ETF
   皆需顯示可讀費用率，不得退回 `See source profile`、`約` 或 `+` 這類不明確文字。
@@ -106,6 +106,8 @@ CoinMarketCap API 或其他行情 API。ETF 來源優先使用官方發行商 ET
 10. 已完成 security scan，並更新 `CHANGELOG.md` 與 `SECURITY_REVIEW.md`。
 
 目前狀態：**已完成第一版，GitHub Actions 會產生並驗證 asset profile 靜態資料。**
+
+2026-07-05 重掃結果：`python3 github_web/scripts/validate_export.py` 已在資料刷新後通過，`ppl-data.js` 目前包含 37 個 assets，顯示匯率為 FX=31.57。
 
 ## 部署流程
 
@@ -151,7 +153,7 @@ python github_web/scripts/export_web_data.py
 
 ## 計算限制
 
-- GitHub Web 是靜態版本，不直接呼叫 BigQuery。
+- 進化實驗室（GitHub Web）是靜態版本，不直接呼叫 BigQuery。
 - 資料新鮮度取決於最近一次 GitHub Actions export。
 - 所有輸入與計算仍以 TWD 為主。
 - 歷史回測年化報酬採 MWRR，會納入每月投入的時間點；年度報酬扣除投入影響後計算。
@@ -160,7 +162,7 @@ python github_web/scripts/export_web_data.py
 ## 維護注意事項
 
 - 若修改 `ppl-data.js` schema，需同步更新 `scripts/export_web_data.py`、`scripts/validate_export.py` 與 `tests/export/test_export_web_data.py`。
-- 若新增或修改 asset profile schema，需同步更新 `data/README.md`、`scripts/asset_intelligence/`、`src/ppl-asset-profiles.js`、GitHub Web UI、Streamlit loader 與測試。
+- 若新增或修改 asset profile schema，需同步更新 `data/README.md`、`scripts/asset_intelligence/`、`src/ppl-asset-profiles.js`、進化實驗室 UI、經典實驗室 loader 與測試。
 - 若新增資產，需先確認 BigQuery 有價格資料，再執行 backfill / export。
 - `.DS_Store`、`__pycache__/`、`.pyc` 等本機產物不應提交到 Git。
 - `serve.py` 與 GitHub Pages 部署無關，只是本機測試工具。
