@@ -12,9 +12,16 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
 jobs:
   update-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       # ── 1. Checkout ────────────────────────────────────────────────────────
@@ -73,20 +80,7 @@ jobs:
       - name: Validate export
         run: python github_web/scripts/validate_export.py
 
-      # ── 8. Commit updated static data if anything changed ─────────────────
-      - name: Commit data update
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/asset_profiles/asset_profiles.json github_web/src/ppl-data.js github_web/src/ppl-asset-profiles.js
-          if git diff --staged --quiet; then
-            echo "static web data unchanged — nothing to commit"
-          else
-            git commit -m "chore: auto-update static web data [skip ci]"
-            git push
-          fi
-
-      # ── 9. Write job summary ───────────────────────────────────────────────
+      # ── 8. Write job summary ───────────────────────────────────────────────
       - name: Export summary
         run: |
           echo "## Export Summary" >> $GITHUB_STEP_SUMMARY
@@ -102,7 +96,7 @@ jobs:
           echo "| FX rate (TWD/USD) | $FX |" >> $GITHUB_STEP_SUMMARY
           echo "| Asset profiles | $PROFILE_COUNT |" >> $GITHUB_STEP_SUMMARY
 
-      # ── 10. Deploy github_web/ to GitHub Pages ─────────────────────────────
+      # ── 9. Deploy github_web/ to GitHub Pages ──────────────────────────────
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
@@ -112,4 +106,18 @@ jobs:
           path: ./github_web
 
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
+
+      # ── 10. Commit updated static data if anything changed ────────────────
+      - name: Commit data update
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/asset_profiles/asset_profiles.json github_web/src/ppl-data.js github_web/src/ppl-asset-profiles.js
+          if git diff --staged --quiet; then
+            echo "static web data unchanged — nothing to commit"
+          else
+            git commit -m "chore: auto-update static web data [skip ci]"
+            git push
+          fi
