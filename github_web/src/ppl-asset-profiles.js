@@ -1,6 +1,6 @@
 // ppl-asset-profiles.js — normalized ETF and crypto profile data
 // Generated from data/asset_profiles/asset_profiles.json
-const PPL_ASSET_PROFILE_UPDATED_AT = "2026-07-14";
+const PPL_ASSET_PROFILE_UPDATED_AT = "2026-07-15";
 const PPL_ASSET_PROFILES = {
   "0050.TW": {
     "ticker": "0050.TW",
@@ -12,7 +12,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0050",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Yuanta Securities Investment Trust",
     "expenseRatio": "0.18%",
@@ -22,9 +22,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "ETFInfo public ETF fee profile",
     "expenseRatioSourceUrl": "https://www.etfinfo.tw/etf/0050",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Distribution policy listed in source profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "0050.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Distribution policy listed in source profile"
   },
   "0056.TW": {
     "ticker": "0056.TW",
@@ -36,7 +34,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0056",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Yuanta Securities Investment Trust",
     "expenseRatio": "0.44%",
@@ -46,9 +44,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "ETFInfo public ETF fee profile",
     "expenseRatioSourceUrl": "https://www.etfinfo.tw/etf/0056",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Dividend-focused strategy; verify frequency from source profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "0056.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Dividend-focused strategy; verify frequency from source profile"
   },
   "00878.TW": {
     "ticker": "00878.TW",
@@ -60,7 +56,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00878",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Cathay Securities Investment Trust",
     "expenseRatio": "0.34%",
@@ -70,9 +66,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "ETFInfo public ETF fee profile",
     "expenseRatioSourceUrl": "https://www.etfinfo.tw/etf/00878",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Quarterly distributions noted in curated profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00878.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Quarterly distributions noted in curated profile"
   },
   "00919.TW": {
     "ticker": "00919.TW",
@@ -84,7 +78,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00919",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Capital Investment Trust",
     "expenseRatio": "0.335%",
@@ -94,9 +88,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "Capital official ETF profile",
     "expenseRatioSourceUrl": "https://www.capitalfund.com.tw/etf/product/detail/195/basic",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Monthly distributions noted in curated profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00919.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Monthly distributions noted in curated profile"
   },
   "006208.TW": {
     "ticker": "006208.TW",
@@ -108,7 +100,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/006208",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Fubon Asset Management",
     "expenseRatio": "0.18%",
@@ -118,9 +110,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "ETFInfo public ETF fee profile",
     "expenseRatioSourceUrl": "https://www.etfinfo.tw/etf/006208",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Distribution policy listed in source profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "006208.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Distribution policy listed in source profile"
   },
   "00937B.TWO": {
     "ticker": "00937B.TWO",
@@ -132,7 +122,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00937B",
     "sourceSummary": "臺灣證券交易所｜ETF e添富機構投資人網站",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Capital Investment Trust",
     "expenseRatio": "0.25%~0.4%",
@@ -142,9 +132,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "Capital official ETF profile",
     "expenseRatioSourceUrl": "https://www.capitalfund.com.tw/etf/product/detail/378/basic",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Monthly distributions noted in curated profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00937B.TWO collectionMethod is not web_scraping"
+    "dividendPolicy": "Monthly distributions noted in curated profile"
   },
   "00679B.TWO": {
     "ticker": "00679B.TWO",
@@ -156,7 +144,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00679B",
     "sourceSummary": "臺灣證券交易所｜ETF e添富機構投資人網站",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Yuanta Securities Investment Trust",
     "expenseRatio": "0.14%~0.22%",
@@ -166,9 +154,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "Yuanta official ETF profile",
     "expenseRatioSourceUrl": "https://www.yuantaetf.com/product/detail/00679B/Basic_information",
     "expenseRatioCollectionMethod": "curated_fallback",
-    "dividendPolicy": "Income-oriented bond ETF; verify frequency from source profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00679B.TWO collectionMethod is not web_scraping"
+    "dividendPolicy": "Income-oriented bond ETF; verify frequency from source profile"
   },
   "00751B.TWO": {
     "ticker": "00751B.TWO",
@@ -180,7 +166,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00751B",
     "sourceSummary": "臺灣證券交易所｜ETF e添富機構投資人網站",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Yuanta Securities Investment Trust",
     "expenseRatio": "0.23%~0.5%",
@@ -190,9 +176,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "Yuanta official ETF profile",
     "expenseRatioSourceUrl": "https://www.yuantaetf.com/product/detail/00751B/Basic_information",
     "expenseRatioCollectionMethod": "curated_fallback",
-    "dividendPolicy": "Dividend-focused strategy; verify frequency from source profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00751B.TWO collectionMethod is not web_scraping"
+    "dividendPolicy": "Dividend-focused strategy; verify frequency from source profile"
   },
   "0052.TW": {
     "ticker": "0052.TW",
@@ -204,7 +188,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/0052",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Fubon Asset Management",
     "expenseRatio": "0.19%",
@@ -214,9 +198,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "ETFInfo public ETF fee profile",
     "expenseRatioSourceUrl": "https://www.etfinfo.tw/etf/0052",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Distribution policy listed in source profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "0052.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Distribution policy listed in source profile"
   },
   "00929.TW": {
     "ticker": "00929.TW",
@@ -228,7 +210,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00929",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Fuh Hwa Securities Investment Trust",
     "expenseRatio": "0.39%",
@@ -238,9 +220,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "ETFInfo public ETF fee profile",
     "expenseRatioSourceUrl": "https://www.etfinfo.tw/etf/00929",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Monthly distributions noted in curated profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00929.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Monthly distributions noted in curated profile"
   },
   "00713.TW": {
     "ticker": "00713.TW",
@@ -252,7 +232,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00713",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Yuanta Securities Investment Trust",
     "expenseRatio": "0.49%",
@@ -262,9 +242,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "ETFInfo public ETF fee profile",
     "expenseRatioSourceUrl": "https://www.etfinfo.tw/etf/00713",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Dividend-focused strategy; verify frequency from source profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00713.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Dividend-focused strategy; verify frequency from source profile"
   },
   "00952.TW": {
     "ticker": "00952.TW",
@@ -276,7 +254,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00952",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "KGI Securities Investment Trust",
     "expenseRatio": "0.44%",
@@ -286,9 +264,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "ETFInfo public ETF fee profile",
     "expenseRatioSourceUrl": "https://www.etfinfo.tw/etf/00952",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Monthly distributions noted in curated profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00952.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Monthly distributions noted in curated profile"
   },
   "00646.TW": {
     "ticker": "00646.TW",
@@ -300,7 +276,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00646",
     "sourceSummary": "ETF - Taiwan Stock Exchange Corporation｜ETF ETFortune Institutional Investors website",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Yuanta Securities Investment Trust",
     "expenseRatio": "0.71%",
@@ -310,9 +286,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "ETFInfo public ETF fee profile",
     "expenseRatioSourceUrl": "https://www.etfinfo.tw/etf/00646",
     "expenseRatioCollectionMethod": "web_scraping",
-    "dividendPolicy": "Distribution policy listed in source profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00646.TW collectionMethod is not web_scraping"
+    "dividendPolicy": "Distribution policy listed in source profile"
   },
   "00955.TWO": {
     "ticker": "00955.TWO",
@@ -324,7 +298,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.twse.com.tw/en/ETFortune-institute/etfInfo/00955",
     "sourceSummary": "臺灣證券交易所｜ETF e添富機構投資人網站",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-13",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "CTBC Investments",
     "expenseRatio": "0.75%",
@@ -334,9 +308,7 @@ const PPL_ASSET_PROFILES = {
     "expenseRatioSourceName": "Gugu public ETF fee profile",
     "expenseRatioSourceUrl": "https://school.gugu.fund/ai/answer/00955%E4%B8%AD-5-655118",
     "expenseRatioCollectionMethod": "curated_fallback",
-    "dividendPolicy": "Distribution policy listed in source profile",
-    "reusedFromPreviousExport": true,
-    "reuseReason": "00955.TWO collectionMethod is not web_scraping"
+    "dividendPolicy": "Distribution policy listed in source profile"
   },
   "VOO": {
     "ticker": "VOO",
@@ -348,7 +320,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://investor.vanguard.com/investment-products/etfs/profile/voo",
     "sourceSummary": "Vanguard S&P 500 ETF (VOO) - Find objective, share price, performance, expense ratio, holding, and risk details.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Vanguard",
     "expenseRatio": "0.03%",
@@ -370,7 +342,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf",
     "sourceSummary": "The iShares Core S&P 500 ETF seeks to track the investment results of an index composed of large-capitalization U.S. equities.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "BlackRock iShares",
     "expenseRatio": "0.03%",
@@ -392,7 +364,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy",
     "sourceSummary": "The State Street® SPDR® S&P 500® ETF Trust seeks to provide investment results that, before expenses, correspond generally to the price and yield...",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "State Street Global Advisors",
     "expenseRatio": "0.0945%",
@@ -414,7 +386,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://investor.vanguard.com/investment-products/etfs/profile/vti",
     "sourceSummary": "Vanguard Total Stock Market ETF (VTI) - Find objective, share price, performance, expense ratio, holding, and risk details.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Vanguard",
     "expenseRatio": "0.03%",
@@ -436,7 +408,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.invesco.com/qqq-etf/en/home.html",
     "sourceSummary": "Rethink possibility with Invesco QQQ ETF—a fund offering access to some of today’s most innovative companies.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Invesco",
     "expenseRatio": "0.18%",
@@ -458,7 +430,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://investor.vanguard.com/investment-products/etfs/profile/vug",
     "sourceSummary": "Vanguard Growth ETF (VUG) - Find objective, share price, performance, expense ratio, holding, and risk details.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Vanguard",
     "expenseRatio": "0.03%",
@@ -480,7 +452,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://investor.vanguard.com/investment-products/etfs/profile/vea",
     "sourceSummary": "Vanguard FTSE Developed Markets ETF (VEA) - Find objective, share price, performance, expense ratio, holding, and risk details.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Vanguard",
     "expenseRatio": "0.03%",
@@ -502,7 +474,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.ishares.com/us/products/244049/ishares-core-msci-eafe-etf",
     "sourceSummary": "The iShares Core MSCI EAFE ETF seeks to track the investment results of an index composed of large-, mid- and small-capitalization developed market equities, excluding the U.S. and Canada.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "BlackRock iShares",
     "expenseRatio": "0.07%",
@@ -524,7 +496,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://investor.vanguard.com/investment-products/etfs/profile/vtv",
     "sourceSummary": "Vanguard Value ETF (VTV) - Find objective, share price, performance, expense ratio, holding, and risk details.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Vanguard",
     "expenseRatio": "0.03%",
@@ -546,7 +518,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.ssga.com/us/en/intermediary/etfs/spdr-gold-shares-gld",
     "sourceSummary": "The first US traded gold ETF and the first US-listed ETF backed by a physical asset. Contact our SPDR GLD team to find out more.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "State Street Global Advisors",
     "expenseRatio": "0.40%",
@@ -568,7 +540,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://investor.vanguard.com/investment-products/etfs/profile/bnd",
     "sourceSummary": "Vanguard Total Bond Market ETF (BND) - Find objective, share price, performance, expense ratio, holding, and risk details.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Vanguard",
     "expenseRatio": "0.03%",
@@ -590,7 +562,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.ishares.com/us/products/244050/ishares-core-msci-emerging-markets-etf",
     "sourceSummary": "The iShares Core MSCI Emerging Markets ETF seeks to track the investment results of an index composed of large-, mid- and small-capitalization emerging market equities.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "BlackRock iShares",
     "expenseRatio": "0.09%",
@@ -612,7 +584,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://investor.vanguard.com/investment-products/etfs/profile/vxus",
     "sourceSummary": "Vanguard Total International Stock ETF (VXUS) - Find objective, share price, performance, expense ratio, holding, and risk details.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "Vanguard",
     "expenseRatio": "0.05%",
@@ -634,7 +606,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.ishares.com/us/products/239458/ishares-core-us-aggregate-bond-etf",
     "sourceSummary": "The iShares Core U.S. Aggregate Bond ETF seeks to track the investment results of an index composed of the total U.S. investment-grade bond market.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "BlackRock iShares",
     "expenseRatio": "0.03%",
@@ -656,7 +628,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.ishares.com/us/products/239456/ishares-7-10-year-treasury-bond-etf",
     "sourceSummary": "The iShares 7-10 Year Treasury Bond ETF (IEF) seeks to track the investment results of an index composed of U.S. Treasury bonds with remaining maturities between seven and ten years.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "issuer": "BlackRock iShares",
     "expenseRatio": "0.15%",
@@ -678,7 +650,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://bitcoin.org/en/",
     "sourceSummary": "Bitcoin is an innovative payment network and a new kind of money. Find all you need to know and get started with Bitcoin on bitcoin.org.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "cryptoCategory": "Store of Value",
     "blockchain": "Bitcoin",
@@ -696,7 +668,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://ethereum.org/en/",
     "sourceSummary": "Ethereum is a global, decentralized platform for money and new kinds of applications. On Ethereum, you control your own money, data, and identity. No bank, no middleman, no permission needed.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "cryptoCategory": "Smart Contract Platform",
     "blockchain": "Ethereum",
@@ -714,7 +686,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://www.bnbchain.org/en",
     "sourceSummary": "BNB Chain is a community-driven and decentralized blockchain ecosystem for Web3 dApps, powered by BNB. Join us for massive Web3 access and a future full of opportunity!",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "cryptoCategory": "Exchange Platform Token",
     "blockchain": "BNB Chain",
@@ -732,7 +704,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://xrpl.org/",
     "sourceSummary": "XRPL.org is a community-driven site for the XRP Ledger (XRPL), an open-source, public blockchain. Gain access to technical documentation, reference materials, and blockchain ledger tools.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "cryptoCategory": "Cross-Border Payments",
     "blockchain": "XRP Ledger",
@@ -750,7 +722,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://solana.com/",
     "sourceSummary": "Solana is the high performance network powering internet capital markets, payments, and crypto applications. Fast. Decentralized. Scalable. Energy efficient. Solana can power thousands of transactions per second.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "cryptoCategory": "High-Performance L1",
     "blockchain": "Solana",
@@ -768,7 +740,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://trondao.org/",
     "sourceSummary": "The TRON public blockchain operates as a fully inclusive DAO, a network that is operated and governed by the collective community of users, in a decentralized manner based on the networkâs open-source protocol.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "cryptoCategory": "Stablecoin Settlement Chain",
     "blockchain": "TRON",
@@ -786,7 +758,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://dogecoin.com/",
     "sourceSummary": "An open-source peer-to-peer digital currency, favoured by Shiba Inus worldwide",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "cryptoCategory": "Meme Coin",
     "blockchain": "Dogecoin",
@@ -804,7 +776,7 @@ const PPL_ASSET_PROFILES = {
     "sourceUrl": "https://cardano.org/",
     "sourceSummary": "Cardano is a decentralized blockchain platform built through peer-reviewed research. Explore ada, staking, governance, DApps, and a global open-source community.",
     "collectionMethod": "web_scraping",
-    "fetchedAt": "2026-07-14",
+    "fetchedAt": "2026-07-15",
     "schemaVersion": "1.0",
     "cryptoCategory": "Academic L1",
     "blockchain": "Cardano",
